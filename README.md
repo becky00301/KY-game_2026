@@ -94,12 +94,39 @@ Supabase를 연결한 뒤에는 `game_config` / `upgrade_defs` 행을 대시보�
 랭킹(개인·학과·단과대), 학과 선택, 보스 관문, 미션, 결과 공유 카드, 이메일 인증,
 운영자 페이지.
 
-## 배포 전에 확인할 것
+## 배포 (Vercel)
 
-- **개발용 로컬 백엔드는 운영에 쓸 수 없다.** 프로세스 메모리에 상태를 두므로
-  Vercel 같은 서버리스에서는 인스턴스마다 칼이 달라진다. 반드시 Supabase를 연결한다.
-- 터치는 1초에 한 번 묶어서 보낸다. 동시 접속자가 많으면 그만큼 요청이 늘어나므로,
+1. GitHub 저장소를 만들고 푸시한다.
+
+```bash
+git remote add origin https://github.com/<계정>/<저장소>.git
+git push -u origin main
+```
+
+2. Vercel에서 그 저장소를 Import 한다. Next.js는 자동 인식되므로 빌드 설정은 건드리지 않아도 된다.
+3. **배포 전에** Settings → Environment Variables 에 두 값을 넣는다.
+   Production·Preview·Development 를 모두 체크한다.
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+4. Deploy.
+
+> `NEXT_PUBLIC_` 로 시작하는 값은 **빌드 시점에 코드에 박힌다.** 이미 배포한 뒤에 값을
+> 바꾸거나 추가했다면 재시작이 아니라 **재배포(Redeploy)** 를 해야 반영된다.
+
+환경변수 없이 배포하면 게임 대신 설정 안내 화면이 뜨고 `/api/sword/*` 는 503을 돌려준다.
+개발용 로컬 백엔드가 서버리스에서 인스턴스마다 다른 칼을 만들어 조용히 깨지는 것을
+막기 위한 장치다.
+
+## 행사 전에 점검할 것
+
+- 터치는 1초에 한 번 묶어서 보낸다. 동시 접속자 수만큼 초당 요청이 생기므로,
   행사 규모에 맞춰 `FLUSH_INTERVAL_MS`(components/GameScreen.tsx)와 Supabase 요금제를
-  미리 점검한다.
+  미리 확인한다. 접속자가 많을 것 같으면 이 값을 2~3초로 늘리는 것이 가장 손쉬운 완화책이다.
 - 기기 식별값은 연타 제한 용도로만 쓰는 임의의 UUID다. 지우고 다시 들어오면 새 값이
-  발급되므로, 작정한 조작을 완전히 막지는 못한다. 필요하면 서버측 IP 단위 제한을 더한다.
+  발급되므로 작정한 조작을 완전히 막지는 못한다. 필요하면 서버측 IP 단위 제한을 더한다.
+- 실제 접속자 수로 한 번 리허설해 보고 `game_config`의 `stage_thresholds`를 조정한다.
+  대시보드에서 바로 고칠 수 있어 재배포가 필요 없다.
