@@ -267,10 +267,17 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
 
       <header className="hud">
         <div className="hud-row">
-          <div className="team-badge">
+          <button
+            className="team-badge"
+            onClick={onChangeTeam}
+            aria-label={`지금은 ${theme.short} 공동 칼. 눌러서 편 바꾸기`}
+          >
             <span className="badge-emblem">{theme.emblem}</span>
             <span className="badge-text">{theme.short} 공동 칼</span>
-          </div>
+            <span className="badge-swap" aria-hidden="true">
+              ⇄
+            </span>
+          </button>
           <div className="hud-right">
             <div className="online" title={`${theme.short} 칼을 함께 보고 있는 사람`}>
               <span className="online-dot" />

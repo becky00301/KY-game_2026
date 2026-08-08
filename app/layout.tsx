@@ -17,6 +17,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
+      <head>
+        {/* Pretendard 가변 폰트 동적 서브셋 — 자체 호스팅(public/fonts/pretendard) */}
+        <link rel="stylesheet" href="/fonts/pretendard/pretendard.css" />
+      </head>
       <body>{children}</body>
     </html>
   );

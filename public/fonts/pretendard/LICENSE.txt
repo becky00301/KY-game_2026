@@ -1,0 +1,9 @@
+Pretendard
+Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
+https://github.com/orioncactus/pretendard
+
+이 폰트는 SIL Open Font License, Version 1.1 로 배포된다.
+전문: https://scripts.sil.org/OFL
+
+이 디렉터리의 파일은 pretendard npm 패키지 v1.3.9 의
+dist/web/variable/ 에서 가져온 가변 폰트 동적 서브셋이다.

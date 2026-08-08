@@ -27,8 +27,8 @@ body {
 body {
   background: #0d0407;
   color: var(--ink);
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR",
-    system-ui, sans-serif;
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   font-feature-settings: "tnum";
   user-select: none;
   -webkit-user-select: none;
@@ -244,11 +244,25 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 13px 6px 9px;
+  padding: 6px 11px 6px 9px;
   border-radius: 999px;
   background: var(--panel);
   border: 1px solid var(--panel-line);
   backdrop-filter: blur(8px);
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.team-badge:active {
+  transform: scale(0.96);
+  border-color: var(--accent);
+}
+
+/* 눌러서 편을 바꿀 수 있다는 표시 */
+.badge-swap {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.75;
 }
 
 .badge-emblem {
