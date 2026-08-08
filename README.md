@@ -121,6 +121,65 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 개발용 로컬 백엔드가 서버리스에서 인스턴스마다 다른 칼을 만들어 조용히 깨지는 것을
 막기 위한 장치다.
 
+## 함께 작업하기
+
+### 저장소 주인이 할 일
+
+GitHub 저장소 → Settings → Collaborators → **Add people** 로 친구를 초대한다.
+초대를 수락하면 그때부터 push 할 수 있다.
+
+저장소는 공개라 초대 없이도 코드를 보고 클론할 수는 있지만, 고치려면 초대가 필요하다.
+
+### 친구가 처음 할 일
+
+```bash
+git clone https://github.com/becky00301/KY-game_2026.git
+cd KY-game_2026
+npm install
+npm run dev
+```
+
+이것만으로 바로 플레이하며 개발할 수 있다. Supabase 자격증명이 없으면
+**개발용 로컬 백엔드**로 돌아가므로, 실제 행사용 칼을 건드리지 않는다.
+혼자 화면을 만지고 고칠 때는 이 상태가 오히려 안전하다.
+
+실제 공유 서버에 붙여 확인해야 할 때만 `.env.local` 을 만든다.
+
+```bash
+cp .env.local.example .env.local
+```
+
+값 두 개는 저장소에 넣지 않으므로 주인에게 따로 받는다. anon key는 브라우저에
+노출되는 공개 값이라 카카오톡 등으로 전달해도 문제없다. **다만 이때는 진짜 칼을
+두드리는 것이므로 실제 수치가 올라간다.**
+
+### 서로 충돌하지 않게
+
+둘 다 `main` 에 바로 push 하면 서로 밀어내기 쉽다. 작업은 브랜치에서 하고
+GitHub에서 Pull Request로 합치는 편이 안전하다.
+
+```bash
+git switch -c 작업이름
+git push -u origin 작업이름
+```
+
+Vercel은 `main` 에 push될 때마다 자동으로 재배포한다. 브랜치를 push하면
+미리보기 주소가 따로 생기므로, 합치기 전에 실제 화면으로 확인할 수 있다.
+
+친구가 push해도 배포는 주인의 Vercel 프로젝트에서 자동으로 돌아간다.
+친구에게 Vercel 계정 권한을 따로 줄 필요는 없다.
+
+### 커밋하면 안 되는 것
+
+`.env.local` 은 `.gitignore` 에 걸려 있어 자동으로 빠진다. 실수로 키를 코드에
+직접 적어 넣지만 않으면 된다. Supabase의 **service_role 키는 어디에도 넣지 않는다.**
+
+### 스키마를 바꿀 때
+
+`supabase/schema.sql` 을 고쳤다면 파일만 고쳐서는 반영되지 않는다.
+Supabase 대시보드 SQL Editor에서 실행해야 실제로 적용된다. 둘이 각자 실행하면
+꼬일 수 있으니 스키마 변경은 한 사람이 맡는 편이 낫다.
+
 ## 칼 초기화
 
 테스트로 쌓인 수치를 0으로 되돌리려면 SQL Editor에서
