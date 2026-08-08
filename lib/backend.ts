@@ -153,6 +153,62 @@ export function subscribeSword(team: TeamId, onChange: (state: SwordState) => vo
   };
 }
 
+/**
+ * 지금 같은 칼을 보고 있는 사람 수.
+ *
+ * Supabase에서는 Realtime Presence를 쓴다. DB에 쓰지 않고 접속/해제만으로 집계되므로
+ * 사람이 많아져도 부하가 늘지 않고, 창을 닫으면 자동으로 빠진다.
+ * 로컬 백엔드에서는 짧은 주기의 heartbeat로 대신한다.
+ */
+export function subscribePresence(
+  team: TeamId,
+  onCount: (count: number) => void
+): () => void {
+  const me = clientId();
+
+  if (backendMode === "supabase") {
+    const channel = supabase().channel(`presence:${team}`, {
+      config: { presence: { key: me } },
+    });
+
+    const sync = () => {
+      // 같은 기기가 여러 탭을 열어도 한 명으로 센다.
+      onCount(Object.keys(channel.presenceState()).length);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, sync)
+      .on("presence", { event: "join" }, sync)
+      .on("presence", { event: "leave" }, sync)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void channel.track({ at: Date.now() });
+      });
+
+    return () => {
+      void supabase().removeChannel(channel);
+    };
+  }
+
+  let alive = true;
+  const beat = async () => {
+    if (!alive) return;
+    try {
+      const data = (await localJson("/api/sword/presence", { team, clientId: me })) as {
+        online?: number;
+      };
+      if (alive && typeof data.online === "number") onCount(data.online);
+    } catch {
+      /* 다음 주기에 다시 시도 */
+    }
+  };
+  void beat();
+  const timer = window.setInterval(beat, 5_000);
+  return () => {
+    alive = false;
+    window.clearInterval(timer);
+  };
+}
+
 /** 기기 식별값 — 계정이 아니라 연타 제한 용도로만 쓴다. */
 export function clientId(): string {
   const KEY = "kyg.client";

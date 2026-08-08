@@ -19,7 +19,15 @@ import {
   tapPower,
 } from "@/lib/engine";
 import { TEAMS, formatNumber, formatRate } from "@/lib/game";
-import { backendMode, buyUpgrade, clientId, fetchSword, sendTaps, subscribeSword } from "@/lib/backend";
+import {
+  backendMode,
+  buyUpgrade,
+  clientId,
+  fetchSword,
+  sendTaps,
+  subscribePresence,
+  subscribeSword,
+} from "@/lib/backend";
 import { isSfxEnabled, playFanfare, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
 import { TeamId } from "@/lib/game";
 
@@ -49,6 +57,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
   const [sfxOn, setSfxOn] = useState(true);
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
+  const [online, setOnline] = useState(0);
 
   const lastTapAt = useRef(0);
   const tapWindow = useRef<number[]>([]);
@@ -109,6 +118,13 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
       alive = false;
       unsubscribe();
     };
+  }, [team]);
+
+  // 지금 같은 칼을 보고 있는 사람 수
+  useEffect(() => {
+    setOnline(0);
+    const unsubscribe = subscribePresence(team, setOnline);
+    return unsubscribe;
   }, [team]);
 
   // 밀린 터치를 서버로 보낸다
@@ -255,7 +271,13 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
             <span className="badge-emblem">{theme.emblem}</span>
             <span className="badge-text">{theme.short} 공동 칼</span>
           </div>
-          <button
+          <div className="hud-right">
+            <div className="online" title={`${theme.short} 칼을 함께 보고 있는 사람`}>
+              <span className="online-dot" />
+              <span className="online-count">{online > 0 ? formatNumber(online) : "—"}</span>
+              <span className="online-label">명 접속</span>
+            </div>
+            <button
             className="icon-btn"
             onClick={() => {
               const next = !sfxOn;
@@ -264,8 +286,9 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
             }}
             aria-label="소리 켜기/끄기"
           >
-            {sfxOn && isSfxEnabled() ? "🔊" : "🔇"}
-          </button>
+              {sfxOn && isSfxEnabled() ? "🔊" : "🔇"}
+            </button>
+          </div>
         </div>
 
         <div className="energy">

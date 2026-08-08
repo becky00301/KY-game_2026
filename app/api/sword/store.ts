@@ -26,10 +26,31 @@ interface Budget {
 const globalStore = globalThis as unknown as {
   __kygSwords?: Map<TeamId, SwordState>;
   __kygBudgets?: Map<string, Budget>;
+  __kygPresence?: Map<string, number>;
 };
 
 const swords = (globalStore.__kygSwords ??= new Map<TeamId, SwordState>());
 const budgets = (globalStore.__kygBudgets ??= new Map<string, Budget>());
+/** `${team}:${clientId}` → 마지막 heartbeat 시각 */
+const presence = (globalStore.__kygPresence ??= new Map<string, number>());
+
+/** heartbeat가 이 시간 안에 들어온 기기만 접속 중으로 센다. */
+const PRESENCE_TTL_MS = 15_000;
+
+export function touchPresence(team: TeamId, clientId: string): number {
+  const now = Date.now();
+  presence.set(`${team}:${clientId}`, now);
+
+  let online = 0;
+  for (const [key, seen] of presence) {
+    if (now - seen > PRESENCE_TTL_MS) {
+      presence.delete(key);
+    } else if (key.startsWith(`${team}:`)) {
+      online++;
+    }
+  }
+  return online;
+}
 
 export function getSword(team: TeamId): SwordState {
   let state = swords.get(team);
