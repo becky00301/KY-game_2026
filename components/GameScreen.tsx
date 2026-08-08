@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sword from "./Sword";
 import UpgradeSheet from "./UpgradeSheet";
+import CardReveal from "./CardReveal";
+import CardGallery from "./CardGallery";
+import { cardsFor } from "@/lib/cards";
 import {
   FEVER_MAX,
   FEVER_MULTIPLIER,
@@ -58,6 +61,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
   const [online, setOnline] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const lastTapAt = useRef(0);
   const tapWindow = useRef<number[]>([]);
@@ -157,7 +161,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     return () => window.clearInterval(timer);
   }, []);
 
-  // 진화 연출
+  // 진화하면 카드를 공개한다. 그림을 볼 시간을 주려고 자동으로 닫지 않는다.
   useEffect(() => {
     if (!ready) return;
     if (stage > prevStage.current) {
@@ -165,8 +169,6 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
       setEvolveTo(stage);
       playFanfare();
       if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
-      const t = setTimeout(() => setEvolveTo(null), 2400);
-      return () => clearTimeout(t);
     }
     prevStage.current = stage;
   }, [stage, ready]);
@@ -252,6 +254,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
   );
 
   const stageName = theme.stages[Math.min(stage, theme.stages.length - 1)];
+  const cards = useMemo(() => cardsFor(team, theme.stages), [team, theme.stages]);
   const feverPct = useMemo(
     () => Math.min((sword.feverGauge / FEVER_MAX) * 100, 100),
     [sword.feverGauge]
@@ -284,6 +287,13 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
               <span className="online-count">{online > 0 ? formatNumber(online) : "—"}</span>
               <span className="online-label">명 접속</span>
             </div>
+            <button
+              className="icon-btn"
+              onClick={() => setGalleryOpen(true)}
+              aria-label="칼 도감 열기"
+            >
+              🃏
+            </button>
             <button
             className="icon-btn"
             onClick={() => {
@@ -395,14 +405,21 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
         />
       )}
 
-      {evolveTo !== null && (
-        <div className="evolve-overlay">
-          <div className="evolve-card">
-            <p className="evolve-kicker">{theme.short}의 칼이 진화했다</p>
-            <h2 className="evolve-name">{theme.stages[Math.min(evolveTo, theme.stages.length - 1)]}</h2>
-            <p className="evolve-sub">생산량 ×{Math.pow(1.5, evolveTo).toFixed(1)}</p>
-          </div>
-        </div>
+      {evolveTo !== null && cards[Math.min(evolveTo, cards.length - 1)] && (
+        <CardReveal
+          card={cards[Math.min(evolveTo, cards.length - 1)]}
+          theme={theme}
+          onClose={() => setEvolveTo(null)}
+        />
+      )}
+
+      {galleryOpen && (
+        <CardGallery
+          cards={cards}
+          stage={stage}
+          theme={theme}
+          onClose={() => setGalleryOpen(false)}
+        />
       )}
 
       {feverBanner && (

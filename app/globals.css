@@ -1026,3 +1026,220 @@ button {
   font-size: 11px;
   color: var(--ink-dim);
 }
+
+/* ---------------- 카드 ---------------- */
+
+.card-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.25));
+  display: grid;
+  place-items: center;
+}
+
+.card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* 픽셀 아트가 확대되어도 뭉개지지 않도록 */
+  image-rendering: pixelated;
+}
+
+.card-art.fallback {
+  gap: 6px;
+  padding: 12px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+
+.card-emblem {
+  font-size: 40px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.card-fallback-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.card-fallback-note {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.card-art.locked {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.card-lock {
+  font-size: 34px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.16);
+}
+
+/* 진화 카드 공개 */
+
+.reveal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(3, 1, 5, 0.82);
+  backdrop-filter: blur(10px);
+  animation: fadeIn 0.25s ease;
+}
+
+.reveal-rays {
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--glow) 26%, transparent) 12deg,
+    transparent 24deg
+  );
+  animation: raySpin 14s linear infinite;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@keyframes raySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.reveal-card {
+  position: relative;
+  width: min(92vw, 360px);
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 20px 20px 18px;
+  border-radius: 22px;
+  text-align: center;
+  background: linear-gradient(165deg, rgba(28, 12, 18, 0.96), rgba(10, 5, 12, 0.96));
+  border: 1px solid var(--panel-line);
+  box-shadow: 0 30px 70px -28px var(--glow);
+  animation: cardPop 0.42s cubic-bezier(0.2, 1.1, 0.35, 1);
+}
+
+@keyframes cardPop {
+  from {
+    transform: scale(0.86) translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.reveal-kicker {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.reveal-frame {
+  padding: 8px;
+  border-radius: 18px;
+  background: linear-gradient(150deg, var(--accent), transparent 42%, var(--primary));
+}
+
+.reveal-title {
+  margin-top: 14px;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+}
+
+.reveal-caption {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+
+.reveal-artist {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.reveal-unlock {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.reveal-close {
+  margin-top: 16px;
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.reveal-close:active {
+  transform: scale(0.985);
+}
+
+/* 도감 */
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  list-style: none;
+}
+
+.gallery-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  text-align: center;
+}
+
+.gallery-item:not(.locked):active {
+  transform: scale(0.97);
+}
+
+.gallery-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  line-height: 1.35;
+}
+
+.gallery-item.locked .gallery-name {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.gallery-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(3, 1, 5, 0.86);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.2s ease;
+}
+
+.gallery-zoom .reveal-frame {
+  width: min(84vw, 320px);
+  text-align: center;
+  background: linear-gradient(150deg, var(--accent), transparent 42%, var(--primary));
+}
