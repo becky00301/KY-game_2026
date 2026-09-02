@@ -24,18 +24,14 @@ export interface CardInfo {
 const CAPTIONS: Record<TeamId, string[]> = {
   ku: [
     "아직 아무 기운도 담기지 않은 검.",
-    "처음으로 안암의 기운이 깃들었다.",
     "수없이 두드려 단단해진 날.",
-    "크림슨이 칼날을 타고 번진다.",
     "호랑이의 발톱이 검에 새겨졌다.",
     "고연전을 위해 벼려진 검.",
     "안암의 모든 기운이 하나로 모였다.",
   ],
   yu: [
     "아직 아무 기운도 담기지 않은 검.",
-    "처음으로 신촌의 기운이 깃들었다.",
     "수없이 두드려 단단해진 날.",
-    "푸른 기운이 칼날을 타고 번진다.",
     "독수리의 날개가 검에 새겨졌다.",
     "연고전을 위해 벼려진 검.",
     "신촌의 모든 기운이 하나로 모였다.",
@@ -44,8 +40,8 @@ const CAPTIONS: Record<TeamId, string[]> = {
 
 /** 그린 사람 표기 — 카드마다 다르면 여기서 단계별로 지정한다. */
 const ARTISTS: Record<TeamId, (string | undefined)[]> = {
-  ku: [undefined, undefined, undefined, undefined, undefined, undefined, undefined],
-  yu: [undefined, undefined, undefined, undefined, undefined, undefined, undefined],
+  ku: [undefined, undefined, undefined, undefined, undefined],
+  yu: [undefined, undefined, undefined, undefined, undefined],
 };
 
 export function cardsFor(team: TeamId, stageNames: string[]): CardInfo[] {

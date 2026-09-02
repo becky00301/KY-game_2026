@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CardInfo } from "@/lib/cards";
-import { TeamTheme } from "@/lib/game";
+import { TeamTheme, emblemSrc } from "@/lib/game";
 
 /**
  * 카드 그림. 아직 이미지 파일이 없으면 단계 이름만 있는 대체 화면을 보여준다.
@@ -12,10 +12,13 @@ export default function CardArt({
   card,
   theme,
   locked = false,
+  emblemEvolved = false,
 }: {
   card: CardInfo;
   theme: TeamTheme;
   locked?: boolean;
+  /** 팀의 검이 최종 단계에 도달했으면 폴백 아이콘도 진화한 심볼로 보여준다 */
+  emblemEvolved?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -30,7 +33,7 @@ export default function CardArt({
   if (failed) {
     return (
       <div className="card-art fallback">
-        <span className="card-emblem">{theme.emblem}</span>
+        <img className="card-emblem" src={emblemSrc(theme.id, emblemEvolved)} alt="" />
         <span className="card-fallback-title">{card.title}</span>
         <span className="card-fallback-note">일러스트 준비 중</span>
       </div>

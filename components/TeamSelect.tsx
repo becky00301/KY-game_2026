@@ -1,17 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { TEAMS, TEAM_IDS, TeamId } from "@/lib/game";
+import { playTitleBgm, setTitleBgmMuted, stopTitleBgm } from "@/lib/bgm";
 
 export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void }) {
+  const [soundOn, setSoundOn] = useState(true);
+
+  useEffect(() => {
+    playTitleBgm();
+    return () => stopTitleBgm();
+  }, []);
+
+  useEffect(() => {
+    setTitleBgmMuted(!soundOn);
+  }, [soundOn]);
+
   return (
     <div className="select-screen">
+      <button
+        className="icon-btn select-sound-btn"
+        onClick={() => setSoundOn((v) => !v)}
+        aria-label="배경음악 켜기/끄기"
+      >
+        {soundOn ? "🔊" : "🔇"}
+      </button>
+
       <header className="select-head">
-        <p className="select-kicker">고연전 응원 클리커</p>
-        <h1 className="select-title">
-          모두가 두드리는
-          <br />
-          하나의 검
-        </h1>
+        <img
+          src="/images/logo/title-logo.webp"
+          alt="고연전 응원 클리커 — 모두가 두드리는 하나의 검"
+          className="select-logo"
+        />
         <p className="select-sub">어느 쪽 칼을 함께 키울지 고르세요</p>
       </header>
 
@@ -28,10 +48,10 @@ export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void 
                   "--card-primary": t.colors.primary,
                   "--card-deep": t.colors.primaryDeep,
                   "--card-accent": t.colors.accent,
+                  "--card-glow": t.colors.glow,
                 } as React.CSSProperties
               }
             >
-              <span className="team-emblem">{t.emblem}</span>
               <span className="team-name">{t.name}</span>
               <span className="team-short">{t.short}</span>
               <span className="team-slogan">{t.slogan}</span>

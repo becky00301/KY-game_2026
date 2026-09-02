@@ -12,7 +12,7 @@ export interface TeamTheme {
   slogan: string;
   spirit: string; // 재화 이름
   emblem: string;
-  /** 칼 7단계 이름 */
+  /** 칼 5단계 이름 */
   stages: string[];
   colors: {
     primary: string;
@@ -34,15 +34,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     slogan: "안암의 기운을 모아 승리의 검을 완성하라",
     spirit: "안암의 기운",
     emblem: "🐯",
-    stages: [
-      "낡은 연습검",
-      "새내기의 검",
-      "안암 단련검",
-      "크림슨 응원검",
-      "호랑이 발톱검",
-      "고연전 승리검",
-      "전설의 안암검",
-    ],
+    stages: ["낡은 연습검", "안암 단련검", "호랑이 발톱검", "고연전 승리검", "전설의 안암검"],
     colors: {
       primary: "#a4142f",
       primaryDeep: "#6d0d20",
@@ -59,15 +51,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     slogan: "신촌의 기운을 모아 승리의 검을 완성하라",
     spirit: "신촌의 기운",
     emblem: "🦅",
-    stages: [
-      "낡은 연습검",
-      "새내기의 검",
-      "신촌 단련검",
-      "블루 응원검",
-      "독수리 날개검",
-      "연고전 승리검",
-      "전설의 신촌검",
-    ],
+    stages: ["낡은 연습검", "신촌 단련검", "독수리 날개검", "연고전 승리검", "전설의 신촌검"],
     colors: {
       primary: "#12559c",
       primaryDeep: "#082c5a",
@@ -104,6 +88,14 @@ export function clearTeam() {
   } catch {
     /* noop */
   }
+}
+
+/**
+ * 학교 심볼 이미지. 검이 최종 단계에 도달하면(`evolved`) 진화한 심볼로 바뀐다.
+ * "OO 공동 칼" 배지와 도감 카드 폴백 아이콘 두 곳에서 같이 쓴다.
+ */
+export function emblemSrc(team: TeamId, evolved: boolean): string {
+  return `/images/emblem/emblem-${team}${evolved ? "-stage5" : ""}.webp`;
 }
 
 // ---------- 표기 ----------

@@ -21,7 +21,7 @@ import {
   starRank,
   tapPower,
 } from "@/lib/engine";
-import { TEAMS, formatNumber, formatRate } from "@/lib/game";
+import { TEAMS, emblemSrc, formatNumber, formatRate } from "@/lib/game";
 import {
   backendMode,
   buyUpgrade,
@@ -32,6 +32,13 @@ import {
   subscribeSword,
 } from "@/lib/backend";
 import { isSfxEnabled, playFanfare, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
+import {
+  bgmGroupSuffix,
+  gameplayGroupOf,
+  playGameplayBgm,
+  setGameplayBgmMuted,
+  stopGameplayBgm,
+} from "@/lib/bgm";
 import { TeamId } from "@/lib/game";
 
 interface Floater {
@@ -76,6 +83,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
 
   const theme = TEAMS[team];
   const stage = stageOf(sword.lifetime);
+  const bgmGroup = gameplayGroupOf(stage);
   const progress = stageProgress(sword.lifetime);
   const stars = starRank(sword.lifetime);
   const perTap = tapPower(sword);
@@ -93,6 +101,19 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     root.style.setProperty("--bg-from", c.bgFrom);
     root.style.setProperty("--bg-to", c.bgTo);
   }, [theme]);
+
+  // 게임 화면을 나가면(팀 선택으로 돌아가면) 브금을 완전히 정지한다.
+  useEffect(() => stopGameplayBgm, []);
+
+  // 진화 단계 그룹이 바뀔 때만 트랙을 교체한다.
+  useEffect(() => {
+    playGameplayBgm(team, bgmGroup);
+  }, [team, bgmGroup]);
+
+  // 기존 🔊/🔇 버튼과 연동 — 타격 효과음뿐 아니라 이 브금도 같이 음소거한다.
+  useEffect(() => {
+    setGameplayBgmMuted(!sfxOn);
+  }, [sfxOn]);
 
   // 첫 로딩 + 다른 사람의 터치 구독
   useEffect(() => {
@@ -253,15 +274,20 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     [team]
   );
 
+  const isMaxStage = stage >= theme.stages.length - 1;
   const stageName = theme.stages[Math.min(stage, theme.stages.length - 1)];
   const cards = useMemo(() => cardsFor(team, theme.stages), [team, theme.stages]);
+  const bgImage = `/images/bg/bg-${team}-${bgmGroupSuffix(bgmGroup)}.webp`;
+  const gameBgStyle = {
+    backgroundImage: `radial-gradient(66% 50% at 50% 44%, rgba(5,2,8,0.68), rgba(5,2,8,0.15) 70%), linear-gradient(180deg, rgba(5,2,8,0.62) 0%, rgba(5,2,8,0.42) 35%, rgba(5,2,8,0.60) 70%, rgba(5,2,8,0.88) 100%), url("${bgImage}")`,
+  };
   const feverPct = useMemo(
     () => Math.min((sword.feverGauge / FEVER_MAX) * 100, 100),
     [sword.feverGauge]
   );
 
   return (
-    <div className={`game ${feverActive ? "is-fever" : ""}`}>
+    <div className={`game ${feverActive ? "is-fever" : ""}`} style={gameBgStyle}>
       <div className="bg-orbs" aria-hidden="true">
         <span />
         <span />
@@ -275,7 +301,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
             onClick={onChangeTeam}
             aria-label={`지금은 ${theme.short} 공동 칼. 눌러서 편 바꾸기`}
           >
-            <span className="badge-emblem">{theme.emblem}</span>
+            <img className="badge-emblem" src={emblemSrc(team, isMaxStage)} alt="" />
             <span className="badge-text">{theme.short} 공동 칼</span>
             <span className="badge-swap" aria-hidden="true">
               ⇄

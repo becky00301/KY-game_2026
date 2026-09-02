@@ -50,6 +50,7 @@ button {
 /* ---------------- 팀 선택 ---------------- */
 
 .select-screen {
+  position: relative;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -62,26 +63,22 @@ button {
     #0b0710;
 }
 
+.select-sound-btn {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 18px;
+  z-index: 1;
+}
+
 .select-head {
   text-align: center;
 }
 
-.select-kicker {
-  font-size: 13px;
-  letter-spacing: 0.24em;
-  color: var(--ink-dim);
-  margin-bottom: 14px;
-}
-
-.select-title {
-  font-size: 40px;
-  line-height: 1.16;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  background: linear-gradient(180deg, #fff, #cbb9a4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+.select-logo {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .select-sub {
@@ -103,20 +100,20 @@ button {
   border-radius: 22px;
   text-align: left;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--card-primary), var(--card-deep));
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--card-deep) 62%, transparent),
+    color-mix(in srgb, var(--card-deep) 22%, transparent)
+  );
+  backdrop-filter: blur(6px);
+  border: 1.5px solid color-mix(in srgb, var(--card-glow) 55%, transparent);
   box-shadow: 0 18px 40px -18px var(--card-primary);
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .team-card:active {
   transform: scale(0.975);
-}
-
-.team-emblem {
-  font-size: 34px;
-  line-height: 1;
-  margin-bottom: 8px;
+  border-color: color-mix(in srgb, var(--card-glow) 85%, transparent);
 }
 
 .team-name {
@@ -159,8 +156,11 @@ button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: linear-gradient(170deg, var(--bg-from), var(--bg-to) 60%, #05020a);
-  transition: background 0.6s ease;
+  background-color: var(--bg-to);
+  background-image: linear-gradient(170deg, var(--bg-from), var(--bg-to) 60%, #05020a);
+  background-size: cover;
+  background-position: center top;
+  transition: background-image 0.6s ease;
 }
 
 .game.is-fever {
@@ -266,7 +266,11 @@ button {
 }
 
 .badge-emblem {
-  font-size: 16px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 
 .badge-text {
@@ -426,6 +430,23 @@ button {
   width: 100%;
   height: auto;
   display: block;
+  filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+
+.sword-box {
+  width: min(74vw, 300px);
+  height: min(52dvh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sword-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
 }
 
@@ -631,7 +652,7 @@ button {
   flex-direction: column;
   border-radius: 26px 26px 0 0;
   padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, #1b1016, #0d0710);
+  background: #000;
   border-top: 1px solid var(--panel-line);
   animation: slideUp 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
@@ -1056,8 +1077,11 @@ button {
 }
 
 .card-emblem {
-  font-size: 40px;
-  line-height: 1;
+  width: 62%;
+  max-width: 190px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  object-fit: cover;
   opacity: 0.85;
 }
 

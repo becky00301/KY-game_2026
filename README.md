@@ -61,7 +61,7 @@ cp .env.local.example .env.local
 app/
   page.tsx            팀 선택 ↔ 게임 화면
   globals.css         전체 스타일 (팀 색상은 CSS 변수로 주입)
-  preview/page.tsx    개발용 — 칼 7단계를 두 팀 모두 한 화면에서 확인
+  preview/page.tsx    개발용 — 칼 5단계를 두 팀 모두 한 화면에서 확인
   api/sword/          개발용 로컬 백엔드 (Supabase 없을 때만)
 components/
   TeamSelect.tsx      고대 / 연대 선택
