@@ -1,21 +1,55 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { TeamTheme } from "@/lib/game";
 
 interface Props {
-  stage: number; // 0 ~ 6
+  stage: number; // 0 ~ 4
   theme: TeamTheme;
   fever: boolean;
 }
 
 /**
- * 단계가 오를수록 칼날이 길어지고, 날개형 가드·보석·오라가 붙는다.
- * 이미지 에셋 없이 SVG만으로 성장감을 표현.
+ * 단계별 실제 칼 일러스트를 보여준다. 단계마다 가로세로 비율이 꽤 달라서
+ * (1단계는 세로로 길쭉, 5단계는 날개·리본 때문에 훨씬 넓적) object-fit: contain으로
+ * 절대 잘리지 않게 렌더링한다. 이미지가 없는 팀·단계는 기존 SVG 절차적 생성으로 폴백한다.
  */
 export default function Sword({ stage, theme, fever }: Props) {
+  const s = Math.min(stage, 4);
+  const src = `/images/sword/sword-${theme.id}-stage${s}.webp`;
+  const [failed, setFailed] = useState(false);
+
+  // 팀·단계가 바뀌면 새 이미지를 다시 시도한다.
+  useEffect(() => setFailed(false), [src]);
+
+  if (failed) {
+    return <ProceduralSword stage={stage} theme={theme} fever={fever} />;
+  }
+
+  return (
+    <div className="sword-box">
+      <img
+        src={src}
+        alt=""
+        className="sword-img"
+        style={
+          fever
+            ? { filter: "drop-shadow(0 18px 30px rgba(0,0,0,0.55)) drop-shadow(0 0 26px var(--glow)) brightness(1.12)" }
+            : undefined
+        }
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+/**
+ * 단계가 오를수록 칼날이 길어지고, 날개형 가드·보석·오라가 붙는다.
+ * 실제 칼 이미지가 없을 때만 쓰는 SVG 절차적 폴백.
+ */
+function ProceduralSword({ stage, theme, fever }: Props) {
   const c = theme.colors;
-  const s = Math.min(stage, 6);
+  const s = Math.min(stage, 4);
 
   // 한 페이지에 칼이 여러 개 있어도 defs가 섞이지 않도록 id를 인스턴스마다 분리
   // useId는 React 버전에 따라 ":r0:" · "«r0»" 등을 돌려주므로 url(#...)에 쓸 수 있게 정리한다
@@ -48,7 +82,7 @@ export default function Sword({ stage, theme, fever }: Props) {
         </linearGradient>
         <linearGradient id={ids.bladeHot} x1="0" y1="1" x2="0" y2="0">
           <stop offset="0%" stopColor={c.primary} stopOpacity={s >= 3 ? 0.85 : 0.25} />
-          <stop offset="60%" stopColor={c.glow} stopOpacity={s >= 5 ? 0.7 : 0.2} />
+          <stop offset="60%" stopColor={c.glow} stopOpacity={s >= 4 ? 0.7 : 0.2} />
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0.1" />
         </linearGradient>
         <linearGradient id={ids.grip} x1="0" y1="0" x2="1" y2="0">
@@ -147,7 +181,7 @@ export default function Sword({ stage, theme, fever }: Props) {
       </g>
 
       {/* 최종 단계 광휘 */}
-      {s >= 6 && (
+      {s >= 4 && (
         <g className="halo">
           {Array.from({ length: 8 }).map((_, i) => (
             <rect

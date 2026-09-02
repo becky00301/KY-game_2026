@@ -27,17 +27,9 @@ export interface SwordState {
 // ---------- 튜닝 수치 ----------
 
 /** 누적 기운 기준 진화 임계값. 학교 전체가 함께 올리므로 개인용보다 훨씬 크다. */
-export const STAGE_THRESHOLDS = [
-  0,
-  50_000,
-  500_000,
-  4_000_000,
-  30_000_000,
-  200_000_000,
-  1_500_000_000,
-];
+export const STAGE_THRESHOLDS = [0, 50_000, 1_500_000, 45_000_000, 1_500_000_000];
 
-export const STAGE_GROWTH = 1.5;
+export const STAGE_GROWTH = 1.85;
 
 /** 한 번의 전송으로 인정하는 최대 터치 수 */
 export const MAX_TAPS_PER_FLUSH = 40;

@@ -3,6 +3,7 @@
 import CardArt from "./CardArt";
 import { CardInfo } from "@/lib/cards";
 import { TeamTheme } from "@/lib/game";
+import { stageMultiplier } from "@/lib/engine";
 
 /** 진화 순간 팀 전원에게 뜨는 카드 공개 연출. */
 export default function CardReveal({
@@ -21,14 +22,16 @@ export default function CardReveal({
         <p className="reveal-kicker">{theme.short}의 칼이 진화했다</p>
 
         <div className="reveal-frame">
-          <CardArt card={card} theme={theme} />
+          <CardArt card={card} theme={theme} emblemEvolved={card.stage >= theme.stages.length - 1} />
         </div>
 
         <h2 className="reveal-title">{card.title}</h2>
         <p className="reveal-caption">{card.caption}</p>
         {card.artist && <p className="reveal-artist">그림 {card.artist}</p>}
 
-        <p className="reveal-unlock">카드 {card.stage + 1}번 해금 · 생산량 ×{Math.pow(1.5, card.stage).toFixed(1)}</p>
+        <p className="reveal-unlock">
+          카드 {card.stage + 1}번 해금 · 생산량 ×{stageMultiplier(card.stage).toFixed(1)}
+        </p>
 
         <button className="reveal-close" onClick={onClose}>
           계속 두드리기

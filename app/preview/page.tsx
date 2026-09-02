@@ -3,7 +3,7 @@
 import Sword from "@/components/Sword";
 import { TEAMS, TeamId } from "@/lib/game";
 
-/** 개발용 단계 갤러리 — 칼 7단계 외형을 한눈에 확인한다. */
+/** 개발용 단계 갤러리 — 칼 5단계 외형을 한눈에 확인한다. */
 export default function PreviewPage() {
   return (
     <div style={{ padding: 16, background: "#0b0710", minHeight: "100dvh" }}>
