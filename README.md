@@ -65,15 +65,23 @@ app/
   api/sword/          개발용 로컬 백엔드 (Supabase 없을 때만)
 components/
   TeamSelect.tsx      고대 / 연대 선택
+  TutorialIntro.tsx   진영을 처음 고를 때 1회 나오는 대화 연출
   GameScreen.tsx      터치·낙관적 반영·서버 동기화·연출
   UpgradeSheet.tsx    공동 강화 시트
-  Sword.tsx           단계별 칼 SVG (이미지 에셋 없음)
+  Sword.tsx           단계별 칼 이미지 (없으면 SVG 절차적 생성으로 폴백)
+  CardGallery.tsx     칼 도감 (진화 카드 + 후일담 보너스 카드)
+  EvolveCutscene.tsx  5단계 도달 전용 컷씬
+  FeverPop.tsx        피버 시작 캐릭터 팝업
+  SettingsSheet.tsx   BGM/터치 사운드 볼륨 등 환경설정
 lib/
-  engine.ts           게임 수학 — 단계, 획득량, 강화 비용, 자동 정산
+  engine.ts           게임 수학 — 단계, 획득량, 강화 비용, 자동 정산, 별(연마) 시스템
   backend.ts          Supabase / 로컬 백엔드 전환
-  game.ts             팀 테마와 숫자 표기
+  game.ts             팀 테마·팀별 문구 오버라이드(copy)·숫자 표기
+  cards.ts            도감 카드 데이터 (캡션, 로어, 후일담 보너스 카드)
   upgrades.ts         강화 이름·아이콘
-  sfx.ts              WebAudio로 합성한 타격음 (음원 저작권 이슈 없음)
+  sfx.ts              실제 사운드 파일 재생 (타격음 랜덤 풀, 카드 해금음, 피버 시작음)
+  bgm.ts              첫 화면 / 게임 화면 배경음악
+  settings.ts         BGM·터치 사운드 볼륨 (유저별 영구 저장)
 supabase/schema.sql   테이블·함수·권한·초기 데이터
 ```
 

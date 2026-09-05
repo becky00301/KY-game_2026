@@ -39,7 +39,7 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, on
           <div>
             <p className="sheet-energy">{formatNumber(sword.energy)}</p>
             <p className="sheet-energy-label">
-              {theme.short} 공동 {theme.spirit}
+              {theme.copy.upgradeSheetLabel ?? `${theme.short} 공동 ${theme.spirit}`}
             </p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="닫기">
@@ -47,15 +47,17 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, on
           </button>
         </header>
 
-        <p className="sheet-note">누구나 공동 기운으로 강화할 수 있어요. 강화는 모두에게 적용됩니다.</p>
+        <p className="sheet-note">
+          {theme.copy.upgradeSheetNote ?? "누구나 공동 기운으로 강화할 수 있어요. 강화는 모두에게 적용됩니다."}
+        </p>
 
         <div className="tabs">
           <button className={tab === "tap" ? "tab on" : "tab"} onClick={() => setTab("tap")}>
-            터치 강화
+            {theme.copy.tapTabLabel ?? "터치 강화"}
             <em>{formatRate(tapPower(sword))}/회</em>
           </button>
           <button className={tab === "auto" ? "tab on" : "tab"} onClick={() => setTab("auto")}>
-            자동 응원
+            {theme.copy.autoTabLabel ?? "자동 응원"}
             <em>{formatRate(autoPerSecond(sword))}/초</em>
           </button>
         </div>
@@ -93,9 +95,11 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, on
         </ul>
 
         <footer className="sheet-foot">
-          <p className="sheet-stats">
-            {theme.short} 전체 {formatNumber(sword.taps)}번 · 내가 보탠 {formatNumber(contrib)}번
-          </p>
+          {!theme.copy.hideSheetStats && (
+            <p className="sheet-stats">
+              {theme.short} 전체 {formatNumber(sword.taps)}번 · 내가 보탠 {formatNumber(contrib)}번
+            </p>
+          )}
           <button className="link-btn" onClick={onChangeTeam}>
             다른 칼 보러 가기
           </button>

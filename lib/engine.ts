@@ -31,6 +31,13 @@ export const STAGE_THRESHOLDS = [0, 50_000, 1_500_000, 45_000_000, 1_500_000_000
 
 export const STAGE_GROWTH = 1.85;
 
+/** 단계가 오를수록 칼 이미지가 살짝씩 커진다. index = stage(0~4) */
+export const SWORD_STAGE_SCALE = [1.0, 1.06, 1.12, 1.19, 1.27];
+
+/** 별 오라 크기(px)·최대 밝기. index = 별 개수(0~5). 별 0개면 오라 없음. */
+export const AURA_SIZE = [0, 112, 138, 164, 190, 216];
+export const AURA_PEAK = [0, 0.15, 0.21, 0.28, 0.35, 0.42];
+
 /** 한 번의 전송으로 인정하는 최대 터치 수 */
 export const MAX_TAPS_PER_FLUSH = 40;
 /** 한 기기가 초당 인정받는 최대 터치 수 */
@@ -84,11 +91,15 @@ export function stageMultiplier(stage: number) {
   return Math.pow(STAGE_GROWTH, stage);
 }
 
-/** 최종 단계 이후 별 등급 — 누적 기운이 4배가 될 때마다 하나씩 */
+/** 최종 단계 이후 붙는 별 등급의 상한 */
+export const MAX_STARS = 5;
+
+/** 최종 단계 이후 별 등급 — 누적 기운이 4배가 될 때마다 하나씩, 최대 5개까지 */
 export function starRank(lifetime: number) {
   const last = STAGE_THRESHOLDS[STAGE_THRESHOLDS.length - 1];
   if (lifetime < last) return 0;
-  return Math.floor(Math.log(lifetime / last) / Math.log(4));
+  const rank = Math.floor(Math.log(lifetime / last) / Math.log(4));
+  return Math.min(rank, MAX_STARS);
 }
 
 export function stageProgress(lifetime: number) {
@@ -97,13 +108,17 @@ export function stageProgress(lifetime: number) {
   if (isMax) {
     const last = STAGE_THRESHOLDS[STAGE_THRESHOLDS.length - 1];
     const rank = starRank(lifetime);
+    // 별 5개를 다 채우면 게이지를 가득 찬 채로 고정하고 더 이상 진행하지 않는다.
+    if (rank >= MAX_STARS) {
+      return { stage, isMax, from: last, to: last, ratio: 1, starsMaxed: true };
+    }
     const from = last * Math.pow(4, rank);
     const to = last * Math.pow(4, rank + 1);
-    return { stage, isMax, from, to, ratio: (lifetime - from) / (to - from) };
+    return { stage, isMax, from, to, ratio: (lifetime - from) / (to - from), starsMaxed: false };
   }
   const from = STAGE_THRESHOLDS[stage];
   const to = STAGE_THRESHOLDS[stage + 1];
-  return { stage, isMax, from, to, ratio: (lifetime - from) / (to - from) };
+  return { stage, isMax, from, to, ratio: (lifetime - from) / (to - from), starsMaxed: false };
 }
 
 export function tapPower(state: SwordState) {

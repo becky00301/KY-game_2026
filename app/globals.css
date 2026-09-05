@@ -3,6 +3,7 @@
   --primary-deep: #6d0d20;
   --accent: #e8c46a;
   --glow: #ff4d6d;
+  --glow-rgb: 255, 77, 109;
   --bg-from: #1a0509;
   --bg-to: #33070f;
   --ink: #f6f1ea;
@@ -144,7 +145,7 @@ button {
 .select-note {
   text-align: center;
   font-size: 12.5px;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--ink-dim);
   line-height: 1.6;
 }
 
@@ -230,7 +231,7 @@ button {
 
 .hud {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   padding: calc(14px + env(safe-area-inset-top)) 18px 0;
 }
 
@@ -364,7 +365,7 @@ button {
 .stage-hint {
   margin-top: 5px;
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ink-dim);
   text-align: right;
 }
 
@@ -427,6 +428,8 @@ button {
 }
 
 .sword {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: auto;
   display: block;
@@ -434,6 +437,8 @@ button {
 }
 
 .sword-box {
+  position: relative;
+  z-index: 1;
   width: min(74vw, 300px);
   height: min(52dvh, 420px);
   display: flex;
@@ -448,6 +453,30 @@ button {
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55));
+}
+
+/* 별 오라 — 검 뒤에서 조용히 발광한다 */
+.sword-aura {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(var(--glow-rgb), 1) 0%, rgba(var(--glow-rgb), 0) 72%);
+  filter: blur(16px);
+  animation: swordAuraBreathe 6s ease-in-out infinite;
+}
+
+@keyframes swordAuraBreathe {
+  0%,
+  100% {
+    opacity: var(--aura-min, 0);
+  }
+  50% {
+    opacity: var(--aura-max, 0);
+  }
 }
 
 .aura {
@@ -501,20 +530,22 @@ button {
 }
 
 .tap-hint {
+  position: relative;
+  z-index: 3;
   margin-top: 6px;
   font-size: 12.5px;
   letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 0.85);
   animation: breathe 2.6s ease-in-out infinite;
 }
 
 @keyframes breathe {
   0%,
   100% {
-    opacity: 0.35;
+    opacity: 0.7;
   }
   50% {
-    opacity: 0.85;
+    opacity: 1;
   }
 }
 
@@ -522,7 +553,7 @@ button {
 
 .dock {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   display: grid;
   gap: 10px;
   padding: 12px 18px calc(18px + env(safe-area-inset-bottom));
@@ -592,10 +623,13 @@ button {
 /* 내 기여도 */
 
 .contrib {
+  position: relative;
+  z-index: 3;
   margin-top: 2px;
   font-size: 11.5px;
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.75);
+  animation: breathe 2.6s ease-in-out infinite;
 }
 
 .upgrade-btn.pulse {
@@ -847,55 +881,7 @@ button {
   background: #b1233a;
 }
 
-/* ---------------- 진화 연출 · 토스트 ---------------- */
-
-.evolve-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--glow) 30%, transparent), transparent 62%);
-  animation: fadeIn 0.2s ease;
-}
-
-.evolve-card {
-  text-align: center;
-  padding: 26px 34px;
-  animation: evolveIn 0.5s cubic-bezier(0.2, 1.3, 0.4, 1);
-}
-
-@keyframes evolveIn {
-  from {
-    transform: scale(0.7);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.evolve-kicker {
-  font-size: 12px;
-  letter-spacing: 0.34em;
-  color: var(--accent);
-  margin-bottom: 10px;
-}
-
-.evolve-name {
-  font-size: 30px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  text-shadow: 0 0 30px var(--glow);
-}
-
-.evolve-sub {
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--ink-dim);
-}
+/* ---------------- 토스트 ---------------- */
 
 .toast {
   position: fixed;
@@ -1061,12 +1047,32 @@ button {
   place-items: center;
 }
 
-.card-art img {
+/* 블러 배경 + 선명한 원본 2겹 구조 */
+.card-art-photo {
+  position: relative;
+}
+
+.card-art-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(16px) brightness(0.75);
+  transform: scale(1.15);
+  opacity: 0.85;
+}
+
+.card-art-img {
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  /* 픽셀 아트가 확대되어도 뭉개지지 않도록 */
-  image-rendering: pixelated;
+}
+
+/* 5단계(이후) 카드는 단일 포커스 뷰(진화 팝업/도감 확대보기)에서만 정사각형 큰 틀로 */
+.card-art.card-art-grand {
+  aspect-ratio: 1 / 1;
 }
 
 .card-art.fallback {
@@ -1154,6 +1160,16 @@ button {
   animation: cardPop 0.42s cubic-bezier(0.2, 1.1, 0.35, 1);
 }
 
+/* 5단계(이후) 카드는 팝업 자체도 더 크게 */
+.reveal-card--grand {
+  width: min(96vw, 440px);
+}
+
+.reveal-card--grand .reveal-frame {
+  margin: 0 -12px 0;
+  padding: 4px;
+}
+
 @keyframes cardPop {
   from {
     transform: scale(0.86) translateY(14px);
@@ -1190,6 +1206,22 @@ button {
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--ink-dim);
+}
+
+/* 카드 상세보기 세계관 로어 텍스트 — 박스 자체가 스크롤되므로 팝업 전체 높이는 늘어나지 않는다 */
+.reveal-lore {
+  margin-top: 14px;
+  max-height: 34dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: left;
 }
 
 .reveal-artist {
@@ -1244,6 +1276,9 @@ button {
   font-weight: 700;
   color: var(--ink-dim);
   line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gallery-item.locked .gallery-name {
@@ -1266,4 +1301,282 @@ button {
   width: min(84vw, 320px);
   text-align: center;
   background: linear-gradient(150deg, var(--accent), transparent 42%, var(--primary));
+}
+
+.gallery-zoom .reveal-frame.reveal-frame--grand {
+  width: min(94vw, 420px);
+  padding: 4px;
+}
+
+/* ---------------- 피버 캐릭터 팝업 ---------------- */
+
+.fever-pop {
+  position: absolute;
+  bottom: calc(118px + env(safe-area-inset-bottom));
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: feverPopFade 2.6s ease forwards;
+}
+
+.fever-pop.side-right {
+  right: 2%;
+  align-items: flex-end;
+}
+
+.fever-pop.side-left {
+  left: 2%;
+  align-items: flex-start;
+}
+
+.fever-pop-img {
+  height: 30dvh;
+  max-height: 240px;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.5));
+  animation: feverPopIn 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.fever-pop.fever-pop-big .fever-pop-img {
+  height: 46dvh;
+  max-height: 380px;
+}
+
+.fever-pop.fever-pop-biggest .fever-pop-img {
+  height: 56dvh;
+  max-height: 460px;
+}
+
+.fever-pop-bubble {
+  margin-bottom: 8px;
+  max-width: 62vw;
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.68);
+  border: 1px solid var(--panel-line);
+  backdrop-filter: blur(6px);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #fff;
+  text-align: center;
+}
+
+@keyframes feverPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(14px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes feverPopFade {
+  0%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------------- 튜토리얼(첫 진입 대화 연출) ---------------- */
+
+.tutorial-vn {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-size: cover;
+  background-position: center top;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  cursor: pointer;
+  animation: fadeIn 0.25s ease;
+}
+
+.tutorial-skip {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 16px;
+  z-index: 1;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tutorial-standee {
+  position: absolute;
+  bottom: 0;
+  height: 78dvh;
+  max-height: 640px;
+  width: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.tutorial-standee.side-right {
+  right: 0;
+}
+
+.tutorial-standee.side-left {
+  left: 0;
+}
+
+.tutorial-dialogue {
+  position: relative;
+  z-index: 1;
+  margin: 0 16px calc(28px + env(safe-area-inset-bottom));
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.tutorial-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--card-accent, var(--accent));
+  margin-bottom: 6px;
+}
+
+.tutorial-line {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #fff;
+}
+
+.tutorial-next-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ---------------- 5단계 도달 컷씬 ---------------- */
+
+.evolve-cutscene {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: #000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.cutscene-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: cutsceneFlash 0.22s ease forwards;
+}
+
+@keyframes cutsceneFlash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.cutscene-image-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.cutscene-image {
+  height: 100%;
+  width: auto;
+  max-width: none;
+  object-fit: cover;
+}
+
+.cutscene-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: calc(18px + env(safe-area-inset-top)) 20px 26px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.72), transparent);
+}
+
+.cutscene-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0 24px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+/* ---------------- 환경설정 시트 ---------------- */
+
+.settings-row {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.settings-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-dim);
+}
+
+.settings-slider {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  accent-color: var(--accent);
+}
+
+.settings-link {
+  display: block;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.settings-credit {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-credit-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  margin-bottom: 4px;
+}
+
+.settings-credit-body {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.45);
 }

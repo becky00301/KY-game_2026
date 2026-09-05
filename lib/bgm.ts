@@ -7,7 +7,13 @@
  *      같은 <audio> 엘리먼트를 계속 재사용한다(새로 만들면 자동재생이 막히기 쉬움).
  *
  * 브라우저 자동재생 정책 때문에 play()가 막히면 첫 터치에서 한 번 더 시도한다.
+ * 실제 재생 볼륨은 각 트랙의 기준 레벨에 lib/settings.ts의 유저별 bgmVolume(0~1)을 곱한 값이다.
  */
+
+import { getBgmVolume } from "./settings";
+
+const TITLE_BASE_VOLUME = 0.5;
+const GAMEPLAY_BASE_VOLUME = 0.45;
 
 function retryOnFirstTouch(el: HTMLAudioElement) {
   const retry = () => {
@@ -27,7 +33,7 @@ function ensureTitleEl(): HTMLAudioElement | null {
   if (!titleEl) {
     titleEl = new Audio("/audio/bgm-title/bgm-title-select.mp3");
     titleEl.loop = true;
-    titleEl.volume = 0.5;
+    titleEl.volume = TITLE_BASE_VOLUME * getBgmVolume();
   }
   return titleEl;
 }
@@ -80,7 +86,7 @@ function ensureGameplayEl(): HTMLAudioElement | null {
   if (!gameplayEl) {
     gameplayEl = new Audio();
     gameplayEl.loop = true;
-    gameplayEl.volume = 0.45;
+    gameplayEl.volume = GAMEPLAY_BASE_VOLUME * getBgmVolume();
   }
   return gameplayEl;
 }
@@ -106,4 +112,11 @@ export function stopGameplayBgm() {
   if (!gameplayEl) return;
   gameplayEl.pause();
   gameplayEl.currentTime = 0;
+}
+
+/** 설정 시트에서 bgmVolume 슬라이더를 움직일 때, 지금 재생 중인 트랙에도 바로 반영한다. */
+export function applyBgmVolume() {
+  const v = getBgmVolume();
+  if (titleEl) titleEl.volume = TITLE_BASE_VOLUME * v;
+  if (gameplayEl) gameplayEl.volume = GAMEPLAY_BASE_VOLUME * v;
 }

@@ -5,11 +5,18 @@ import Sword from "./Sword";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
-import { cardsFor } from "@/lib/cards";
+import SettingsSheet from "./SettingsSheet";
+import FeverPop from "./FeverPop";
+import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
+import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import {
+  AURA_PEAK,
+  AURA_SIZE,
+  FEVER_DURATION_MS,
   FEVER_MAX,
   FEVER_MULTIPLIER,
   MAX_TAPS_PER_SECOND,
+  SWORD_STAGE_SCALE,
   SwordState,
   accrue,
   autoPerSecond,
@@ -21,7 +28,7 @@ import {
   starRank,
   tapPower,
 } from "@/lib/engine";
-import { TEAMS, emblemSrc, formatNumber, formatRate } from "@/lib/game";
+import { TEAMS, emblemSrc, formatNumber, formatRate, hasSeenEvolveCutscene, hexToRgbString, markEvolveCutsceneSeen } from "@/lib/game";
 import {
   backendMode,
   buyUpgrade,
@@ -31,7 +38,7 @@ import {
   subscribePresence,
   subscribeSword,
 } from "@/lib/backend";
-import { isSfxEnabled, playFanfare, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
+import { isSfxEnabled, playFeverStartSound, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
 import {
   bgmGroupSuffix,
   gameplayGroupOf,
@@ -55,15 +62,26 @@ const FLUSH_INTERVAL_MS = 1_000;
 /** 내가 이 칼에 보탠 터치 수 (자랑용, 이 기기에만 저장) */
 const CONTRIB_KEY = "kyg.contrib";
 
-export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onChangeTeam: () => void }) {
+export default function GameScreen({
+  team,
+  onChangeTeam,
+  justFinishedTutorial = false,
+}: {
+  team: TeamId;
+  onChangeTeam: () => void;
+  /** 튜토리얼을 막 마치고 들어온 경우 — 1단계 도감 카드 팝업을 자동으로 띄운다 */
+  justFinishedTutorial?: boolean;
+}) {
   const [sword, setSword] = useState<SwordState>(() => createSword(team));
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [combo, setCombo] = useState(0);
   const [floaters, setFloaters] = useState<Floater[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [evolveTo, setEvolveTo] = useState<number | null>(null);
-  const [feverBanner, setFeverBanner] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [revealCard, setRevealCard] = useState<CardInfo | null>(null);
+  const [cutsceneOpen, setCutsceneOpen] = useState(false);
+  const [feverPopKey, setFeverPopKey] = useState(0);
   const [sfxOn, setSfxOn] = useState(true);
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
@@ -77,6 +95,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
   const floaterId = useRef(0);
   const swordRef = useRef<HTMLDivElement>(null);
   const prevStage = useRef(0);
+  const prevStars = useRef(0);
   const prevFeverUntil = useRef(0);
   const swordStateRef = useRef(sword);
   swordStateRef.current = sword;
@@ -89,6 +108,8 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
   const perTap = tapPower(sword);
   const perSec = autoPerSecond(sword);
   const feverActive = isFeverActive(sword);
+  const maxStage = theme.stages.length - 1;
+  const isMaxStage = stage >= maxStage;
 
   // 테마 색상 주입
   useEffect(() => {
@@ -98,6 +119,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     root.style.setProperty("--primary-deep", c.primaryDeep);
     root.style.setProperty("--accent", c.accent);
     root.style.setProperty("--glow", c.glow);
+    root.style.setProperty("--glow-rgb", hexToRgbString(c.glow));
     root.style.setProperty("--bg-from", c.bgFrom);
     root.style.setProperty("--bg-to", c.bgTo);
   }, [theme]);
@@ -125,10 +147,21 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
       .then((state) => {
         if (!alive) return;
         prevStage.current = stageOf(state.lifetime);
+        prevStars.current = starRank(state.lifetime);
         prevFeverUntil.current = state.feverUntil;
         setSword(state);
         setReady(true);
         setError(null);
+
+        // 이미 5단계인 상태로 재접속했는데 아직 컷씬을 못 봤다면 진입 시 1회 자동 재생.
+        const reachedMax = stageOf(state.lifetime) >= theme.stages.length - 1;
+        if (reachedMax && EVOLVE_CUTSCENES[team] && !hasSeenEvolveCutscene(team)) {
+          markEvolveCutsceneSeen(team);
+          setCutsceneOpen(true);
+        } else if (justFinishedTutorial) {
+          // 튜토리얼을 막 마쳤으면 1단계 도감 카드 팝업을 자동으로 띄운다.
+          setRevealCard(cardsFor(team, theme.stages)[0]);
+        }
       })
       .catch((e: Error) => alive && setError(e.message));
 
@@ -143,6 +176,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
       alive = false;
       unsubscribe();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team]);
 
   // 지금 같은 칼을 보고 있는 사람 수
@@ -182,28 +216,46 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     return () => window.clearInterval(timer);
   }, []);
 
-  // 진화하면 카드를 공개한다. 그림을 볼 시간을 주려고 자동으로 닫지 않는다.
+  // 진화하면 카드를 공개한다 — 단, 5단계에 처음 도달하는 순간엔 카드 대신 전용 컷씬이 뜬다.
   useEffect(() => {
     if (!ready) return;
     if (stage > prevStage.current) {
       prevStage.current = stage;
-      setEvolveTo(stage);
-      playFanfare();
+      const reachedMax = stage >= maxStage;
+      if (reachedMax && EVOLVE_CUTSCENES[team] && !hasSeenEvolveCutscene(team)) {
+        markEvolveCutsceneSeen(team);
+        setCutsceneOpen(true);
+      } else {
+        const cards = cardsFor(team, theme.stages);
+        setRevealCard(cards[Math.min(stage, cards.length - 1)]);
+      }
       if (navigator.vibrate) navigator.vibrate([30, 40, 60]);
     }
     prevStage.current = stage;
-  }, [stage, ready]);
+  }, [stage, ready, team, theme.stages, maxStage]);
 
-  // 팀 전체 응원 열기 발동 알림
+  // 최종 단계 도달 후에도 별이 계속 붙는다 — 별 5개(후일담 해금)가 되는 순간 카드 팝업.
+  useEffect(() => {
+    if (!ready) return;
+    if (stars > prevStars.current) {
+      prevStars.current = stars;
+      if (isMaxStage && stars >= 5) {
+        setRevealCard(bonusCardFor(team, theme.stages));
+      }
+    } else {
+      prevStars.current = stars;
+    }
+  }, [stars, ready, isMaxStage, team, theme.stages]);
+
+  // 팀 전체 응원 열기 발동 — 사운드/진동 피드백 + 캐릭터 팝업 (전체화면 모달은 없앴다)
   useEffect(() => {
     if (!ready) return;
     if (sword.feverUntil > prevFeverUntil.current && sword.feverUntil > Date.now()) {
       prevFeverUntil.current = sword.feverUntil;
-      setFeverBanner(true);
-      playFanfare();
+      playFeverStartSound();
       if (navigator.vibrate) navigator.vibrate([20, 30, 20, 30, 60]);
-      const t = setTimeout(() => setFeverBanner(false), 2200);
-      return () => clearTimeout(t);
+      setFeverPopKey((k) => k + 1);
+      return;
     }
     prevFeverUntil.current = Math.max(prevFeverUntil.current, sword.feverUntil);
   }, [sword.feverUntil, ready]);
@@ -254,7 +306,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
 
       setHitting(true);
       window.setTimeout(() => setHitting(false), 90);
-      playHit(nextCombo, feverNow);
+      playHit(team, stageOf(current.lifetime));
       if (navigator.vibrate) navigator.vibrate(nextCombo > 30 ? 12 : 8);
     },
     [combo, ready, pushFloater, team]
@@ -274,9 +326,9 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     [team]
   );
 
-  const isMaxStage = stage >= theme.stages.length - 1;
   const stageName = theme.stages[Math.min(stage, theme.stages.length - 1)];
   const cards = useMemo(() => cardsFor(team, theme.stages), [team, theme.stages]);
+  const bonusCard = useMemo(() => bonusCardFor(team, theme.stages), [team, theme.stages]);
   const bgImage = `/images/bg/bg-${team}-${bgmGroupSuffix(bgmGroup)}.webp`;
   const gameBgStyle = {
     backgroundImage: `radial-gradient(66% 50% at 50% 44%, rgba(5,2,8,0.68), rgba(5,2,8,0.15) 70%), linear-gradient(180deg, rgba(5,2,8,0.62) 0%, rgba(5,2,8,0.42) 35%, rgba(5,2,8,0.60) 70%, rgba(5,2,8,0.88) 100%), url("${bgImage}")`,
@@ -285,6 +337,16 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
     () => Math.min((sword.feverGauge / FEVER_MAX) * 100, 100),
     [sword.feverGauge]
   );
+  // 피버 중엔 남은 시간에 비례해 게이지가 오른쪽→왼쪽으로 줄어들며 카운트다운한다.
+  const feverRemainRatio = feverActive
+    ? Math.max(0, Math.min(1, (sword.feverUntil - Date.now()) / FEVER_DURATION_MS))
+    : 0;
+  const feverFillWidth = feverActive ? feverRemainRatio * 100 : feverPct;
+
+  const starsCapped = Math.min(stars, 5);
+  const stageHintText = progress.starsMaxed
+    ? theme.copy.stageHintMax ?? "모든 별을 다 모았습니다."
+    : `${theme.copy.stageHintNext ?? "다음 단계까지"} ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`;
 
   return (
     <div className={`game ${feverActive ? "is-fever" : ""}`} style={gameBgStyle}>
@@ -302,7 +364,7 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
             aria-label={`지금은 ${theme.short} 공동 칼. 눌러서 편 바꾸기`}
           >
             <img className="badge-emblem" src={emblemSrc(team, isMaxStage)} alt="" />
-            <span className="badge-text">{theme.short} 공동 칼</span>
+            <span className="badge-text">{theme.copy.badgeLabel ?? `${theme.short} 공동 칼`}</span>
             <span className="badge-swap" aria-hidden="true">
               ⇄
             </span>
@@ -313,23 +375,22 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
               <span className="online-count">{online > 0 ? formatNumber(online) : "—"}</span>
               <span className="online-label">명 접속</span>
             </div>
-            <button
-              className="icon-btn"
-              onClick={() => setGalleryOpen(true)}
-              aria-label="칼 도감 열기"
-            >
+            <button className="icon-btn" onClick={() => setGalleryOpen(true)} aria-label="칼 도감 열기">
               🃏
             </button>
             <button
-            className="icon-btn"
-            onClick={() => {
-              const next = !sfxOn;
-              setSfxOn(next);
-              setSfxEnabled(next);
-            }}
-            aria-label="소리 켜기/끄기"
-          >
+              className="icon-btn"
+              onClick={() => {
+                const next = !sfxOn;
+                setSfxOn(next);
+                setSfxEnabled(next);
+              }}
+              aria-label="소리 켜기/끄기"
+            >
               {sfxOn && isSfxEnabled() ? "🔊" : "🔇"}
+            </button>
+            <button className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="환경설정 열기">
+              ⚙️
             </button>
           </div>
         </div>
@@ -347,18 +408,14 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
           <div className="stage-bar-head">
             <span className="stage-name">
               {stageName}
-              {stars > 0 && <em className="stars">{"★".repeat(Math.min(stars, 5))}</em>}
+              {starsCapped > 0 && <em className="stars">{"★".repeat(starsCapped)}</em>}
             </span>
             <span className="stage-pct">{Math.floor(progress.ratio * 100)}%</span>
           </div>
           <div className="track">
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
-          <div className="stage-hint">
-            {progress.isMax
-              ? `다음 별까지 ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`
-              : `다음 진화까지 ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`}
-          </div>
+          <div className="stage-hint">{stageHintText}</div>
         </div>
       </header>
 
@@ -388,7 +445,21 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
             }
           }}
         >
-          <Sword stage={stage} theme={theme} fever={feverActive} />
+          {starsCapped > 0 && (
+            <span
+              className="sword-aura"
+              aria-hidden="true"
+              style={
+                {
+                  width: AURA_SIZE[starsCapped],
+                  height: AURA_SIZE[starsCapped],
+                  "--aura-min": AURA_PEAK[starsCapped] * 0.55,
+                  "--aura-max": AURA_PEAK[starsCapped],
+                } as React.CSSProperties
+              }
+            />
+          )}
+          <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} />
           {floaters.map((f) => (
             <span key={f.id} className={`floater ${f.fever ? "fever" : ""}`} style={{ left: f.x, top: f.y }}>
               {f.text}
@@ -397,26 +468,25 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
         </div>
 
         <p className="tap-hint">
-          {ready ? `${theme.short} 전체가 두드린 ${formatNumber(sword.taps)}번` : "칼을 불러오는 중…"}
+          {ready
+            ? theme.copy.tapHint?.(formatNumber(sword.taps)) ?? `${theme.short} 전체가 두드린 ${formatNumber(sword.taps)}번`
+            : "칼을 불러오는 중…"}
         </p>
-        <p className="contrib">내가 보탠 {formatNumber(contrib)}번</p>
+        <p className="contrib">{theme.copy.contribLine?.(formatNumber(contrib)) ?? `내가 보탠 ${formatNumber(contrib)}번`}</p>
       </main>
 
       <footer className="dock">
         <div className={`fever-bar ${feverActive ? "active" : ""}`}>
-          <span className="fever-fill" style={{ width: `${feverActive ? 100 : feverPct}%` }} />
+          <span className="fever-fill" style={{ width: `${feverFillWidth}%` }} />
           <span className="fever-text">
             {feverActive
-              ? `응원 열기! 전원 ${FEVER_MULTIPLIER}배 ${Math.max(
-                  Math.ceil((sword.feverUntil - Date.now()) / 1000),
-                  0
-                )}초`
-              : `함께 채우는 응원 열기 ${Math.floor(feverPct)}%`}
+              ? theme.copy.feverActiveText ?? `응원 열기! 전원 ${FEVER_MULTIPLIER}배`
+              : theme.copy.feverIdle?.(Math.floor(feverPct)) ?? `함께 채우는 응원 열기 ${Math.floor(feverPct)}%`}
           </span>
         </div>
 
         <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
-          함께 강화하기
+          {theme.copy.upgradeBtnLabel ?? "함께 강화하기"}
         </button>
       </footer>
 
@@ -431,31 +501,25 @@ export default function GameScreen({ team, onChangeTeam }: { team: TeamId; onCha
         />
       )}
 
-      {evolveTo !== null && cards[Math.min(evolveTo, cards.length - 1)] && (
-        <CardReveal
-          card={cards[Math.min(evolveTo, cards.length - 1)]}
-          theme={theme}
-          onClose={() => setEvolveTo(null)}
-        />
-      )}
+      {revealCard && <CardReveal card={revealCard} theme={theme} onClose={() => setRevealCard(null)} />}
 
       {galleryOpen && (
         <CardGallery
           cards={cards}
+          bonusCard={bonusCard}
           stage={stage}
+          stars={stars}
           theme={theme}
           onClose={() => setGalleryOpen(false)}
         />
       )}
 
-      {feverBanner && (
-        <div className="evolve-overlay">
-          <div className="evolve-card">
-            <p className="evolve-kicker">{theme.short} 전체</p>
-            <h2 className="evolve-name">응원 열기!</h2>
-            <p className="evolve-sub">10초간 모두의 획득량 ×{FEVER_MULTIPLIER}</p>
-          </div>
-        </div>
+      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+
+      {cutsceneOpen && <EvolveCutscene team={team} onDone={() => setCutsceneOpen(false)} />}
+
+      {feverPopKey > 0 && (
+        <FeverPop key={feverPopKey} team={team} stage={stage} onDone={() => setFeverPopKey(0)} />
       )}
 
       {error && (

@@ -7,6 +7,8 @@ interface Props {
   stage: number; // 0 ~ 4
   theme: TeamTheme;
   fever: boolean;
+  /** 단계가 오를수록 커지는 배율. lib/engine.ts의 SWORD_STAGE_SCALE */
+  scale?: number;
 }
 
 /**
@@ -14,7 +16,7 @@ interface Props {
  * (1단계는 세로로 길쭉, 5단계는 날개·리본 때문에 훨씬 넓적) object-fit: contain으로
  * 절대 잘리지 않게 렌더링한다. 이미지가 없는 팀·단계는 기존 SVG 절차적 생성으로 폴백한다.
  */
-export default function Sword({ stage, theme, fever }: Props) {
+export default function Sword({ stage, theme, fever, scale = 1 }: Props) {
   const s = Math.min(stage, 4);
   const src = `/images/sword/sword-${theme.id}-stage${s}.webp`;
   const [failed, setFailed] = useState(false);
@@ -23,11 +25,11 @@ export default function Sword({ stage, theme, fever }: Props) {
   useEffect(() => setFailed(false), [src]);
 
   if (failed) {
-    return <ProceduralSword stage={stage} theme={theme} fever={fever} />;
+    return <ProceduralSword stage={stage} theme={theme} fever={fever} scale={scale} />;
   }
 
   return (
-    <div className="sword-box">
+    <div className="sword-box" style={{ transform: `scale(${scale})`, transformOrigin: "50% 62%" }}>
       <img
         src={src}
         alt=""
@@ -47,7 +49,7 @@ export default function Sword({ stage, theme, fever }: Props) {
  * 단계가 오를수록 칼날이 길어지고, 날개형 가드·보석·오라가 붙는다.
  * 실제 칼 이미지가 없을 때만 쓰는 SVG 절차적 폴백.
  */
-function ProceduralSword({ stage, theme, fever }: Props) {
+function ProceduralSword({ stage, theme, fever, scale = 1 }: Props) {
   const c = theme.colors;
   const s = Math.min(stage, 4);
 
@@ -71,7 +73,12 @@ function ProceduralSword({ stage, theme, fever }: Props) {
   const glowStrength = 1 + s * 0.7 + (fever ? 3 : 0);
 
   return (
-    <svg viewBox="0 0 200 320" className="sword" aria-hidden="true">
+    <svg
+      viewBox="0 0 200 320"
+      className="sword"
+      aria-hidden="true"
+      style={{ transform: `scale(${scale})`, transformOrigin: "50% 62%" }}
+    >
       <defs>
         <linearGradient id={ids.blade} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#5a6270" />
