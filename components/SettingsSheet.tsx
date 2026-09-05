@@ -11,8 +11,20 @@ import {
   setTapVolume,
 } from "@/lib/settings";
 
-/** 환경설정 시트 — 전체/BGM/터치 사운드 볼륨, 부가 링크, 제작자 정보. */
-export default function SettingsSheet({ onClose }: { onClose: () => void }) {
+/** 환경설정 시트 — PIP 모드, 전체/BGM/터치 사운드 볼륨, 부가 링크, 제작자 정보. */
+export default function SettingsSheet({
+  onClose,
+  pipSupported,
+  pipActive,
+  onTogglePip,
+}: {
+  onClose: () => void;
+  /** Document PIP API 지원 여부 — 데스크톱 크롬·엣지·파이어폭스 최신 버전에서만 true */
+  pipSupported: boolean;
+  /** 지금 PIP 창이 떠 있는지 */
+  pipActive: boolean;
+  onTogglePip: () => void;
+}) {
   const [master, setMaster] = useState(() => Math.round(getMasterVolume() * 100));
   const [bgm, setBgm] = useState(() => Math.round(getBgmVolume() * 100));
   const [tap, setTap] = useState(() => Math.round(getTapVolume() * 100));
@@ -30,6 +42,17 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
             ✕
           </button>
         </header>
+
+        {pipSupported ? (
+          <button className="settings-pip-btn" onClick={onTogglePip}>
+            {pipActive ? "PIP 모드 끄기" : "PIP 모드로 작게 띄우기"}
+          </button>
+        ) : (
+          <p className="settings-pip-note">
+            PIP 모드는 이 브라우저에서 지원되지 않습니다 (데스크톱 크롬·엣지·파이어폭스 최신 버전에서
+            사용 가능).
+          </p>
+        )}
 
         <div className="settings-row">
           <label className="settings-label" htmlFor="master-volume">

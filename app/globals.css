@@ -1560,6 +1560,31 @@ button {
 
 /* ---------------- 환경설정 시트 ---------------- */
 
+.settings-pip-btn {
+  width: 100%;
+  height: 44px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.settings-pip-btn:active {
+  transform: scale(0.985);
+}
+
+.settings-pip-note {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
 .settings-row {
   display: grid;
   gap: 8px;
@@ -1619,4 +1644,95 @@ button {
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
+}
+
+/* ---------------- PIP(Picture-in-Picture) 창 ---------------- */
+
+.pip-root {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 100% at 50% 0%, var(--bg-to), var(--bg-from));
+  color: #fff;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 10px 10px 40px; /* 하단 40px는 돌아가기 버튼 자리 예약 */
+}
+
+.pip-header {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pip-team {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.pip-energy {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.pip-tap-area {
+  position: relative;
+  /* flex 아이템 기본값(min-height:auto)이면 이미지 실제 크기보다 작아지지 않으려 해서,
+     비율이 다른 검 이미지가 들어오면 하단 돌아가기 버튼을 밀어내는 버그가 있었다. */
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.pip-sword-img {
+  max-width: 62%;
+  max-height: 60%;
+  object-fit: contain;
+}
+
+.pip-floater-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pip-floater {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  animation: floatUp 0.8s ease-out forwards;
+}
+
+.pip-return-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%); /* 레이아웃 흐름 밖에 둬서 검 이미지 크기와 무관하게 항상 하단 고정 */
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--primary);
+  color: #fff;
 }

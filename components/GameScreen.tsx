@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
@@ -8,8 +9,10 @@ import CardGallery from "./CardGallery";
 import SettingsSheet from "./SettingsSheet";
 import VolumeButton from "./VolumeButton";
 import FeverPop from "./FeverPop";
+import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
+import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
   AURA_PEAK,
   AURA_SIZE,
@@ -113,6 +116,8 @@ export default function GameScreen({
   const [contrib, setContrib] = useState(0);
   const [online, setOnline] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [pipWin, setPipWin] = useState<Window | null>(null);
+  const [pipFloaters, setPipFloaters] = useState<PipFloater[]>([]);
 
   const lastTapAt = useRef(0);
   const tapWindow = useRef<number[]>([]);
@@ -120,6 +125,7 @@ export default function GameScreen({
   const pendingSince = useRef(Date.now());
   const floaterId = useRef(0);
   const tapEffectId = useRef(0);
+  const pipFloaterId = useRef(0);
   const swordRef = useRef<HTMLDivElement>(null);
   const prevStage = useRef(0);
   const prevStars = useRef(0);
@@ -153,6 +159,13 @@ export default function GameScreen({
 
   // 게임 화면을 나가면(팀 선택으로 돌아가면) 브금을 완전히 정지한다.
   useEffect(() => stopGameplayBgm, []);
+
+  // 게임 화면을 나가면 열려있던 PIP 창도 같이 닫는다.
+  useEffect(() => {
+    return () => {
+      if (pipWin) pipWin.close();
+    };
+  }, [pipWin]);
 
   // 진화 단계 그룹이 바뀔 때만 트랙을 교체한다.
   useEffect(() => {
@@ -301,15 +314,13 @@ export default function GameScreen({
     window.setTimeout(() => setTapEffects((f) => f.filter((n) => n.id !== id)), TAP_EFFECT_DURATION_MS);
   }, []);
 
-  const handleTap = useCallback(
-    (clientX: number, clientY: number) => {
-      if (!ready) return;
-      unlockAudio();
-      const now = Date.now();
-
+  // 터치 1회의 핵심 게임 로직(레이트리밋·콤보·낙관적 반영)만 뽑아낸 순수 로직 — 메인 화면과
+  // PIP 화면이 완전히 동일한 규칙을 쓰도록 공유한다. 레이트리밋에 걸리면 null을 돌려준다.
+  const applyTap = useCallback(
+    (now: number) => {
       // 서버도 같은 상한을 적용하므로, 넘겨봐야 인정되지 않는다.
       tapWindow.current = tapWindow.current.filter((t) => now - t < 1000);
-      if (tapWindow.current.length >= MAX_TAPS_PER_SECOND) return;
+      if (tapWindow.current.length >= MAX_TAPS_PER_SECOND) return null;
       tapWindow.current.push(now);
 
       const nextCombo = now - lastTapAt.current <= COMBO_WINDOW_MS ? Math.min(combo + 1, COMBO_MAX) : 1;
@@ -336,21 +347,73 @@ export default function GameScreen({
         feverGauge: prev.feverUntil > now ? prev.feverGauge : Math.min(prev.feverGauge + 1, FEVER_MAX),
       }));
 
+      return { gain, feverNow, combo: nextCombo };
+    },
+    [combo, team]
+  );
+
+  const handleTap = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!ready) return;
+      unlockAudio();
+      const result = applyTap(Date.now());
+      if (!result) return;
+
       const rect = swordRef.current?.getBoundingClientRect();
       if (rect) {
         const x = clientX - rect.left;
         const y = clientY - rect.top;
-        pushFloater(x, y, `+${formatNumber(gain)}`, feverNow);
+        pushFloater(x, y, `+${formatNumber(result.gain)}`, result.feverNow);
         pushTapEffect(x, y, team);
       }
 
       setHitting(true);
       window.setTimeout(() => setHitting(false), 90);
-      playHit(team, stageOf(current.lifetime));
-      if (navigator.vibrate) navigator.vibrate(nextCombo > 30 ? 12 : 8);
+      playHit(team, stageOf(swordStateRef.current.lifetime));
+      if (navigator.vibrate) navigator.vibrate(result.combo > 30 ? 12 : 8);
     },
-    [combo, ready, pushFloater, pushTapEffect, team]
+    [ready, applyTap, pushFloater, pushTapEffect, team]
   );
+
+  const pushPipFloater = useCallback((text: string) => {
+    const id = pipFloaterId.current++;
+    const left = 40 + Math.random() * 20;
+    setPipFloaters((f) => [...f.slice(-8), { id, text, left }]);
+    window.setTimeout(() => setPipFloaters((f) => f.filter((n) => n.id !== id)), 800);
+  }, []);
+
+  // PIP 창 안에서의 터치 — 메인 화면과 완전히 같은 sword 상태를 공유하므로 진화·피버·연마 등
+  // 모든 이벤트가 동일하게 발생한다(그 이벤트들의 화면 연출은 지금은 메인 문서에만 뜬다).
+  const handlePipTap = useCallback(() => {
+    if (!ready) return;
+    unlockAudio();
+    const result = applyTap(Date.now());
+    if (!result) return;
+    pushPipFloater(`+${formatNumber(result.gain)}`);
+    playHit(team, stageOf(swordStateRef.current.lifetime));
+    if (navigator.vibrate) navigator.vibrate(result.combo > 30 ? 12 : 8);
+  }, [ready, applyTap, pushPipFloater, team]);
+
+  const togglePip = useCallback(async () => {
+    if (!PIP_SUPPORTED) return;
+    if (pipWin) {
+      pipWin.close();
+      return;
+    }
+    try {
+      // ⚠️ requestWindow()는 사용자 클릭 핸들러 안에서, 그 앞에 다른 await 없이 바로 호출해야
+      // 브라우저가 허용한다. 이 함수는 클릭 핸들러에서 바로 호출되고 이게 첫 await이므로 안전하다.
+      const pip = await window.documentPictureInPicture!.requestWindow({ width: 220, height: 300 });
+      copyStylesInto(pip);
+      pip.document.title = "고연전 응원 클리커";
+      pip.document.body.style.margin = "0";
+      pip.addEventListener("pagehide", () => setPipWin(null), { once: true });
+      setPipWin(pip);
+    } catch {
+      // 사용자가 권한을 거부했거나 실패한 경우
+      setPipWin(null);
+    }
+  }, [pipWin]);
 
   const buy = useCallback(
     async (id: string) => {
@@ -560,7 +623,31 @@ export default function GameScreen({
         />
       )}
 
-      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsSheet
+          onClose={() => setSettingsOpen(false)}
+          pipSupported={PIP_SUPPORTED}
+          pipActive={!!pipWin}
+          onTogglePip={() => {
+            setSettingsOpen(false);
+            void togglePip();
+          }}
+        />
+      )}
+
+      {pipWin &&
+        createPortal(
+          <PipView
+            theme={theme}
+            team={team}
+            energy={sword.energy}
+            stage={stage}
+            floaters={pipFloaters}
+            onTap={handlePipTap}
+            onReturn={() => pipWin.close()}
+          />,
+          pipWin.document.body
+        )}
 
       {cutsceneOpen && <EvolveCutscene team={team} onDone={() => setCutsceneOpen(false)} />}
 
