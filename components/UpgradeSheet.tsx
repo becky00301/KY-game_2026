@@ -27,7 +27,7 @@ const NUMBERS = new Map(UPGRADE_NUMBERS.map((u) => [u.id, u]));
 
 export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, onChangeTeam }: Props) {
   const [tab, setTab] = useState<"tap" | "auto">("tap");
-  const labels: UpgradeLabel[] = tab === "tap" ? TAP_LABELS : AUTO_LABELS;
+  const labels: UpgradeLabel[] = (tab === "tap" ? TAP_LABELS : AUTO_LABELS)[theme.id];
   const mult = stageMultiplier(stageOf(sword.lifetime));
 
   return (

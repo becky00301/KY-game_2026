@@ -56,6 +56,21 @@ interface Floater {
   fever: boolean;
 }
 
+interface TapEffect {
+  id: number;
+  x: number;
+  y: number;
+  src: string;
+}
+
+/** 터치할 때마다 터진 자리에 잠깐 뜨는 파티클 애니메이션(WebP) */
+const TAP_EFFECT_SRC: Record<TeamId, string> = {
+  ku: "/images/tap-effect/ku-tap-effect.webp",
+  yu: "/images/tap-effect/yu-tap-effect.webp",
+};
+/** 애니메이션 webp 총 재생시간과 맞춘 제거 시점 */
+const TAP_EFFECT_DURATION_MS = 950;
+
 const COMBO_WINDOW_MS = 1_200;
 const COMBO_MAX = 100;
 const FLUSH_INTERVAL_MS = 1_000;
@@ -77,6 +92,7 @@ export default function GameScreen({
   const [error, setError] = useState<string | null>(null);
   const [combo, setCombo] = useState(0);
   const [floaters, setFloaters] = useState<Floater[]>([]);
+  const [tapEffects, setTapEffects] = useState<TapEffect[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [revealCard, setRevealCard] = useState<CardInfo | null>(null);
@@ -93,6 +109,7 @@ export default function GameScreen({
   const pendingTaps = useRef(0);
   const pendingSince = useRef(Date.now());
   const floaterId = useRef(0);
+  const tapEffectId = useRef(0);
   const swordRef = useRef<HTMLDivElement>(null);
   const prevStage = useRef(0);
   const prevStars = useRef(0);
@@ -266,6 +283,14 @@ export default function GameScreen({
     window.setTimeout(() => setFloaters((f) => f.filter((n) => n.id !== id)), 900);
   }, []);
 
+  // 터칠 때마다(콤보·피버와 무관하게 매 터치) 터진 자리에 파티클 애니메이션을 새로 띄운다.
+  // 겹쳐 눌러도 자연스럽게 보이도록 매번 새 엘리먼트를 만든다(하나를 재사용하면 처음부터 다시 재생되지 않음).
+  const pushTapEffect = useCallback((x: number, y: number, forTeam: TeamId) => {
+    const id = tapEffectId.current++;
+    setTapEffects((f) => [...f.slice(-14), { id, x, y, src: TAP_EFFECT_SRC[forTeam] }]);
+    window.setTimeout(() => setTapEffects((f) => f.filter((n) => n.id !== id)), TAP_EFFECT_DURATION_MS);
+  }, []);
+
   const handleTap = useCallback(
     (clientX: number, clientY: number) => {
       if (!ready) return;
@@ -302,14 +327,19 @@ export default function GameScreen({
       }));
 
       const rect = swordRef.current?.getBoundingClientRect();
-      if (rect) pushFloater(clientX - rect.left, clientY - rect.top, `+${formatNumber(gain)}`, feverNow);
+      if (rect) {
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        pushFloater(x, y, `+${formatNumber(gain)}`, feverNow);
+        pushTapEffect(x, y, team);
+      }
 
       setHitting(true);
       window.setTimeout(() => setHitting(false), 90);
       playHit(team, stageOf(current.lifetime));
       if (navigator.vibrate) navigator.vibrate(nextCombo > 30 ? 12 : 8);
     },
-    [combo, ready, pushFloater, team]
+    [combo, ready, pushFloater, pushTapEffect, team]
   );
 
   const buy = useCallback(
@@ -460,6 +490,16 @@ export default function GameScreen({
             />
           )}
           <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} />
+          {tapEffects.map((e) => (
+            <img
+              key={e.id}
+              className="tap-effect"
+              src={e.src}
+              alt=""
+              aria-hidden="true"
+              style={{ left: e.x, top: e.y }}
+            />
+          ))}
           {floaters.map((f) => (
             <span key={f.id} className={`floater ${f.fever ? "fever" : ""}`} style={{ left: f.x, top: f.y }}>
               {f.text}

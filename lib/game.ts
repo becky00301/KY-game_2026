@@ -55,9 +55,9 @@ export const TEAM_IDS: TeamId[] = ["ku", "yu"];
 export const TEAMS: Record<TeamId, TeamTheme> = {
   ku: {
     id: "ku",
-    name: "고려대학교",
+    name: "진홍과 여명의 검법",
     short: "고대",
-    slogan: "안암의 기운을 모아 승리의 검을 완성하라",
+    slogan: "타오르는 노을과 진리의 여정",
     spirit: "염원의 힘",
     emblem: "🐯",
     stages: [
@@ -98,9 +98,9 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
   },
   yu: {
     id: "yu",
-    name: "연세대학교",
+    name: "천청과 비상의 검법",
     short: "연대",
-    slogan: "신촌의 기운을 모아 승리의 검을 완성하라",
+    slogan: "비상하는 진리와 자유의 여정",
     spirit: "데이터베이스",
     emblem: "🦅",
     stages: [

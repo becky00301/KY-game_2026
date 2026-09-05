@@ -498,6 +498,15 @@ button {
   animation: auraSpin 9s linear infinite reverse;
 }
 
+.tap-effect {
+  position: absolute;
+  width: 130px;
+  height: 130px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .floater {
   position: absolute;
   transform: translate(-50%, -50%);

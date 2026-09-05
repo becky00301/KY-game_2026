@@ -32,7 +32,7 @@ export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void 
           alt="고연전 응원 클리커 — 모두가 두드리는 하나의 검"
           className="select-logo"
         />
-        <p className="select-sub">어느 쪽 칼을 함께 키울지 고르세요</p>
+        <p className="select-sub">당신의 여정을 선택하세요</p>
       </header>
 
       <div className="team-cards">
@@ -61,7 +61,7 @@ export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void 
       </div>
 
       <p className="select-note">
-        가입 없이 바로 시작합니다. 내 터치는 같은 편 모두의 칼에 그대로 쌓여요.
+        나의 염원은 같은 편 모두의 검법에 그대로 저장됩니다.
       </p>
     </div>
   );
