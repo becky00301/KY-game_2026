@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { TEAMS, TEAM_IDS, TeamId } from "@/lib/game";
 import { playTitleBgm, setTitleBgmMuted, stopTitleBgm } from "@/lib/bgm";
+import VolumeButton from "./VolumeButton";
 
 export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void }) {
   const [soundOn, setSoundOn] = useState(true);
@@ -18,13 +19,7 @@ export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void 
 
   return (
     <div className="select-screen">
-      <button
-        className="icon-btn select-sound-btn"
-        onClick={() => setSoundOn((v) => !v)}
-        aria-label="배경음악 켜기/끄기"
-      >
-        {soundOn ? "🔊" : "🔇"}
-      </button>
+      <VolumeButton on={soundOn} onClick={() => setSoundOn((v) => !v)} className="select-sound-btn" />
 
       <header className="select-head">
         <img

@@ -6,6 +6,7 @@ import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
 import SettingsSheet from "./SettingsSheet";
+import VolumeButton from "./VolumeButton";
 import FeverPop from "./FeverPop";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
@@ -69,11 +70,14 @@ const TAP_EFFECT_SRC: Record<TeamId, string> = {
   yu: "/images/tap-effect/yu-tap-effect.webp",
 };
 
-/** 상단 도감 버튼 아이콘 — 팀 전용 이미지 (음소거 버튼은 가시성 이슈로 이모지 유지) */
+/** 상단 도감 버튼 아이콘 — 팀 전용 이미지 */
 const GALLERY_ICON_SRC: Record<TeamId, string> = {
   ku: "/images/icons-gallery/gallery-icon-ku.webp",
   yu: "/images/icons-gallery/gallery-icon-yu.webp",
 };
+
+/** 환경설정 버튼 아이콘 — 팀 분기 없이 공통 단일 이미지 */
+const SETTINGS_ICON_SRC = "/images/icons-misc/settings-icon-unified.webp";
 /** 애니메이션 webp 총 재생시간과 맞춘 제거 시점 */
 const TAP_EFFECT_DURATION_MS = 950;
 
@@ -155,7 +159,7 @@ export default function GameScreen({
     playGameplayBgm(team, bgmGroup);
   }, [team, bgmGroup]);
 
-  // 기존 🔊/🔇 버튼과 연동 — 타격 효과음뿐 아니라 이 브금도 같이 음소거한다.
+  // 기존 소리 켜기/끄기 버튼과 연동 — 타격 효과음뿐 아니라 이 브금도 같이 음소거한다.
   useEffect(() => {
     setGameplayBgmMuted(!sfxOn);
   }, [sfxOn]);
@@ -414,19 +418,16 @@ export default function GameScreen({
             <button className="icon-btn" onClick={() => setGalleryOpen(true)} aria-label="칼 도감 열기">
               <img src={GALLERY_ICON_SRC[team]} width={24} height={24} alt="" />
             </button>
-            <button
-              className="icon-btn"
+            <VolumeButton
+              on={sfxOn && isSfxEnabled()}
               onClick={() => {
                 const next = !sfxOn;
                 setSfxOn(next);
                 setSfxEnabled(next);
               }}
-              aria-label="소리 켜기/끄기"
-            >
-              {sfxOn && isSfxEnabled() ? "🔊" : "🔇"}
-            </button>
+            />
             <button className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="환경설정 열기">
-              ⚙️
+              <img src={SETTINGS_ICON_SRC} width={22} height={22} alt="" />
             </button>
           </div>
         </div>

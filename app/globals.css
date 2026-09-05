@@ -291,6 +291,20 @@ button {
   border: 1px solid var(--panel-line);
 }
 
+.volume-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+  /* 아이콘 잉크가 이미지 박스 기하학적 중심보다 살짝 위쪽에 몰려있어서 아래로 살짝 보정 */
+  transform: translateY(1.5px);
+}
+
+.icon-btn.muted .volume-icon {
+  filter: grayscale(1) brightness(0.45);
+  opacity: 0.8;
+}
+
 .energy {
   margin-top: 18px;
   display: flex;
@@ -509,6 +523,7 @@ button {
 
 .floater {
   position: absolute;
+  z-index: 4;
   transform: translate(-50%, -50%);
   font-size: 19px;
   font-weight: 900;
