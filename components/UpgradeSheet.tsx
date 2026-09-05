@@ -20,12 +20,11 @@ interface Props {
   contrib: number;
   onBuy: (id: string) => void;
   onClose: () => void;
-  onChangeTeam: () => void;
 }
 
 const NUMBERS = new Map(UPGRADE_NUMBERS.map((u) => [u.id, u]));
 
-export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, onChangeTeam }: Props) {
+export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose }: Props) {
   const [tab, setTab] = useState<"tap" | "auto">("tap");
   const labels: UpgradeLabel[] = (tab === "tap" ? TAP_LABELS : AUTO_LABELS)[theme.id];
   const mult = stageMultiplier(stageOf(sword.lifetime));
@@ -77,7 +76,9 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, on
                   onClick={() => onBuy(label.id)}
                   disabled={!affordable}
                 >
-                  <span className="up-icon">{label.icon}</span>
+                  <span className="up-icon">
+                    {label.iconImg ? <img src={label.iconImg} width={30} height={30} alt="" /> : label.icon}
+                  </span>
                   <span className="up-body">
                     <span className="up-name">
                       {label.name}
@@ -94,16 +95,13 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose, on
           })}
         </ul>
 
-        <footer className="sheet-foot">
-          {!theme.copy.hideSheetStats && (
+        {!theme.copy.hideSheetStats && (
+          <footer className="sheet-foot">
             <p className="sheet-stats">
               {theme.short} 전체 {formatNumber(sword.taps)}번 · 내가 보탠 {formatNumber(contrib)}번
             </p>
-          )}
-          <button className="link-btn" onClick={onChangeTeam}>
-            다른 칼 보러 가기
-          </button>
-        </footer>
+          </footer>
+        )}
       </section>
     </div>
   );

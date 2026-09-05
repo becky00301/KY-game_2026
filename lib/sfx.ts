@@ -5,11 +5,11 @@
  *
  * 터치음은 실제 사운드 파일 중 하나를 매번 무작위로 골라 재생한다 — 겹쳐 눌러도 안 끊기게
  * 매번 새 Audio 인스턴스를 만든다. 카드 해금·피버 시작음은 전용 파일을 쓴다.
- * 볼륨은 전부 lib/settings.ts의 tapVolume(터치 사운드류 공용) 설정을 따른다.
+ * 볼륨은 전부 lib/settings.ts의 tapVolume(터치 사운드류 공용) × masterVolume 설정을 따른다.
  */
 
 import { TeamId } from "./game";
-import { getTapVolume } from "./settings";
+import { getEffectiveTapVolume } from "./settings";
 
 let enabled = true;
 
@@ -32,7 +32,7 @@ export function unlockAudio() {
 function playFile(src: string) {
   if (!enabled || typeof window === "undefined") return;
   const audio = new Audio(src);
-  audio.volume = getTapVolume();
+  audio.volume = getEffectiveTapVolume();
   audio.play().catch(() => {});
 }
 

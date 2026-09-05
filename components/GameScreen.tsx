@@ -68,6 +68,12 @@ const TAP_EFFECT_SRC: Record<TeamId, string> = {
   ku: "/images/tap-effect/ku-tap-effect.webp",
   yu: "/images/tap-effect/yu-tap-effect.webp",
 };
+
+/** 상단 도감 버튼 아이콘 — 팀 전용 이미지 (음소거 버튼은 가시성 이슈로 이모지 유지) */
+const GALLERY_ICON_SRC: Record<TeamId, string> = {
+  ku: "/images/icons-gallery/gallery-icon-ku.webp",
+  yu: "/images/icons-gallery/gallery-icon-yu.webp",
+};
 /** 애니메이션 webp 총 재생시간과 맞춘 제거 시점 */
 const TAP_EFFECT_DURATION_MS = 950;
 
@@ -406,7 +412,7 @@ export default function GameScreen({
               <span className="online-label">명 접속</span>
             </div>
             <button className="icon-btn" onClick={() => setGalleryOpen(true)} aria-label="칼 도감 열기">
-              🃏
+              <img src={GALLERY_ICON_SRC[team]} width={24} height={24} alt="" />
             </button>
             <button
               className="icon-btn"
@@ -536,7 +542,6 @@ export default function GameScreen({
           theme={theme}
           onBuy={buy}
           onClose={() => setSheetOpen(false)}
-          onChangeTeam={onChangeTeam}
           contrib={contrib}
         />
       )}

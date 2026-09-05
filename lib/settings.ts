@@ -4,6 +4,7 @@
 
 const TAP_VOLUME_KEY = "kyg.settings.tapVolume";
 const BGM_VOLUME_KEY = "kyg.settings.bgmVolume";
+const MASTER_VOLUME_KEY = "kyg.settings.masterVolume";
 
 function readVolume(key: string): number {
   if (typeof window === "undefined") return 1;
@@ -24,6 +25,7 @@ function writeVolume(key: string, value: number) {
 
 let tapVolume: number | null = null;
 let bgmVolume: number | null = null;
+let masterVolume: number | null = null;
 
 /** 터치 사운드류(타격음·카드 해금음·피버 시작음) 공용 볼륨 */
 export function getTapVolume(): number {
@@ -45,4 +47,25 @@ export function getBgmVolume(): number {
 export function setBgmVolume(value: number) {
   bgmVolume = Math.min(1, Math.max(0, value));
   writeVolume(BGM_VOLUME_KEY, bgmVolume);
+}
+
+/** 마스터 볼륨 — bgmVolume/tapVolume에 곱연산으로 적용된다 */
+export function getMasterVolume(): number {
+  if (masterVolume === null) masterVolume = readVolume(MASTER_VOLUME_KEY);
+  return masterVolume;
+}
+
+export function setMasterVolume(value: number) {
+  masterVolume = Math.min(1, Math.max(0, value));
+  writeVolume(MASTER_VOLUME_KEY, masterVolume);
+}
+
+/** 실제로 오디오 엘리먼트에 대입할 브금 볼륨 (bgmVolume × masterVolume) */
+export function getEffectiveBgmVolume(): number {
+  return getBgmVolume() * getMasterVolume();
+}
+
+/** 실제로 오디오 엘리먼트에 대입할 터치 사운드 볼륨 (tapVolume × masterVolume) */
+export function getEffectiveTapVolume(): number {
+  return getTapVolume() * getMasterVolume();
 }

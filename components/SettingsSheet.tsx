@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { applyBgmVolume } from "@/lib/bgm";
-import { getBgmVolume, getTapVolume, setBgmVolume, setTapVolume } from "@/lib/settings";
+import {
+  getBgmVolume,
+  getMasterVolume,
+  getTapVolume,
+  setBgmVolume,
+  setMasterVolume,
+  setTapVolume,
+} from "@/lib/settings";
 
-/** 환경설정 시트 — BGM/터치 사운드 볼륨, 부가 링크, 제작자 정보. */
+/** 환경설정 시트 — 전체/BGM/터치 사운드 볼륨, 부가 링크, 제작자 정보. */
 export default function SettingsSheet({ onClose }: { onClose: () => void }) {
+  const [master, setMaster] = useState(() => Math.round(getMasterVolume() * 100));
   const [bgm, setBgm] = useState(() => Math.round(getBgmVolume() * 100));
   const [tap, setTap] = useState(() => Math.round(getTapVolume() * 100));
 
@@ -22,6 +30,26 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
             ✕
           </button>
         </header>
+
+        <div className="settings-row">
+          <label className="settings-label" htmlFor="master-volume">
+            전체 사운드
+          </label>
+          <input
+            id="master-volume"
+            className="settings-slider"
+            type="range"
+            min={0}
+            max={100}
+            value={master}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setMaster(v);
+              setMasterVolume(v / 100);
+              applyBgmVolume();
+            }}
+          />
+        </div>
 
         <div className="settings-row">
           <label className="settings-label" htmlFor="bgm-volume">
