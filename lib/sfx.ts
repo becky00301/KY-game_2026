@@ -6,9 +6,11 @@
  * 터치음은 실제 사운드 파일 중 하나를 매번 무작위로 골라 재생한다 — 겹쳐 눌러도 안 끊기게
  * 매번 새 Audio 인스턴스를 만든다. 카드 해금·피버 시작음은 전용 파일을 쓴다.
  * 볼륨은 전부 lib/settings.ts의 tapVolume(터치 사운드류 공용) × masterVolume 설정을 따른다.
+ * iOS는 `<audio>.volume` 대입을 무시하므로 GainNode로 조절한다(lib/audioContext.ts 참고).
  */
 
 import { TeamId } from "./game";
+import { attachGain, resumeAudioContext } from "./audioContext";
 import { getEffectiveTapVolume } from "./settings";
 
 let enabled = true;
@@ -24,6 +26,7 @@ export function isSfxEnabled() {
 /** 모바일 자동재생 정책 때문에 첫 사용자 입력에서 한 번 깨워준다. */
 export function unlockAudio() {
   if (typeof window === "undefined") return;
+  resumeAudioContext();
   const a = new Audio();
   a.volume = 0;
   a.play().catch(() => {});
@@ -32,7 +35,10 @@ export function unlockAudio() {
 function playFile(src: string) {
   if (!enabled || typeof window === "undefined") return;
   const audio = new Audio(src);
-  audio.volume = getEffectiveTapVolume();
+  const gain = attachGain(audio);
+  if (gain) gain.gain.value = getEffectiveTapVolume();
+  else audio.volume = getEffectiveTapVolume();
+  resumeAudioContext(); // 필요할 때만 내부에서 resume한다
   audio.play().catch(() => {});
 }
 
