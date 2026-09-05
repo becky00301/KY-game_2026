@@ -24,7 +24,7 @@ export default function TeamSelect({ onPick }: { onPick: (team: TeamId) => void 
       <header className="select-head">
         <img
           src="/images/logo/title-logo.webp"
-          alt="고연전 응원 클리커 — 모두가 두드리는 하나의 검"
+          alt="뭇별과 승리의 전야제"
           className="select-logo"
         />
         <p className="select-sub">당신의 여정을 선택하세요</p>

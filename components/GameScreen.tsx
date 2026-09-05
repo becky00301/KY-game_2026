@@ -405,7 +405,7 @@ export default function GameScreen({
       // 브라우저가 허용한다. 이 함수는 클릭 핸들러에서 바로 호출되고 이게 첫 await이므로 안전하다.
       const pip = await window.documentPictureInPicture!.requestWindow({ width: 220, height: 300 });
       copyStylesInto(pip);
-      pip.document.title = "고연전 응원 클리커";
+      pip.document.title = "뭇별과 승리의 전야제";
       pip.document.body.style.margin = "0";
       pip.addEventListener("pagehide", () => setPipWin(null), { once: true });
       setPipWin(pip);

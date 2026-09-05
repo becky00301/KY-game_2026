@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "승리의 검 — 고연전 응원 클리커",
+  title: "뭇별과 승리의 전야제",
   description: "칼을 두드리고, 기운을 모아, 승리의 검을 완성하자.",
 };
 
