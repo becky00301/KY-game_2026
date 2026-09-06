@@ -24,7 +24,6 @@ export default function CardGallery({
   const [open, setOpen] = useState<CardInfo | null>(null);
   const maxStage = theme.stages.length - 1;
   const allCards = useMemo(() => [...cards, bonusCard], [cards, bonusCard]);
-  const emblemEvolved = stage >= maxStage;
   const unlocked = allCards.filter((c) => !isCardLocked(c, stage, stars, maxStage)).length;
 
   const openGrand = open ? open.stage >= 4 : false;
@@ -61,7 +60,7 @@ export default function CardGallery({
                   disabled={locked}
                   aria-label={locked ? "아직 열리지 않은 카드" : card.title}
                 >
-                  <CardArt card={card} theme={theme} locked={locked} emblemEvolved={emblemEvolved} />
+                  <CardArt card={card} theme={theme} locked={locked} />
                   <span className="gallery-name">{locked ? "???" : card.title}</span>
                 </button>
               </li>
@@ -75,7 +74,7 @@ export default function CardGallery({
               className={`reveal-frame ${openGrand ? "reveal-frame--grand" : ""}`}
               onClick={(e) => e.stopPropagation()}
             >
-              <CardArt card={open} theme={theme} emblemEvolved={emblemEvolved} grand={openGrand} />
+              <CardArt card={open} theme={theme} grand={openGrand} />
               <h3 className="reveal-title">{open.title}</h3>
               {open.caption && <p className="reveal-caption">{open.caption}</p>}
               {open.lore && <p className="reveal-lore">{open.lore}</p>}

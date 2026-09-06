@@ -59,7 +59,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     short: "고대",
     slogan: "타오르는 노을과 진리의 여정",
     spirit: "염원의 힘",
-    emblem: "🐯",
+    emblem: "/images/emblems/emblem-ku.webp",
     stages: [
       "성화가 시작될 검",
       "홍련과 개화를 이룬 검",
@@ -102,7 +102,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     short: "연대",
     slogan: "비상하는 진리와 자유의 여정",
     spirit: "데이터베이스",
-    emblem: "🦅",
+    emblem: "/images/emblems/emblem-yu.webp",
     stages: [
       "프로토타입 : 청우",
       "개화 : 연희와 검",
@@ -203,11 +203,11 @@ export function markEvolveCutsceneSeen(team: TeamId) {
 }
 
 /**
- * 학교 심볼 이미지. 검이 최종 단계에 도달하면(`evolved`) 진화한 심볼로 바뀐다.
+ * 팀별 심볼 이미지. 검의 진화 단계와 무관하게 같은 심볼을 사용한다.
  * "OO 공동 칼" 배지와 도감 카드 폴백 아이콘 두 곳에서 같이 쓴다.
  */
-export function emblemSrc(team: TeamId, evolved: boolean): string {
-  return `/images/emblem/emblem-${team}${evolved ? "-stage5" : ""}.webp`;
+export function emblemSrc(team: TeamId): string {
+  return TEAMS[team].emblem;
 }
 
 /** "#ff4d6d" → "255, 77, 109" — rgba()에서 커스텀 알파를 쓰려면 채널 문자열이 따로 필요하다. */

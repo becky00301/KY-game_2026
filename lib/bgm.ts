@@ -18,17 +18,38 @@
 
 import { attachGain, resumeAudioContext } from "./audioContext";
 import { getEffectiveBgmVolume } from "./settings";
+import { BOSS_INTRO } from "./boss";
 
 const TITLE_BASE_VOLUME = 0.5;
 const GAMEPLAY_BASE_VOLUME = 0.45;
 
-function retryOnFirstTouch(el: HTMLAudioElement) {
-  const retry = () => {
-    resumeAudioContext();
-    el.play().catch(() => {});
-    window.removeEventListener("pointerdown", retry);
-  };
-  window.addEventListener("pointerdown", retry, { once: true });
+// A paused track must not restart later via a stale autoplay retry/promise.
+const playbackWanted = new WeakSet<HTMLAudioElement>();
+const retryListeners = new WeakMap<HTMLAudioElement, () => void>();
+function clearRetry(el: HTMLAudioElement) {
+  const retry = retryListeners.get(el);
+  if (retry) window.removeEventListener("pointerdown", retry);
+  retryListeners.delete(el);
+}
+function requestPlayback(el: HTMLAudioElement) {
+  playbackWanted.add(el);
+  clearRetry(el);
+  resumeAudioContext();
+  el.play().catch(() => {
+    if (!playbackWanted.has(el)) return;
+    clearRetry(el);
+    const retry = () => {
+      clearRetry(el);
+      if (playbackWanted.has(el)) requestPlayback(el);
+    };
+    retryListeners.set(el, retry);
+    window.addEventListener("pointerdown", retry, { once: true });
+  });
+}
+function pausePlayback(el: HTMLAudioElement) {
+  playbackWanted.delete(el);
+  clearRetry(el);
+  el.pause();
 }
 
 function setGain(el: HTMLAudioElement, gain: GainNode | null, value: number) {
@@ -66,13 +87,12 @@ export function setTitleBgmMuted(muted: boolean) {
 export function playTitleBgm() {
   const el = ensureTitleEl();
   if (!el) return;
-  resumeAudioContext();
-  el.play().catch(() => retryOnFirstTouch(el));
+  requestPlayback(el);
 }
 
 export function stopTitleBgm() {
   if (!titleEl) return;
-  titleEl.pause();
+  pausePlayback(titleEl);
   titleEl.currentTime = 0;
 }
 
@@ -116,6 +136,7 @@ function ensureGameplayEl(): HTMLAudioElement | null {
 export function setGameplayBgmMuted(muted: boolean) {
   gameplayMuted = muted;
   if (gameplayEl) setGain(gameplayEl, gameplayGain, gainFor(GAMEPLAY_BASE_VOLUME, muted));
+  if (bossEl) setGain(bossEl, bossGain, gainFor(GAMEPLAY_BASE_VOLUME, muted));
 }
 
 /** team·group 조합이 바뀔 때만 src를 교체한다. */
@@ -126,13 +147,12 @@ export function playGameplayBgm(team: "ku" | "yu", group: BgmGroup) {
   if (el.src !== new URL(src, window.location.href).href) {
     el.src = src;
   }
-  resumeAudioContext();
-  el.play().catch(() => retryOnFirstTouch(el));
+  if (!bossActive) requestPlayback(el);
 }
 
 export function stopGameplayBgm() {
   if (!gameplayEl) return;
-  gameplayEl.pause();
+  pausePlayback(gameplayEl);
   gameplayEl.currentTime = 0;
 }
 
@@ -140,4 +160,33 @@ export function stopGameplayBgm() {
 export function applyBgmVolume() {
   if (titleEl) setGain(titleEl, titleGain, gainFor(TITLE_BASE_VOLUME, titleMuted));
   if (gameplayEl) setGain(gameplayEl, gameplayGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
+  if (bossEl) setGain(bossEl, bossGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
+}
+
+// ---------- 서휘령 도입부 → 입장맵 (한 트랙을 끊김 없이 유지) ----------
+let bossEl: HTMLAudioElement | null = null;
+let bossGain: GainNode | null = null;
+let bossActive = false;
+
+export function startBossBgm() {
+  if (typeof window === "undefined" || bossActive) return;
+  bossActive = true;
+  if (gameplayEl) pausePlayback(gameplayEl); // preserve the original track's position
+  if (!bossEl) {
+    bossEl = new Audio(BOSS_INTRO.bgmSrc);
+    bossEl.loop = true;
+    bossGain = attachGain(bossEl);
+  }
+  setGain(bossEl, bossGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
+  requestPlayback(bossEl);
+}
+
+export function stopBossBgm(resumeGameplay = true) {
+  const wasActive = bossActive;
+  bossActive = false;
+  if (bossEl) {
+    pausePlayback(bossEl);
+    bossEl.currentTime = 0;
+  }
+  if (wasActive && resumeGameplay && gameplayEl) requestPlayback(gameplayEl);
 }
