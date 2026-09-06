@@ -538,6 +538,14 @@ button {
   font-size: 23px;
 }
 
+.floater.critical {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 900;
+  white-space: nowrap;
+  text-shadow: 0 0 14px var(--glow), 0 0 6px var(--accent), 0 2px 10px rgba(0, 0, 0, 0.85);
+}
+
 @keyframes floatUp {
   0% {
     opacity: 0;
@@ -1725,6 +1733,12 @@ button {
   color: #fff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
   animation: floatUp 0.8s ease-out forwards;
+}
+
+.pip-floater.critical {
+  font-size: 15px;
+  white-space: nowrap;
+  text-shadow: 0 0 10px var(--glow), 0 2px 8px rgba(0, 0, 0, 0.85);
 }
 
 .pip-return-btn {

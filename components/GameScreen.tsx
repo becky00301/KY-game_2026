@@ -20,6 +20,7 @@ import {
   FEVER_MAX,
   FEVER_MULTIPLIER,
   MAX_TAPS_PER_SECOND,
+  CRITICAL_MULTIPLIER,
   SWORD_STAGE_SCALE,
   SwordState,
   accrue,
@@ -27,6 +28,7 @@ import {
   createSword,
   isFeverActive,
   rateBonus,
+  rollCritical,
   stageOf,
   stageProgress,
   starRank,
@@ -58,6 +60,7 @@ interface Floater {
   y: number;
   text: string;
   fever: boolean;
+  critical: boolean;
 }
 
 interface TapEffect {
@@ -300,9 +303,9 @@ export default function GameScreen({
     prevFeverUntil.current = Math.max(prevFeverUntil.current, sword.feverUntil);
   }, [sword.feverUntil, ready]);
 
-  const pushFloater = useCallback((x: number, y: number, text: string, fever: boolean) => {
+  const pushFloater = useCallback((x: number, y: number, text: string, fever: boolean, critical: boolean) => {
     const id = floaterId.current++;
-    setFloaters((f) => [...f.slice(-9), { id, x, y, text, fever }]);
+    setFloaters((f) => [...f.slice(-9), { id, x, y, text, fever, critical }]);
     window.setTimeout(() => setFloaters((f) => f.filter((n) => n.id !== id)), 900);
   }, []);
 
@@ -339,8 +342,10 @@ export default function GameScreen({
       // 낙관적 반영 — 서버가 실제로 인정하는 값과 같은 공식을 쓴다.
       const current = swordStateRef.current;
       const feverNow = isFeverActive(current, now);
+      const critical = rollCritical();
+      const units = critical ? CRITICAL_MULTIPLIER : 1;
       const gain =
-        tapPower(current) * rateBonus(tapWindow.current.length, 1) * (feverNow ? FEVER_MULTIPLIER : 1);
+        tapPower(current) * units * rateBonus(tapWindow.current.length, 1) * (feverNow ? FEVER_MULTIPLIER : 1);
       setSword((prev) => ({
         ...prev,
         energy: prev.energy + gain,
@@ -349,7 +354,7 @@ export default function GameScreen({
         feverGauge: prev.feverUntil > now ? prev.feverGauge : Math.min(prev.feverGauge + 1, FEVER_MAX),
       }));
 
-      return { gain, feverNow, combo: nextCombo };
+      return { gain, feverNow, combo: nextCombo, critical };
     },
     [combo, team]
   );
@@ -365,7 +370,8 @@ export default function GameScreen({
       if (rect) {
         const x = clientX - rect.left;
         const y = clientY - rect.top;
-        pushFloater(x, y, `+${formatNumber(result.gain)}`, result.feverNow);
+        const text = result.critical ? `크리티컬! +${formatNumber(result.gain)}` : `+${formatNumber(result.gain)}`;
+        pushFloater(x, y, text, result.feverNow, result.critical);
         pushTapEffect(x, y, team);
       }
 
@@ -377,10 +383,10 @@ export default function GameScreen({
     [ready, applyTap, pushFloater, pushTapEffect, team]
   );
 
-  const pushPipFloater = useCallback((text: string) => {
+  const pushPipFloater = useCallback((text: string, critical: boolean) => {
     const id = pipFloaterId.current++;
     const left = 40 + Math.random() * 20;
-    setPipFloaters((f) => [...f.slice(-8), { id, text, left }]);
+    setPipFloaters((f) => [...f.slice(-8), { id, text, left, critical }]);
     window.setTimeout(() => setPipFloaters((f) => f.filter((n) => n.id !== id)), 800);
   }, []);
 
@@ -391,7 +397,8 @@ export default function GameScreen({
     unlockAudio();
     const result = applyTap(Date.now());
     if (!result) return;
-    pushPipFloater(`+${formatNumber(result.gain)}`);
+    const text = result.critical ? `크리티컬! +${formatNumber(result.gain)}` : `+${formatNumber(result.gain)}`;
+    pushPipFloater(text, result.critical);
     playHit(team, stageOf(swordStateRef.current.lifetime));
     if (navigator.vibrate) navigator.vibrate(result.combo > 30 ? 12 : 8);
   }, [ready, applyTap, pushPipFloater, team]);
@@ -573,7 +580,11 @@ export default function GameScreen({
             />
           ))}
           {floaters.map((f) => (
-            <span key={f.id} className={`floater ${f.fever ? "fever" : ""}`} style={{ left: f.x, top: f.y }}>
+            <span
+              key={f.id}
+              className={`floater ${f.fever ? "fever" : ""} ${f.critical ? "critical" : ""}`}
+              style={{ left: f.x, top: f.y }}
+            >
               {f.text}
             </span>
           ))}

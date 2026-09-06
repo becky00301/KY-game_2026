@@ -6,6 +6,7 @@ export interface PipFloater {
   id: number;
   text: string;
   left: number;
+  critical: boolean;
 }
 
 /**
@@ -60,7 +61,11 @@ export default function PipView({
       >
         <div className="pip-floater-layer">
           {floaters.map((f) => (
-            <span key={f.id} className="pip-floater" style={{ left: `${f.left}%` }}>
+            <span
+              key={f.id}
+              className={`pip-floater ${f.critical ? "critical" : ""}`}
+              style={{ left: `${f.left}%` }}
+            >
               {f.text}
             </span>
           ))}

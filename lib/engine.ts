@@ -54,6 +54,27 @@ export const FEVER_MULTIPLIER = 3;
 export const RATE_BONUS_PER_TAP = 0.02;
 export const RATE_BONUS_CAP = 20;
 
+/** 크리티컬 — 터치마다 이 확률로 발동하며, 발동하면 그 터치의 획득량이 이 배수가 된다. */
+export const CRITICAL_CHANCE = 0.05;
+export const CRITICAL_MULTIPLIER = 10;
+
+/** 터치 1회가 크리티컬인지 굴린다. */
+export function rollCritical(): boolean {
+  return Math.random() < CRITICAL_CHANCE;
+}
+
+/**
+ * `taps`번의 개별 터치를 각각 굴려서 합산 배수를 낸다 — 평범한 터치는 1, 크리티컬은
+ * CRITICAL_MULTIPLIER로 친다. 배치로 묶어 처리하는 서버/로컬 백엔드에서 씀.
+ */
+export function criticalUnits(taps: number): number {
+  let units = 0;
+  for (let i = 0; i < taps; i++) {
+    units += rollCritical() ? CRITICAL_MULTIPLIER : 1;
+  }
+  return units;
+}
+
 export interface UpgradeNumbers {
   id: string;
   kind: "tap" | "auto";
@@ -194,7 +215,9 @@ export function applyTaps(
   if (taps <= 0) return next;
 
   const mult = isFeverActive(next, now) ? FEVER_MULTIPLIER : 1;
-  const gain = tapPower(next) * taps * rateBonus(taps, elapsedSeconds) * mult;
+  // 크리티컬은 개별 터치 단위로 굴리므로 taps 대신 합산 배수(criticalUnits)를 곱한다.
+  // 콤보/레이트 보너스는 크리티컬과 무관하게 실제 터치 횟수 그대로 계산한다.
+  const gain = tapPower(next) * criticalUnits(taps) * rateBonus(taps, elapsedSeconds) * mult;
 
   let feverGauge = next.feverGauge;
   let feverUntil = next.feverUntil;

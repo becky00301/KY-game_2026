@@ -26,6 +26,12 @@ create table if not exists public.game_config (
   rate_bonus_cap      numeric   not null default 20
 );
 
+-- game_config는 이미 운영 중인 테이블이라 create table if not exists로는 새 컬럼이 추가되지
+-- 않는다(테이블이 이미 있으면 그 문장 자체가 통째로 무시됨). 그래서 새 설정값은 이렇게
+-- alter table ... add column if not exists로 따로 얹는다.
+alter table public.game_config add column if not exists critical_chance     numeric not null default 0.05;
+alter table public.game_config add column if not exists critical_multiplier numeric not null default 10;
+
 create table if not exists public.upgrade_defs (
   id        text primary key,
   kind      text    not null check (kind in ('tap', 'auto')),
@@ -56,12 +62,14 @@ create table if not exists public.tap_budget (
 
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second)
-values (1, array[0, 50000, 1500000, 45000000, 1500000000]::numeric[], 1.85, 30)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second, critical_chance, critical_multiplier)
+values (1, array[0, 50000, 1500000, 45000000, 1500000000]::numeric[], 1.85, 30, 0.05, 10)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
-  max_taps_per_second = excluded.max_taps_per_second;
+  max_taps_per_second = excluded.max_taps_per_second,
+  critical_chance = excluded.critical_chance,
+  critical_multiplier = excluded.critical_multiplier;
 
 insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) values
   ('wrist',  'tap',       2000, 1.14,    1, 1),
@@ -220,6 +228,8 @@ declare
   gain     numeric;
   gauge    numeric;
   until    timestamptz;
+  units    numeric;
+  i        int;
 begin
   select * into cfg from public.game_config where id = 1;
 
@@ -230,11 +240,23 @@ begin
     return public.sword_row_json(s);
   end if;
 
+  -- 크리티컬(기본 5% 확률, 10배)을 터치 개수만큼 각각 따로 굴려서 합산한다. 클라이언트의
+  -- 낙관적 예측도 터치 1회 단위로 같은 확률을 굴리므로(lib/engine.ts의 rollCritical),
+  -- 정확히 같은 결과는 아니어도 평균적으로는 같은 기댓값으로 수렴한다.
+  units := 0;
+  for i in 1..granted loop
+    if random() < cfg.critical_chance then
+      units := units + cfg.critical_multiplier;
+    else
+      units := units + 1;
+    end if;
+  end loop;
+
   -- 연타 보너스는 클라이언트가 보낸 콤보가 아니라 실제 터치 속도로 계산한다.
   bonus := 1 + least(granted / greatest(coalesce(p_elapsed, 1), 0.5), cfg.rate_bonus_cap)
                * cfg.rate_bonus_per_tap;
   mult := case when s.fever_until > now() then cfg.fever_multiplier else 1 end;
-  gain := public.sword_tap_power(s) * granted * bonus * mult;
+  gain := public.sword_tap_power(s) * units * bonus * mult;
 
   gauge := s.fever_gauge;
   until := s.fever_until;
