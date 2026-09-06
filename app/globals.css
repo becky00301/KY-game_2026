@@ -267,10 +267,9 @@ button {
 }
 
 .badge-emblem {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 16px;
+  height: 22px;
+  object-fit: contain;
   display: block;
 }
 
@@ -718,7 +717,7 @@ button {
   flex-direction: column;
   border-radius: 26px 26px 0 0;
   padding: 10px 18px calc(18px + env(safe-area-inset-bottom));
-  background: #000;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--primary) 26%, #000) 0%, #000 62%);
   border-top: 1px solid var(--panel-line);
   animation: slideUp 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
@@ -1119,11 +1118,11 @@ button {
 }
 
 .card-emblem {
-  width: 62%;
-  max-width: 190px;
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  object-fit: cover;
+  width: 52%;
+  max-width: 160px;
+  height: auto;
+  max-height: 70%;
+  object-fit: contain;
   opacity: 0.85;
 }
 
@@ -1190,7 +1189,7 @@ button {
   padding: 20px 20px 18px;
   border-radius: 22px;
   text-align: center;
-  background: linear-gradient(165deg, rgba(28, 12, 18, 0.96), rgba(10, 5, 12, 0.96));
+  background: linear-gradient(165deg, color-mix(in srgb, var(--primary) 22%, #0a050c) 0%, #0a050c 68%);
   border: 1px solid var(--panel-line);
   box-shadow: 0 30px 70px -28px var(--glow);
   animation: cardPop 0.42s cubic-bezier(0.2, 1.1, 0.35, 1);
@@ -1354,7 +1353,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: feverPopFade 2.6s ease forwards;
+  animation: feverPopFade 2.7s ease forwards;
 }
 
 .fever-pop.side-right {
@@ -1368,35 +1367,23 @@ button {
 }
 
 .fever-pop-img {
-  height: 30dvh;
-  max-height: 240px;
+  height: 42dvh;
+  max-height: none;
   filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.5));
   animation: feverPopIn 0.4s cubic-bezier(0.2, 1.3, 0.4, 1) both;
 }
 
 .fever-pop.fever-pop-big .fever-pop-img {
-  height: 46dvh;
-  max-height: 380px;
+  height: 58dvh;
+  max-height: none;
 }
 
 .fever-pop.fever-pop-biggest .fever-pop-img {
-  height: 56dvh;
-  max-height: 460px;
+  height: 74dvh;
+  max-height: none;
 }
 
-.fever-pop-bubble {
-  margin-bottom: 8px;
-  max-width: 62vw;
-  padding: 9px 13px;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.68);
-  border: 1px solid var(--panel-line);
-  backdrop-filter: blur(6px);
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: #fff;
-  text-align: center;
-}
+
 
 @keyframes feverPopIn {
   0% {
@@ -1753,4 +1740,57 @@ button {
   white-space: nowrap;
   background: var(--primary);
   color: #fff;
+}
+
+
+/* ---------------- 6차: 서휘령 입장 / 피버 배너 ---------------- */
+.game-content { display: contents; }
+.game-content[hidden] { display: none; }
+.boss-theme, .sheet--boss, .reveal-card--boss {
+  --primary: #0e6a63;
+  --primary-deep: #07332f;
+  --accent: #a0dfd3;
+  --glow: #36bbae;
+  --glow-rgb: 54, 187, 174;
+}
+.sheet--boss { background: linear-gradient(165deg, color-mix(in srgb, #0e6a63 30%, #000) 0%, #000 62%); }
+.reveal-card--boss { background: linear-gradient(165deg, color-mix(in srgb, #0e6a63 26%, #060c0d) 0%, #060c0d 68%); }
+.boss-entry-btn {
+  display: flex; align-items: center; gap: 6px; margin-top: 8px;
+  padding: 7px 10px; border: 1px solid #438b8277; border-radius: 8px;
+  background: #073b35b3; color: #c0eee5; font-size: 14px;
+}
+.boss-entry-btn img { width: 24px; height: 24px; object-fit: contain; }
+.boss-map-screen {
+  position: fixed; inset: 0; z-index: 25; height: 100dvh;
+  display: flex; flex-direction: column; isolation: isolate;
+  background: #061211; overflow-y: auto;
+}
+.boss-map-bg { position: absolute; inset: 0; z-index: -1; background: linear-gradient(#00100f33, #0008), url('/images/boss/boss-map-bg.webp') center / cover; }
+.boss-map-hud { flex-shrink: 0; }
+.boss-map-content { flex: 1; min-height: 180px; display: flex; flex-direction: column; align-items: center; padding: 0 18px; }
+.boss-map-heading { flex-shrink: 0; margin: 0; width: min(84%, 400px); }
+.boss-map-title { display: block; width: 100%; max-height: 20dvh; object-fit: contain; }
+.boss-map-subtitle { flex-shrink: 0; text-align: center; color: #cbdedb; font-size: 14px; line-height: 1.7; margin: 4px 0 10px; text-shadow: 0 2px 8px #000; }
+.boss-map-sword-wrap { flex: 1; min-height: 0; width: min(94%, 520px); position: relative; margin-top: -6px; margin-left: 18px; }
+.boss-map-sword { position: absolute; width: 100%; height: 100%; object-fit: contain; }
+.boss-map-actions { display: flex; flex-shrink: 0; gap: 12px; width: min(100%, 520px); align-self: center; padding: 16px 22px calc(22px + env(safe-area-inset-bottom)); }
+.boss-map-actions button { min-height: 48px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
+.boss-map-exit-btn-bottom { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
+.boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
+.boss-intro { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; }
+.boss-dialogue-advance { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; color: inherit; text-align: left; }
+.boss-dialogue-advance .tutorial-dialogue { align-self: stretch; z-index: 2; max-height: 44dvh; overflow-y: auto; }
+.boss-portrait { position: absolute; left: 50%; top: 2dvh; transform: translateX(-50%); max-height: 88dvh; max-width: 94%; object-fit: contain; animation: fadeIn .3s ease; }
+.boss-skip { top: calc(14px + env(safe-area-inset-top)); left: 16px; right: auto; z-index: 5; }
+.boss-reveal-image-wrap { position: absolute; inset: 0; overflow: hidden; }
+.boss-reveal-image { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 100%; width: auto; max-width: none; }
+.boss-reveal-caption { position: absolute; top: 0; left: 0; right: 0; margin: 0; padding: calc(70px + env(safe-area-inset-top)) 16px 26px; background: linear-gradient(#000e, #0009 75%, transparent); text-align: center; color: #dcfff4; font-size: 16px; line-height: 1.6; }
+.boss-notice { z-index: 80; pointer-events: none; }
+.fever-pop-layer { position: absolute; inset: 0; pointer-events: none; z-index: 4; animation: feverPopFade 2.7s ease forwards; }
+.fever-pop.fever-pop-biggest { bottom: calc(-70px + env(safe-area-inset-bottom)); }
+.fever-banner-wrap { position: absolute; left: 50%; top: 31%; transform: translate(-50%, -50%); width: 110%; max-width: 460px; z-index: 5; }
+.fever-banner-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 22px #0008); animation: feverPopIn .4s cubic-bezier(.2, 1.3, .4, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .boss-portrait, .fever-banner-img { animation: none; }
 }
