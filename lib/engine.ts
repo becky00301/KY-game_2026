@@ -41,7 +41,7 @@ export const AURA_PEAK = [0, 0.15, 0.21, 0.28, 0.35, 0.42];
 /** 한 번의 전송으로 인정하는 최대 터치 수 */
 export const MAX_TAPS_PER_FLUSH = 40;
 /** 한 기기가 초당 인정받는 최대 터치 수 */
-export const MAX_TAPS_PER_SECOND = 20;
+export const MAX_TAPS_PER_SECOND = 30;
 /** 자동 응원을 소급 정산해 주는 최대 시간(초) */
 export const MAX_ACCRUAL_SECONDS = 120;
 

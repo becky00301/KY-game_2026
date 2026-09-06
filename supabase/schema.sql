@@ -17,7 +17,7 @@ create table if not exists public.game_config (
   stage_thresholds    numeric[] not null,
   stage_growth        numeric   not null default 1.85,
   max_taps_per_flush  int       not null default 40,
-  max_taps_per_second int       not null default 20,
+  max_taps_per_second int       not null default 30,
   max_accrual_seconds int       not null default 120,
   fever_max           numeric   not null default 3000,
   fever_duration_ms   int       not null default 10000,
@@ -56,11 +56,12 @@ create table if not exists public.tap_budget (
 
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth)
-values (1, array[0, 50000, 1500000, 45000000, 1500000000]::numeric[], 1.85)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second)
+values (1, array[0, 50000, 1500000, 45000000, 1500000000]::numeric[], 1.85, 30)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
-  stage_growth = excluded.stage_growth;
+  stage_growth = excluded.stage_growth,
+  max_taps_per_second = excluded.max_taps_per_second;
 
 insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) values
   ('wrist',  'tap',       2000, 1.14,    1, 1),

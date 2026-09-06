@@ -302,15 +302,17 @@ export default function GameScreen({
 
   const pushFloater = useCallback((x: number, y: number, text: string, fever: boolean) => {
     const id = floaterId.current++;
-    setFloaters((f) => [...f.slice(-14), { id, x, y, text, fever }]);
+    setFloaters((f) => [...f.slice(-9), { id, x, y, text, fever }]);
     window.setTimeout(() => setFloaters((f) => f.filter((n) => n.id !== id)), 900);
   }, []);
 
   // 터칠 때마다(콤보·피버와 무관하게 매 터치) 터진 자리에 파티클 애니메이션을 새로 띄운다.
   // 겹쳐 눌러도 자연스럽게 보이도록 매번 새 엘리먼트를 만든다(하나를 재사용하면 처음부터 다시 재생되지 않음).
+  // 애니메이션 webp 디코딩 비용이 꽤 커서, 빠르게 연타할 때 동시에 떠있는 개수를 세게 제한한다
+  // (많이 겹쳐봐야 어차피 같은 자리에서 안 보이기도 하고).
   const pushTapEffect = useCallback((x: number, y: number, forTeam: TeamId) => {
     const id = tapEffectId.current++;
-    setTapEffects((f) => [...f.slice(-14), { id, x, y, src: TAP_EFFECT_SRC[forTeam] }]);
+    setTapEffects((f) => [...f.slice(-5), { id, x, y, src: TAP_EFFECT_SRC[forTeam] }]);
     window.setTimeout(() => setTapEffects((f) => f.filter((n) => n.id !== id)), TAP_EFFECT_DURATION_MS);
   }, []);
 

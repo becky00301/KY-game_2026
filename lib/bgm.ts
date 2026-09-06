@@ -10,6 +10,10 @@
  * 실제 재생 볼륨은 각 트랙의 기준 레벨에 lib/settings.ts의 유저별 bgmVolume × masterVolume(0~1)을 곱한 값이다.
  * iOS의 `el.volume` 무시 문제 때문에 GainNode로 조절한다(lib/audioContext.ts 참고) — GainNode를
  * 못 만드는 환경에서만 `el.volume`으로 폴백한다.
+ *
+ * ⚠️ 음소거도 같은 이유로 `el.muted` 대신 게인을 0으로 낮추는 방식으로 한다 — 한 번
+ * `createMediaElementSource()`로 WebAudio 그래프에 연결된 엘리먼트는 `el.muted`를 바꿔도
+ * 그래프로 들어가는 소리 자체는 그대로라 음소거가 안 먹히거나(특히 iOS) 씹히는 경우가 있었다.
  */
 
 import { attachGain, resumeAudioContext } from "./audioContext";
@@ -32,6 +36,11 @@ function setGain(el: HTMLAudioElement, gain: GainNode | null, value: number) {
   else el.volume = value; // GainNode를 못 만드는 아주 오래된 브라우저용 폴백
 }
 
+/** 음소거 상태를 실제 게인 값으로 환산한다 — muted면 0, 아니면 기준 볼륨 그대로. */
+function gainFor(base: number, muted: boolean): number {
+  return muted ? 0 : base * getEffectiveBgmVolume();
+}
+
 // ---------- 첫 화면 브금 ----------
 
 let titleEl: HTMLAudioElement | null = null;
@@ -44,20 +53,19 @@ function ensureTitleEl(): HTMLAudioElement | null {
     titleEl = new Audio("/audio/bgm-title/bgm-title-select.mp3");
     titleEl.loop = true;
     titleGain = attachGain(titleEl);
-    setGain(titleEl, titleGain, TITLE_BASE_VOLUME * getEffectiveBgmVolume());
+    setGain(titleEl, titleGain, gainFor(TITLE_BASE_VOLUME, titleMuted));
   }
   return titleEl;
 }
 
 export function setTitleBgmMuted(muted: boolean) {
   titleMuted = muted;
-  if (titleEl) titleEl.muted = muted;
+  if (titleEl) setGain(titleEl, titleGain, gainFor(TITLE_BASE_VOLUME, muted));
 }
 
 export function playTitleBgm() {
   const el = ensureTitleEl();
   if (!el) return;
-  el.muted = titleMuted;
   resumeAudioContext();
   el.play().catch(() => retryOnFirstTouch(el));
 }
@@ -100,14 +108,14 @@ function ensureGameplayEl(): HTMLAudioElement | null {
     gameplayEl = new Audio();
     gameplayEl.loop = true;
     gameplayGain = attachGain(gameplayEl);
-    setGain(gameplayEl, gameplayGain, GAMEPLAY_BASE_VOLUME * getEffectiveBgmVolume());
+    setGain(gameplayEl, gameplayGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
   }
   return gameplayEl;
 }
 
 export function setGameplayBgmMuted(muted: boolean) {
   gameplayMuted = muted;
-  if (gameplayEl) gameplayEl.muted = muted;
+  if (gameplayEl) setGain(gameplayEl, gameplayGain, gainFor(GAMEPLAY_BASE_VOLUME, muted));
 }
 
 /** team·group 조합이 바뀔 때만 src를 교체한다. */
@@ -118,7 +126,6 @@ export function playGameplayBgm(team: "ku" | "yu", group: BgmGroup) {
   if (el.src !== new URL(src, window.location.href).href) {
     el.src = src;
   }
-  el.muted = gameplayMuted;
   resumeAudioContext();
   el.play().catch(() => retryOnFirstTouch(el));
 }
@@ -131,7 +138,6 @@ export function stopGameplayBgm() {
 
 /** 설정 시트에서 bgmVolume/masterVolume 슬라이더를 움직일 때, 지금 재생 중인 트랙에도 바로 반영한다. */
 export function applyBgmVolume() {
-  const v = getEffectiveBgmVolume();
-  if (titleEl) setGain(titleEl, titleGain, TITLE_BASE_VOLUME * v);
-  if (gameplayEl) setGain(gameplayEl, gameplayGain, GAMEPLAY_BASE_VOLUME * v);
+  if (titleEl) setGain(titleEl, titleGain, gainFor(TITLE_BASE_VOLUME, titleMuted));
+  if (gameplayEl) setGain(gameplayEl, gameplayGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
 }
