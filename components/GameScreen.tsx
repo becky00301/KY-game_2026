@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
+import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
+import { claimBossIntro, crossedBossThreshold, hasSeenBossIntro } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
@@ -49,6 +51,8 @@ import {
   playGameplayBgm,
   setGameplayBgmMuted,
   stopGameplayBgm,
+  startBossBgm,
+  stopBossBgm,
 } from "@/lib/bgm";
 import { TeamId } from "@/lib/game";
 
@@ -118,6 +122,15 @@ export default function GameScreen({
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [pipFloaters, setPipFloaters] = useState<PipFloater[]>([]);
+  const [bossMode, setBossMode] = useState<"closed" | "intro" | "map">("closed");
+  const [bossPending, setBossPending] = useState(false);
+  const [bossUnlockOpen, setBossUnlockOpen] = useState(false);
+  const [bossGalleryOpen, setBossGalleryOpen] = useState(false);
+  const [notice, setNotice] = useState("");
+  const bossActive = bossMode !== "closed";
+  const bossEntryRef = useRef<HTMLButtonElement>(null);
+  const bossEntryClaimed = useRef(false);
+
 
   const lastTapAt = useRef(0);
   const tapWindow = useRef<number[]>([]);
@@ -144,6 +157,48 @@ export default function GameScreen({
   const maxStage = theme.stages.length - 1;
   const isMaxStage = stage >= maxStage;
 
+  const enterBoss = useCallback(() => {
+    const current = swordStateRef.current;
+    if (!ready || stageOf(current.lifetime) < maxStage) return;
+    if (starRank(current.lifetime) < 1) {
+      setNotice("아직은 들어갈 수 없는 것 같다. 검술을 조금만 더 강화해보자.");
+      return;
+    }
+    if (bossEntryClaimed.current) return;
+    bossEntryClaimed.current = true;
+    const first = claimBossIntro(team);
+    setSheetOpen(false);
+    setGalleryOpen(false);
+    setSettingsOpen(false);
+    setFeverPopKey(0);
+    if (pipWin) pipWin.close();
+    startBossBgm();
+    setBossMode(first ? "intro" : "map");
+    setBossPending(false);
+  }, [ready, maxStage, team, pipWin]);
+
+  const exitBoss = useCallback(() => {
+    stopBossBgm();
+    setBossMode("closed");
+    setBossGalleryOpen(false);
+    setBossUnlockOpen(false);
+    setSettingsOpen(false);
+    setNotice("");
+    bossEntryClaimed.current = false;
+    window.setTimeout(() => bossEntryRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  // If final evolution and the first star arrive together, finish the earlier story first.
+  useEffect(() => {
+    if (bossPending && !cutsceneOpen && !revealCard && !settingsOpen && !sheetOpen && !galleryOpen) enterBoss();
+  }, [bossPending, cutsceneOpen, revealCard, settingsOpen, sheetOpen, galleryOpen, enterBoss]);
+
   // 테마 색상 주입
   useEffect(() => {
     const root = document.documentElement;
@@ -158,7 +213,10 @@ export default function GameScreen({
   }, [theme]);
 
   // 게임 화면을 나가면(팀 선택으로 돌아가면) 브금을 완전히 정지한다.
-  useEffect(() => stopGameplayBgm, []);
+  useEffect(() => () => {
+    stopBossBgm(false);
+    stopGameplayBgm();
+  }, []);
 
   // 게임 화면을 나가면 열려있던 PIP 창도 같이 닫는다.
   useEffect(() => {
@@ -169,8 +227,9 @@ export default function GameScreen({
 
   // 진화 단계 그룹이 바뀔 때만 트랙을 교체한다.
   useEffect(() => {
-    playGameplayBgm(team, bgmGroup);
-  }, [team, bgmGroup]);
+    if (bossActive) startBossBgm();
+    else playGameplayBgm(team, bgmGroup);
+  }, [team, bgmGroup, bossActive]);
 
   // 기존 소리 켜기/끄기 버튼과 연동 — 타격 효과음뿐 아니라 이 브금도 같이 음소거한다.
   useEffect(() => {
@@ -277,6 +336,10 @@ export default function GameScreen({
   // 최종 단계 도달 후에도 별이 계속 붙는다 — 별 5개(후일담 해금)가 되는 순간 카드 팝업.
   useEffect(() => {
     if (!ready) return;
+    const previousStars = prevStars.current;
+    if (crossedBossThreshold(previousStars, stars, isMaxStage) && !hasSeenBossIntro(team)) {
+      setBossPending(true);
+    }
     if (stars > prevStars.current) {
       prevStars.current = stars;
       if (isMaxStage && stars >= 5) {
@@ -356,7 +419,7 @@ export default function GameScreen({
 
   const handleTap = useCallback(
     (clientX: number, clientY: number) => {
-      if (!ready) return;
+      if (!ready || bossActive) return;
       unlockAudio();
       const result = applyTap(Date.now());
       if (!result) return;
@@ -374,7 +437,7 @@ export default function GameScreen({
       playHit(team, stageOf(swordStateRef.current.lifetime));
       if (navigator.vibrate) navigator.vibrate(result.combo > 30 ? 12 : 8);
     },
-    [ready, applyTap, pushFloater, pushTapEffect, team]
+    [ready, bossActive, applyTap, pushFloater, pushTapEffect, team]
   );
 
   const pushPipFloater = useCallback((text: string) => {
@@ -387,14 +450,14 @@ export default function GameScreen({
   // PIP 창 안에서의 터치 — 메인 화면과 완전히 같은 sword 상태를 공유하므로 진화·피버·연마 등
   // 모든 이벤트가 동일하게 발생한다(그 이벤트들의 화면 연출은 지금은 메인 문서에만 뜬다).
   const handlePipTap = useCallback(() => {
-    if (!ready) return;
+    if (!ready || bossActive) return;
     unlockAudio();
     const result = applyTap(Date.now());
     if (!result) return;
     pushPipFloater(`+${formatNumber(result.gain)}`);
     playHit(team, stageOf(swordStateRef.current.lifetime));
     if (navigator.vibrate) navigator.vibrate(result.combo > 30 ? 12 : 8);
-  }, [ready, applyTap, pushPipFloater, team]);
+  }, [ready, bossActive, applyTap, pushPipFloater, team]);
 
   const togglePip = useCallback(async () => {
     if (!PIP_SUPPORTED) return;
@@ -454,7 +517,8 @@ export default function GameScreen({
     : `${theme.copy.stageHintNext ?? "다음 단계까지"} ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`;
 
   return (
-    <div className={`game ${feverActive ? "is-fever" : ""}`} style={gameBgStyle}>
+    <div className={`game ${feverActive && !bossActive ? "is-fever" : ""}`} style={gameBgStyle}>
+      <div className="game-content" hidden={bossActive} inert={bossActive}>
       <div className="bg-orbs" aria-hidden="true">
         <span />
         <span />
@@ -468,7 +532,7 @@ export default function GameScreen({
             onClick={onChangeTeam}
             aria-label={`지금은 ${theme.short} 공동 칼. 눌러서 편 바꾸기`}
           >
-            <img className="badge-emblem" src={emblemSrc(team, isMaxStage)} alt="" />
+            <img className="badge-emblem" src={emblemSrc(team)} alt="" />
             <span className="badge-text">{theme.copy.badgeLabel ?? `${theme.short} 공동 칼`}</span>
             <span className="badge-swap" aria-hidden="true">
               ⇄
@@ -518,6 +582,9 @@ export default function GameScreen({
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
           <div className="stage-hint">{stageHintText}</div>
+          {isMaxStage && <button ref={bossEntryRef} className="boss-entry-btn" onClick={enterBoss} disabled={!ready}>
+            <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
+          </button>}
         </div>
       </header>
 
@@ -601,6 +668,7 @@ export default function GameScreen({
           {theme.copy.upgradeBtnLabel ?? "함께 강화하기"}
         </button>
       </footer>
+      </div>
 
       {sheetOpen && (
         <UpgradeSheet
@@ -612,7 +680,7 @@ export default function GameScreen({
         />
       )}
 
-      {revealCard && <CardReveal card={revealCard} theme={theme} onClose={() => setRevealCard(null)} />}
+      {revealCard && !bossActive && <CardReveal card={revealCard} theme={theme} onClose={() => setRevealCard(null)} />}
 
       {galleryOpen && (
         <CardGallery
@@ -627,6 +695,7 @@ export default function GameScreen({
 
       {settingsOpen && (
         <SettingsSheet
+          boss={bossActive}
           onClose={() => setSettingsOpen(false)}
           pipSupported={PIP_SUPPORTED}
           pipActive={!!pipWin}
@@ -653,9 +722,22 @@ export default function GameScreen({
 
       {cutsceneOpen && <EvolveCutscene team={team} onDone={() => setCutsceneOpen(false)} />}
 
-      {feverPopKey > 0 && (
+      {feverPopKey > 0 && !bossActive && (
         <FeverPop key={feverPopKey} team={team} stage={stage} onDone={() => setFeverPopKey(0)} />
       )}
+
+      {bossMode === "map" && <BossMap
+        onExit={exitBoss}
+        onGallery={() => setBossGalleryOpen(true)}
+        onSettings={() => setSettingsOpen(true)}
+        soundOn={sfxOn && isSfxEnabled()}
+        onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
+        onEnter={() => setNotice("전투 시스템은 아직 준비 중입니다.")}
+      />}
+      {bossMode === "intro" && <BossIntro onDone={() => { setBossMode("map"); setBossUnlockOpen(true); }} />}
+      {bossUnlockOpen && <BossCardUnlock onClose={() => setBossUnlockOpen(false)} />}
+      {bossGalleryOpen && <BossGallery unlocked={hasSeenBossIntro(team)} onClose={() => setBossGalleryOpen(false)} />}
+      {notice && <div className="toast boss-notice" role="status">{notice}</div>}
 
       {error && (
         <div className="toast error">

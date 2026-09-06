@@ -15,14 +15,11 @@ export default function CardArt({
   card,
   theme,
   locked = false,
-  emblemEvolved = false,
   grand = false,
 }: {
   card: CardInfo;
   theme: TeamTheme;
   locked?: boolean;
-  /** 팀의 검이 최종 단계에 도달했으면 폴백 아이콘도 진화한 심볼로 보여준다 */
-  emblemEvolved?: boolean;
   /** 5단계(이후) 카드를 단일 포커스 뷰에서 훨씬 큰 정사각형 틀로 보여줄 때 */
   grand?: boolean;
 }) {
@@ -40,7 +37,7 @@ export default function CardArt({
   if (failed) {
     return (
       <div className={`card-art fallback ${grandClass}`}>
-        <img className="card-emblem" src={emblemSrc(theme.id, emblemEvolved)} alt="" />
+        <img className="card-emblem" src={emblemSrc(theme.id)} alt="" />
         <span className="card-fallback-title">{card.title}</span>
         <span className="card-fallback-note">일러스트 준비 중</span>
       </div>

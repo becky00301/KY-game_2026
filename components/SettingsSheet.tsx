@@ -17,7 +17,9 @@ export default function SettingsSheet({
   pipSupported,
   pipActive,
   onTogglePip,
+  boss = false,
 }: {
+  boss?: boolean;
   onClose: () => void;
   /** Document PIP API 지원 여부 — 데스크톱 크롬·엣지·파이어폭스 최신 버전에서만 true */
   pipSupported: boolean;
@@ -31,7 +33,7 @@ export default function SettingsSheet({
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <section className="sheet settings" onClick={(e) => e.stopPropagation()}>
+      <section className={`sheet settings ${boss ? "sheet--boss" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" />
 
         <header className="sheet-head">

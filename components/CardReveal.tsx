@@ -41,7 +41,6 @@ export default function CardReveal({
           <CardArt
             card={card}
             theme={theme}
-            emblemEvolved={card.stage >= theme.stages.length - 1}
             grand={grand}
           />
         </div>
