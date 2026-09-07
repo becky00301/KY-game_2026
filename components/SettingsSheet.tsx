@@ -115,7 +115,12 @@ export default function SettingsSheet({
           />
         </div>
 
-        <a className="settings-link" href="#" onClick={(e) => e.preventDefault()}>
+        <a
+          className="settings-link"
+          href="https://star-eve-soundtrack.virusmacdao9.chatgpt.site/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           일러스트 &amp; BGM 다운로드 페이지로 이동
         </a>
 
