@@ -26,8 +26,15 @@ export interface SwordState {
 
 // ---------- 튜닝 수치 ----------
 
-/** 누적 기운 기준 진화 임계값. 학교 전체가 함께 올리므로 개인용보다 훨씬 크다. */
-export const STAGE_THRESHOLDS = [0, 50_000, 1_500_000, 45_000_000, 1_500_000_000];
+/**
+ * 누적 기운 기준 진화 임계값. 학교 전체가 함께 올리므로 개인용보다 훨씬 크다.
+ *
+ * 최소 5명이 하루 10분씩만 참여해도 3일 안에 보스전(5단계+별1, STAR_MULTIPLIERS 참고)에
+ * 닿도록 시뮬레이션으로 맞춘 값이다 — 초당 2회의 느린 연타를 가정해도 여유 있게 도달하고,
+ * 초당 3회 이상이면 훨씬 빨리 뚫린다. 5단계까지는 강화 구매가 자주 일어나도록 촘촘하게
+ * 잡았고, 그 이후(별 등급)부터 진짜 그라인딩 구간이 시작된다.
+ */
+export const STAGE_THRESHOLDS = [0, 8_000, 250_000, 8_000_000, 250_000_000];
 
 export const STAGE_GROWTH = 1.85;
 
@@ -83,17 +90,17 @@ export interface UpgradeNumbers {
   power: number;
 }
 
-/** 강화 수치. 이름·아이콘은 lib/upgrades.ts에 따로 있다. */
+/** 강화 수치. 이름·아이콘은 lib/upgrades.ts에 따로 있다. STAGE_THRESHOLDS와 같은 시뮬레이션으로 맞췄다. */
 export const UPGRADE_NUMBERS: UpgradeNumbers[] = [
-  { id: "wrist", kind: "tap", baseCost: 2_000, growth: 1.14, power: 1 },
-  { id: "stick", kind: "tap", baseCost: 40_000, growth: 1.15, power: 8 },
-  { id: "glove", kind: "tap", baseCost: 600_000, growth: 1.16, power: 55 },
-  { id: "beast", kind: "tap", baseCost: 9_000_000, growth: 1.17, power: 400 },
-  { id: "fresh", kind: "auto", baseCost: 5_000, growth: 1.14, power: 3 },
-  { id: "dept", kind: "auto", baseCost: 70_000, growth: 1.15, power: 25 },
-  { id: "band", kind: "auto", baseCost: 900_000, growth: 1.15, power: 180 },
-  { id: "senior", kind: "auto", baseCost: 12_000_000, growth: 1.16, power: 1_300 },
-  { id: "choir", kind: "auto", baseCost: 150_000_000, growth: 1.17, power: 9_000 },
+  { id: "wrist", kind: "tap", baseCost: 350, growth: 1.14, power: 1 },
+  { id: "stick", kind: "tap", baseCost: 7_000, growth: 1.15, power: 8 },
+  { id: "glove", kind: "tap", baseCost: 100_000, growth: 1.16, power: 55 },
+  { id: "beast", kind: "tap", baseCost: 1_500_000, growth: 1.17, power: 400 },
+  { id: "fresh", kind: "auto", baseCost: 900, growth: 1.14, power: 3 },
+  { id: "dept", kind: "auto", baseCost: 12_000, growth: 1.15, power: 25 },
+  { id: "band", kind: "auto", baseCost: 150_000, growth: 1.15, power: 180 },
+  { id: "senior", kind: "auto", baseCost: 2_000_000, growth: 1.16, power: 1_300 },
+  { id: "choir", kind: "auto", baseCost: 25_000_000, growth: 1.17, power: 9_000 },
 ];
 
 const BY_ID = new Map(UPGRADE_NUMBERS.map((u) => [u.id, u]));
@@ -115,11 +122,33 @@ export function stageMultiplier(stage: number) {
 /** 최종 단계 이후 붙는 별 등급의 상한 */
 export const MAX_STARS = 5;
 
-/** 최종 단계 이후 별 등급 — 누적 기운이 4배가 될 때마다 하나씩, 최대 5개까지 */
+/**
+ * 별 등급별로 직전 등급 대비 몇 배가 더 필요한지. 별 1개(보스전 입장)는 4배로 기존과
+ * 같지만, 그 다음부터는 배수 자체가 급격히 커져서 "보스전 이후 난이도 급상승"을 만든다.
+ * 별1: last*4, 별2: last*4*12, 별3: 그 위에 *40, 별4: *150, 별5: *600.
+ */
+export const STAR_MULTIPLIERS = [4, 12, 40, 150, 600];
+
+/** 별 랭크(1~5)의 누적 절대 임계값 목록. index 0 = 별1 임계값. */
+function starThresholds(last: number): number[] {
+  const out: number[] = [];
+  let acc = last;
+  for (const m of STAR_MULTIPLIERS) {
+    acc *= m;
+    out.push(acc);
+  }
+  return out;
+}
+
+/** 최종 단계 이후 별 등급 — STAR_MULTIPLIERS 누적 임계값을 넘을 때마다 하나씩, 최대 5개까지 */
 export function starRank(lifetime: number) {
   const last = STAGE_THRESHOLDS[STAGE_THRESHOLDS.length - 1];
   if (lifetime < last) return 0;
-  const rank = Math.floor(Math.log(lifetime / last) / Math.log(4));
+  const thresholds = starThresholds(last);
+  let rank = 0;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (lifetime >= thresholds[i]) rank = i + 1;
+  }
   return Math.min(rank, MAX_STARS);
 }
 
@@ -133,8 +162,9 @@ export function stageProgress(lifetime: number) {
     if (rank >= MAX_STARS) {
       return { stage, isMax, from: last, to: last, ratio: 1, starsMaxed: true };
     }
-    const from = last * Math.pow(4, rank);
-    const to = last * Math.pow(4, rank + 1);
+    const thresholds = starThresholds(last);
+    const from = rank === 0 ? last : thresholds[rank - 1];
+    const to = thresholds[rank];
     return { stage, isMax, from, to, ratio: (lifetime - from) / (to - from), starsMaxed: false };
   }
   const from = STAGE_THRESHOLDS[stage];
