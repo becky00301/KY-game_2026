@@ -1802,3 +1802,104 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .boss-portrait, .fever-banner-img { animation: none; }
 }
+
+/* ---------------- 7차: 서휘령 전투 ---------------- */
+
+.bb-root {
+  position: fixed; inset: 0; z-index: 60; height: 100dvh; overflow: hidden;
+  background: #04100e; isolation: isolate;
+}
+.bb-bg {
+  position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(#00100f55, #000c), url('/images/boss-battle/battle-bg.webp') center / cover;
+}
+.bb-boss-sword {
+  position: absolute; left: 50%; top: 50%; width: min(60%, 260px); height: auto;
+  transform: translate(-50%, -50%); object-fit: contain; opacity: .5;
+  pointer-events: none; filter: drop-shadow(0 12px 30px #000a);
+  animation: bbSwordFloat 3.2s ease-in-out infinite;
+}
+
+.bb-intro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #000; padding: 0 32px; }
+.bb-intro-line { color: #dcfff4; font-size: 19px; line-height: 1.7; text-align: center; animation: fadeIn .6s ease; }
+
+.bb-hud {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: linear-gradient(#000a, transparent);
+}
+.bb-hp-row { display: flex; align-items: center; gap: 10px; }
+.bb-hp-bar { flex: 1; height: 14px; border-radius: 999px; background: #0009; border: 1px solid #438b8255; overflow: hidden; }
+.bb-hp-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #175a53, #36bbae); transition: width .15s ease-out; }
+.bb-timer { font-size: 13px; font-weight: 800; color: #cbdedb; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.bb-timer-danger { color: #ff8a8a; animation: bbTimerBlink .8s step-start infinite; }
+.bb-death-row { display: flex; gap: 6px; }
+.bb-death-icon { width: 22px; height: 22px; object-fit: contain; filter: drop-shadow(0 2px 4px #0008); }
+.bb-death-icon--spent { opacity: .25; filter: grayscale(1); }
+.bb-combo { font-size: 15px; font-weight: 900; color: var(--accent); text-shadow: 0 0 10px var(--glow); align-self: center; }
+
+.bb-tap-area {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bb-tap-area:disabled { cursor: default; }
+
+.bb-zones { position: absolute; inset: 0; display: flex; pointer-events: none; }
+.bb-zones--vertical { flex-direction: row; }
+.bb-zones--vertical .bb-zone { flex: 1 1 33.333%; height: 100%; }
+.bb-zones--horizontal { flex-direction: column; }
+.bb-zones--horizontal .bb-zone { flex: 1 1 33.333%; width: 100%; }
+.bb-zones--diagonal .bb-zone { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bb-zones--diagonal .bb-zone[data-zone="0"] { clip-path: polygon(0% 0%, 66.667% 0%, 0% 66.667%); }
+.bb-zones--diagonal .bb-zone[data-zone="1"] { clip-path: polygon(66.667% 0%, 100% 0%, 100% 33.333%, 33.333% 100%, 0% 100%, 0% 66.667%); }
+.bb-zones--diagonal .bb-zone[data-zone="2"] { clip-path: polygon(100% 100%, 100% 33.333%, 33.333% 100%); }
+.bb-zone--danger.bb-zone--warn { background: rgba(220, 38, 38, .32); }
+.bb-zone--danger.bb-zone--active { background: rgba(220, 38, 38, .58); animation: bbZonePulse .15s ease-in-out infinite alternate; }
+
+.bb-full-warning { position: absolute; inset: 0; pointer-events: none; }
+.bb-full-warning--warn { background: rgba(220, 38, 38, .22); animation: bbFullWarnPulse .5s ease-in-out infinite; }
+.bb-full-warning--active { background: rgba(220, 38, 38, .58); }
+
+.bb-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; animation: bbFlashOut .35s ease forwards; }
+.bb-flash--hit { background: #dc2626; }
+.bb-flash--success { background: linear-gradient(#fff, #36bbae); }
+
+.bb-finale-layer {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  background: rgba(0, 0, 0, .4);
+}
+.bb-finale-line { color: #dcfff4; font-size: 16px; font-weight: 700; text-align: center; padding: 0 24px; }
+.bb-finale-rings { position: relative; width: 260px; height: 260px; display: flex; align-items: center; justify-content: center; }
+.bb-finale-ring-target { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 16px var(--glow); }
+.bb-finale-ring-shrink { position: absolute; width: 260px; height: 260px; border-radius: 50%; border: 4px solid #fff; animation: bbRingShrink 2.2s linear forwards; }
+.bb-skill-btn {
+  padding: 14px 30px; border-radius: 999px; font-size: 18px; font-weight: 900;
+  border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8;
+}
+.bb-skill-btn:active { transform: scale(.96); }
+
+.bb-result {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: rgba(4, 16, 14, .88); padding: 0 32px; text-align: center;
+}
+.bb-result-title { font-size: 24px; color: #dcfff4; margin: 0; }
+.bb-result-reason { font-size: 14px; color: #cbdedb; margin: 0; }
+.bb-result-actions { display: flex; gap: 12px; margin-top: 10px; }
+.bb-result-actions button { min-height: 46px; padding: 12px 20px; border-radius: 10px; font-size: 15px; font-weight: 800; }
+.bb-result-retry { border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; }
+.bb-result-exit { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
+
+@keyframes bbSwordFloat { 0%, 100% { transform: translate(-50%, -50%) translateY(-14px); } 50% { transform: translate(-50%, -50%) translateY(14px); } }
+@keyframes bbTimerBlink { 50% { opacity: .35; } }
+@keyframes bbZonePulse { from { opacity: .75; } to { opacity: 1; } }
+@keyframes bbFullWarnPulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes bbFlashOut { from { opacity: .75; } to { opacity: 0; } }
+@keyframes bbRingShrink { from { width: 260px; height: 260px; } to { width: 90px; height: 90px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bb-boss-sword, .bb-zone--danger.bb-zone--active, .bb-full-warning--warn { animation: none; }
+}

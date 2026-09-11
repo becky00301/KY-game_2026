@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
+import BossBattle from "./BossBattle";
 import { claimBossIntro, crossedBossThreshold, hasSeenBossIntro } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
@@ -125,7 +126,7 @@ export default function GameScreen({
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [pipFloaters, setPipFloaters] = useState<PipFloater[]>([]);
-  const [bossMode, setBossMode] = useState<"closed" | "intro" | "map">("closed");
+  const [bossMode, setBossMode] = useState<"closed" | "intro" | "map" | "battle">("closed");
   const [bossPending, setBossPending] = useState(false);
   const [bossUnlockOpen, setBossUnlockOpen] = useState(false);
   const [bossGalleryOpen, setBossGalleryOpen] = useState(false);
@@ -743,8 +744,9 @@ export default function GameScreen({
         onSettings={() => setSettingsOpen(true)}
         soundOn={sfxOn && isSfxEnabled()}
         onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
-        onEnter={() => setNotice("전투 시스템은 아직 준비 중입니다.")}
+        onEnter={() => setBossMode("battle")}
       />}
+      {bossMode === "battle" && <BossBattle onExit={() => setBossMode("map")} />}
       {bossMode === "intro" && <BossIntro onDone={() => { setBossMode("map"); setBossUnlockOpen(true); }} />}
       {bossUnlockOpen && <BossCardUnlock onClose={() => setBossUnlockOpen(false)} />}
       {bossGalleryOpen && <BossGallery unlocked={hasSeenBossIntro(team)} onClose={() => setBossGalleryOpen(false)} />}
