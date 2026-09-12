@@ -51,7 +51,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const [timeLeftMs, setTimeLeftMs] = useState(BOSS_BATTLE.timeLimitMs);
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
-  const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" } | null>(null);
+  const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
   const phaseRef = useRef<Phase>("intro");
@@ -74,19 +74,19 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     pendingTimers.current = [];
   }, []);
 
-  const triggerFlash = useCallback((kind: "hit" | "success") => {
+  const triggerFlash = useCallback((kind: "hit" | "success" | "finale-fail") => {
     flashId.current += 1;
     setFlash({ key: flashId.current, kind });
   }, []);
 
   const endBattle = useCallback(
-    (win: boolean, reason: string) => {
+    (win: boolean, reason: string, flashKind?: "hit" | "success" | "finale-fail") => {
       if (phaseRef.current === "result") return;
       clearPendingTimers();
       phaseRef.current = "result";
       setPhase("result");
       setResult({ win, reason });
-      triggerFlash(win ? "success" : "hit");
+      triggerFlash(flashKind ?? (win ? "success" : "hit"));
     },
     [clearPendingTimers, triggerFlash]
   );
@@ -102,7 +102,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     finaleStartRef.current = Date.now();
     const { end } = finaleWindow();
     const timer = window.setTimeout(() => {
-      if (phaseRef.current === "finale") endBattle(false, "빈틈을 놓쳤다");
+      if (phaseRef.current === "finale") endBattle(false, "빈틈을 놓쳤다", "finale-fail");
     }, end + 60);
     pendingTimers.current.push(timer);
   }, [clearPendingTimers, endBattle]);
@@ -231,7 +231,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     const elapsed = Date.now() - finaleStartRef.current;
     const { start, end } = finaleWindow();
     if (elapsed >= start && elapsed <= end) endBattle(true, "");
-    else endBattle(false, "빈틈을 놓쳤다");
+    else endBattle(false, "빈틈을 놓쳤다", "finale-fail");
   }, [endBattle]);
 
   const retry = useCallback(() => {
@@ -384,7 +384,12 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
         </div>
       )}
 
-      {flash && <div key={flash.key} className={`bb-flash bb-flash--${flash.kind}`} />}
+      {flash && flash.kind === "finale-fail" && (
+        <img key={flash.key} className="bb-flash bb-flash--finale-fail" src="/images/boss-battle/finale-fail-sweep.png" alt="" />
+      )}
+      {flash && flash.kind !== "finale-fail" && (
+        <div key={flash.key} className={`bb-flash bb-flash--${flash.kind}`} />
+      )}
 
       {phase === "result" && result && (
         <div className="bb-result">
