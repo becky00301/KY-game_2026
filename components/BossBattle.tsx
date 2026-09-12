@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   BOSS_BATTLE,
   BOSS_BATTLE_INTRO_LINE,
@@ -85,8 +85,14 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
       clearPendingTimers();
       phaseRef.current = "result";
       setPhase("result");
-      setResult({ win, reason });
       triggerFlash(flashKind ?? (win ? "success" : "hit"));
+      if (win) {
+        // 승리 이펙트가 결과창에 바로 가려지지 않도록, 결과창만 살짝 늦게 띄운다.
+        const t = window.setTimeout(() => setResult({ win, reason }), 700);
+        pendingTimers.current.push(t);
+      } else {
+        setResult({ win, reason });
+      }
     },
     [clearPendingTimers, triggerFlash]
   );
@@ -387,9 +393,13 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
       {flash && flash.kind === "finale-fail" && (
         <img key={flash.key} className="bb-flash bb-flash--finale-fail" src="/images/boss-battle/finale-fail-sweep.png" alt="" />
       )}
-      {flash && flash.kind !== "finale-fail" && (
-        <div key={flash.key} className={`bb-flash bb-flash--${flash.kind}`} />
+      {flash && flash.kind === "success" && (
+        <Fragment key={flash.key}>
+          <div className="bb-flash bb-flash--success-white" />
+          <img className="bb-flash bb-flash--success" src="/images/boss-battle/skill-success.png" alt="" />
+        </Fragment>
       )}
+      {flash && flash.kind === "hit" && <div key={flash.key} className="bb-flash bb-flash--hit" />}
 
       {phase === "result" && result && (
         <div className="bb-result">

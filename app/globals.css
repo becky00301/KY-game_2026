@@ -1879,7 +1879,18 @@ button {
 
 .bb-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; animation: bbFlashOut .35s ease forwards; }
 .bb-flash--hit { background: #dc2626; }
-.bb-flash--success { background: linear-gradient(#fff, #36bbae); }
+.bb-flash--success-white { background: #fff; animation: bbFlashOut 250ms ease forwards; }
+.bb-flash--success {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 0 40px rgba(255, 215, 120, .85));
+  animation: bbSuccessPop 900ms cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes bbSuccessPop {
+  0% { opacity: 0; transform: scale(.75); }
+  14% { opacity: 1; transform: scale(1.06); }
+  26% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
 .bb-flash--finale-fail {
   width: 100%; height: 100%; object-fit: cover;
   animation: bbFinaleFailFlash 600ms ease-out forwards;
@@ -1944,6 +1955,6 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .bb-boss-sword, .bb-full-warning--warn, .bb-skill-icon { animation: none; }
-  .bb-slash, .bb-flash--finale-fail { animation: bbSlashFade 650ms ease-out forwards; }
+  .bb-slash, .bb-flash--finale-fail, .bb-flash--success { animation: bbSlashFade 650ms ease-out forwards; }
 }
 @keyframes bbSlashFade { from { opacity: 1; } to { opacity: 0; } }
