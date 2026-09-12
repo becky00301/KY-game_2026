@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   BOSS_BATTLE,
   BOSS_BATTLE_INTRO_LINE,
+  PHASE2_INTRO_LINE,
   Orientation,
   ZoneIndex,
   damageMultiplier,
@@ -14,7 +15,7 @@ import {
   zoneOf,
 } from "@/lib/bossBattle";
 
-type Phase = "intro" | "combat" | "finale" | "result" | "blackout";
+type Phase = "intro" | "combat" | "finale" | "result" | "blackout" | "phase2Intro";
 type SubPhase = "idle" | "warn" | "active";
 
 interface Pattern1State {
@@ -63,6 +64,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const crossedThresholds = useRef<Set<number>>(new Set());
   const flashId = useRef(0);
   const slashId = useRef(0);
+  const wonRef = useRef(false);
   const tapAreaRef = useRef<HTMLButtonElement>(null);
   const pendingTimers = useRef<number[]>([]);
 
@@ -80,11 +82,13 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
       if (phaseRef.current === "result" || phaseRef.current === "blackout") return;
       clearPendingTimers();
+      wonRef.current = win;
       phaseRef.current = "result";
       setPhase("result");
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);
-      // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전되며 자연스럽게 입장맵으로 돌아간다.
+      // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전된다. 성공했으면 암전 뒤 2페이즈
+      // 등장으로 이어지고, 실패/시간초과/죽음이면 그대로 입장맵으로 돌아간다.
       const effectMs = kind === "success" ? 900 : kind === "finale-fail" ? 600 : 350;
       const t = window.setTimeout(() => {
         phaseRef.current = "blackout";
@@ -280,10 +284,17 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     return () => window.clearInterval(interval);
   }, [phase, endBattle]);
 
-  // 화면이 다 어두워지면 입장맵으로 돌아간다.
+  // 화면이 다 어두워지면: 발악에 성공했으면 2페이즈 등장으로, 아니면 입장맵으로.
   useEffect(() => {
     if (phase !== "blackout") return;
-    const t = window.setTimeout(() => onExitRef.current(), 650);
+    const t = window.setTimeout(() => {
+      if (wonRef.current) {
+        phaseRef.current = "phase2Intro";
+        setPhase("phase2Intro");
+      } else {
+        onExitRef.current();
+      }
+    }, 650);
     return () => window.clearTimeout(t);
   }, [phase]);
 
@@ -300,6 +311,13 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
       {phase === "intro" && (
         <div className="bb-intro">
           <p className="bb-intro-line">{BOSS_BATTLE_INTRO_LINE}</p>
+        </div>
+      )}
+
+      {phase === "phase2Intro" && (
+        <div className="bb-intro bb-phase2-intro">
+          <img className="bb-phase2-image" src="/images/boss-battle/phase2-reveal.png" alt="" />
+          <p className="bb-intro-line">{PHASE2_INTRO_LINE}</p>
         </div>
       )}
 

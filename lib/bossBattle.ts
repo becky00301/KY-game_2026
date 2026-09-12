@@ -9,6 +9,9 @@
 /** 입장 시 3초간 암전과 함께 뜨는 대사. */
 export const BOSS_BATTLE_INTRO_LINE = "과연, 너는 얼마나 버틸 수 있을까?";
 
+/** 발악 패링 성공 후 암전 뒤에 2페이즈 등장과 함께 뜨는 대사. */
+export const PHASE2_INTRO_LINE = "여기서.. 여기서 물러날 순 없다!";
+
 /** 전부 임시값 — 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
   maxHp: 1300,
