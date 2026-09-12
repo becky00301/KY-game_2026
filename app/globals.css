@@ -1870,7 +1870,11 @@ button {
 }
 
 .bb-full-warning { position: absolute; inset: 0; pointer-events: none; }
-.bb-full-warning--warn { background: rgba(220, 38, 38, .22); animation: bbFullWarnPulse .5s ease-in-out infinite; }
+/* 예전엔 0.5초마다 반복(infinite)되는 펄스였는데, 전체화면에서 계속 깜빡이니
+   경고라기보단 눈이 아픈 스트로브처럼 느껴졌다. 그래서 반복 없이 예고 시간
+   (1.5초) 동안 한 번만 서서히 밝아지는 연출로 바꿔서, 위험이 다가온다는 걸
+   깜빡임 없이 읽을 수 있게 했다. */
+.bb-full-warning--warn { background: rgba(220, 38, 38, .75); animation: bbFullWarnBuildup 1.5s ease-in forwards; }
 .bb-full-warning--active { background: rgba(220, 38, 38, .58); }
 
 .bb-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; animation: bbFlashOut .35s ease forwards; }
@@ -1928,7 +1932,7 @@ button {
 
 @keyframes bbSwordFloat { 0%, 100% { transform: translate(-50%, -50%) translateY(-14px); } 50% { transform: translate(-50%, -50%) translateY(14px); } }
 @keyframes bbTimerBlink { 50% { opacity: .35; } }
-@keyframes bbFullWarnPulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes bbFullWarnBuildup { from { opacity: .18; } to { opacity: 1; } }
 @keyframes bbFlashOut { from { opacity: .75; } to { opacity: 0; } }
 @keyframes bbRingShrink { from { width: 260px; height: 260px; } to { width: 90px; height: 90px; } }
 @keyframes bbSlashPlay {
