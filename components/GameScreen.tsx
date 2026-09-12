@@ -135,6 +135,14 @@ export default function GameScreen({
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
 
+  // 개발용 지름길 — 실제 진행도(5단계+별1)를 만들지 않고도 ?debugBoss=1 로 바로
+  // 전투를 확인할 수 있게 한다. 서버 상태는 전혀 건드리지 않는다.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("debugBoss") === "1") {
+      setBossMode("battle");
+    }
+  }, []);
+
 
   const lastTapAt = useRef(0);
   const tapWindow = useRef<number[]>([]);
