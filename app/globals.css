@@ -51,6 +51,25 @@ button {
   cursor: pointer;
 }
 
+/* 이 게임은 모바일 세로 화면 기준으로 만들어서, PC의 넓은 브라우저 창에 그대로
+   풀어두면 터치 영역·이미지 비율이 다 늘어져서 깨져 보인다. 그래서 실제 폭과
+   상관없이 화면 전체를 휴대폰 비율(최대 480px) 안에 가둬서, PC에서도 모바일과
+   똑같은 모습으로 보이게 한다.
+   실제 휴대폰(폭이 480px보다 좁은 기기)에서는 max-width가 애초에 걸리지 않으므로
+   지금까지와 똑같이 보인다 — 이 프레임은 순수하게 "넓은 화면일 때만" 작동한다.
+   transform은 시각적으로 아무 효과가 없지만, 이 안의 position:fixed 요소들(전투
+   화면, 시트, 토스트 등)의 기준을 브라우저 창 전체가 아니라 이 프레임으로
+   좁혀주는 역할을 한다. */
+.app-frame {
+  position: relative;
+  max-width: 480px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  overflow: hidden;
+  transform: translateZ(0);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+}
+
 .boot {
   min-height: 100dvh;
   background: linear-gradient(160deg, var(--bg-from), var(--bg-to));

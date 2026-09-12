@@ -21,7 +21,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Pretendard 가변 폰트 동적 서브셋 — 자체 호스팅(public/fonts/pretendard) */}
         <link rel="stylesheet" href="/fonts/pretendard/pretendard.css" />
       </head>
-      <body>{children}</body>
+      <body>
+        <div className="app-frame">{children}</div>
+      </body>
     </html>
   );
 }
