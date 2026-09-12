@@ -134,12 +134,16 @@ export default function GameScreen({
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
+  const [debugBossPhase2, setDebugBossPhase2] = useState(false);
 
   // 개발용 지름길 — 실제 진행도(5단계+별1)를 만들지 않고도 ?debugBoss=1 로 바로
-  // 전투를 확인할 수 있게 한다. 서버 상태는 전혀 건드리지 않는다.
+  // 전투를 확인할 수 있게 한다. ?debugBoss=2 는 전투 자체를 건너뛰고 발악 성공 후
+  // 뜨는 2페이즈 등장 연출로 바로 진입한다. 서버 상태는 전혀 건드리지 않는다.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("debugBoss") === "1") {
+    const v = new URLSearchParams(window.location.search).get("debugBoss");
+    if (v === "1" || v === "2") {
       setBossMode("battle");
+      setDebugBossPhase2(v === "2");
     }
   }, []);
 
@@ -754,7 +758,9 @@ export default function GameScreen({
         onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
         onEnter={() => setBossMode("battle")}
       />}
-      {bossMode === "battle" && <BossBattle onExit={() => setBossMode("map")} />}
+      {bossMode === "battle" && (
+        <BossBattle onExit={() => setBossMode("map")} debugStartPhase2={debugBossPhase2} />
+      )}
       {bossMode === "intro" && <BossIntro onDone={() => { setBossMode("map"); setBossUnlockOpen(true); }} />}
       {bossUnlockOpen && <BossCardUnlock onClose={() => setBossUnlockOpen(false)} />}
       {bossGalleryOpen && <BossGallery unlocked={hasSeenBossIntro(team)} onClose={() => setBossGalleryOpen(false)} />}

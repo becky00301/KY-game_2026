@@ -39,8 +39,15 @@ const SLASH_SRC: Record<Orientation, string> = {
  * 발악(피니시) 타이밍 판정으로 끝난다. 서버와 무관한 완전 로컬 미니게임이라 승패는
  * 저장되지 않는다.
  */
-export default function BossBattle({ onExit }: { onExit: () => void }) {
-  const [phase, setPhase] = useState<Phase>("intro");
+export default function BossBattle({
+  onExit,
+  debugStartPhase2 = false,
+}: {
+  onExit: () => void;
+  /** 개발용 — 전투를 건너뛰고 바로 2페이즈 등장 연출부터 보여준다. */
+  debugStartPhase2?: boolean;
+}) {
+  const [phase, setPhase] = useState<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
   const [hp, setHp] = useState<number>(BOSS_BATTLE.maxHp);
   const [combo, setCombo] = useState(0);
   const [deathCount, setDeathCount] = useState<number>(BOSS_BATTLE.maxDeathCount);
@@ -52,7 +59,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
 
-  const phaseRef = useRef<Phase>("intro");
+  const phaseRef = useRef<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
   const hpRef = useRef<number>(BOSS_BATTLE.maxHp);
   const comboRef = useRef(0);
   const deathCountRef = useRef<number>(BOSS_BATTLE.maxDeathCount);
