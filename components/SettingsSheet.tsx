@@ -117,7 +117,7 @@ export default function SettingsSheet({
 
         <a
           className="settings-link"
-          href="https://star-eve-soundtrack.virusmacdao9.chatgpt.site/"
+          href="https://star-eve-soundtrack-copy.smbm-99.chatgpt.site/"
           target="_blank"
           rel="noopener noreferrer"
         >
