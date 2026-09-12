@@ -37,9 +37,9 @@ const IDLE_PATTERN1: Pattern1State = { phase: "idle", orientation: "vertical", d
  */
 export default function BossBattle({ onExit }: { onExit: () => void }) {
   const [phase, setPhase] = useState<Phase>("intro");
-  const [hp, setHp] = useState(BOSS_BATTLE.maxHp);
+  const [hp, setHp] = useState<number>(BOSS_BATTLE.maxHp);
   const [combo, setCombo] = useState(0);
-  const [deathCount, setDeathCount] = useState(BOSS_BATTLE.maxDeathCount);
+  const [deathCount, setDeathCount] = useState<number>(BOSS_BATTLE.maxDeathCount);
   const [timeLeftMs, setTimeLeftMs] = useState(BOSS_BATTLE.timeLimitMs);
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
@@ -47,9 +47,9 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const [result, setResult] = useState<Result | null>(null);
 
   const phaseRef = useRef<Phase>("intro");
-  const hpRef = useRef(BOSS_BATTLE.maxHp);
+  const hpRef = useRef<number>(BOSS_BATTLE.maxHp);
   const comboRef = useRef(0);
-  const deathCountRef = useRef(BOSS_BATTLE.maxDeathCount);
+  const deathCountRef = useRef<number>(BOSS_BATTLE.maxDeathCount);
   const lastTapAtRef = useRef(0);
   const battleStartRef = useRef(0);
   const finaleStartRef = useRef(0);
