@@ -378,8 +378,8 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
             <div className="bb-finale-ring-target" />
             <div className="bb-finale-ring-shrink" />
           </div>
-          <button className="bb-skill-btn" onClick={handleFinaleSkill}>
-            일섬
+          <button className="bb-skill-btn" onClick={handleFinaleSkill} aria-label="특수 스킬 사용">
+            <img className="bb-skill-icon" src="/images/boss-battle/skill-bind.png" alt="" />
           </button>
         </div>
       )}

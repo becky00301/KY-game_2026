@@ -1883,10 +1883,23 @@ button {
 .bb-finale-ring-target { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 16px var(--glow); }
 .bb-finale-ring-shrink { position: absolute; width: 260px; height: 260px; border-radius: 50%; border: 4px solid #fff; animation: bbRingShrink 2.2s linear forwards; }
 .bb-skill-btn {
-  padding: 14px 30px; border-radius: 999px; font-size: 18px; font-weight: 900;
-  border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8;
+  /* 예전엔 배경/테두리가 있는 알약 버튼이었다 — 이제 아이콘만 보이지만, 눌리는 범위는
+     그 버튼 크기만큼 그대로 넉넉하게 남겨서(패딩) 작은 원형 아이콘이라도 누르기 쉽게 한다. */
+  padding: 22px; border: none; background: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
 }
-.bb-skill-btn:active { transform: scale(.96); }
+.bb-skill-btn:active .bb-skill-icon { transform: scale(.92); }
+.bb-skill-icon {
+  width: 104px; height: 104px; object-fit: contain;
+  filter: drop-shadow(0 0 20px rgba(255, 196, 64, .7));
+  animation: bbSkillPulse 1.1s ease-in-out infinite;
+  transition: transform .1s ease-out;
+}
+@keyframes bbSkillPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(255, 196, 64, .7)); }
+  50% { transform: scale(1.07); filter: drop-shadow(0 0 30px rgba(255, 196, 64, .9)); }
+}
 
 .bb-result {
   position: absolute; inset: 0; z-index: 10;
@@ -1913,7 +1926,7 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bb-boss-sword, .bb-full-warning--warn { animation: none; }
+  .bb-boss-sword, .bb-full-warning--warn, .bb-skill-icon { animation: none; }
   .bb-slash { animation: bbSlashFade 650ms ease-out forwards; }
 }
 @keyframes bbSlashFade { from { opacity: 1; } to { opacity: 0; } }
