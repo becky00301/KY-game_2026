@@ -1881,7 +1881,12 @@ button {
 .bb-flash--hit { background: #dc2626; }
 .bb-flash--success-white { background: #fff; animation: bbFlashOut 250ms ease forwards; }
 .bb-flash--success {
-  width: 100%; height: 100%; object-fit: contain;
+  /* object-fit:contain이라 원래도 잘리진 않지만, 화면 중앙에 놓이면 위아래로 뜬
+     여백 때문에 인물이 붕 떠 보였다. object-position을 하단으로 내려서 화면
+     아래쪽에 붙어 보이게 하고, 확대되는 방향도 아래를 기준점 삼아 화면 밖으로
+     비어져 나가지 않게 했다. */
+  width: 100%; height: 100%; object-fit: contain; object-position: center bottom;
+  transform-origin: center bottom;
   filter: drop-shadow(0 0 40px rgba(255, 215, 120, .85));
   animation: bbSuccessPop 900ms cubic-bezier(.2, .8, .3, 1) forwards;
 }
