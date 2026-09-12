@@ -18,6 +18,7 @@ type Phase = "intro" | "combat" | "finale" | "result";
 type SubPhase = "idle" | "warn" | "active";
 
 interface Pattern1State {
+  id: number;
   phase: SubPhase;
   orientation: Orientation;
   dangerZones: ZoneIndex[];
@@ -28,7 +29,14 @@ interface Result {
   reason: string;
 }
 
-const IDLE_PATTERN1: Pattern1State = { phase: "idle", orientation: "vertical", dangerZones: [] };
+const IDLE_PATTERN1: Pattern1State = { id: 0, phase: "idle", orientation: "vertical", dangerZones: [] };
+
+/** 판정 구간(active)에 뜨는 검격 이펙트 — 방향별 전용 일러스트. */
+const SLASH_SRC: Record<Orientation, string> = {
+  diagonal: "/images/boss-battle/slash-diagonal.png",
+  horizontal: "/images/boss-battle/slash-horizontal.png",
+  vertical: "/images/boss-battle/slash-vertical.png",
+};
 
 /**
  * 서휘령 실전 전투 — 3초 암전 대사로 시작해, 콤보 기반 딜링과 두 가지 회피 패턴을 거쳐
@@ -57,6 +65,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const p1Ref = useRef<Pattern1State>(IDLE_PATTERN1);
   const crossedThresholds = useRef<Set<number>>(new Set());
   const flashId = useRef(0);
+  const slashId = useRef(0);
   const tapAreaRef = useRef<HTMLButtonElement>(null);
   const pendingTimers = useRef<number[]>([]);
 
@@ -149,7 +158,8 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     if (inPattern2Ref.current) return;
     const orientation = pickOrientation();
     const dangerZones = pickDangerZones();
-    const warnState: Pattern1State = { phase: "warn", orientation, dangerZones };
+    slashId.current += 1;
+    const warnState: Pattern1State = { id: slashId.current, phase: "warn", orientation, dangerZones };
     p1Ref.current = warnState;
     setP1(warnState);
 
@@ -347,6 +357,14 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
                   />
                 ))}
               </div>
+            )}
+            {p1.phase === "active" && (
+              <img
+                key={p1.id}
+                className={`bb-slash bb-slash--${p1.orientation}`}
+                src={SLASH_SRC[p1.orientation]}
+                alt=""
+              />
             )}
             {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
           </button>

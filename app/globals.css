@@ -1856,7 +1856,14 @@ button {
 .bb-zones--diagonal .bb-zone[data-zone="1"] { clip-path: polygon(66.667% 0%, 100% 0%, 100% 33.333%, 33.333% 100%, 0% 100%, 0% 66.667%); }
 .bb-zones--diagonal .bb-zone[data-zone="2"] { clip-path: polygon(100% 100%, 100% 33.333%, 33.333% 100%); }
 .bb-zone--danger.bb-zone--warn { background: rgba(220, 38, 38, .32); }
-.bb-zone--danger.bb-zone--active { background: rgba(220, 38, 38, .58); animation: bbZonePulse .15s ease-in-out infinite alternate; }
+
+.bb-slash {
+  position: absolute; inset: 0; margin: auto; z-index: 2;
+  width: 100%; height: 100%; object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 0 26px rgba(93, 210, 255, .65));
+  animation: bbSlashPlay 650ms cubic-bezier(.2, .8, .3, 1) forwards;
+}
 
 .bb-full-warning { position: absolute; inset: 0; pointer-events: none; }
 .bb-full-warning--warn { background: rgba(220, 38, 38, .22); animation: bbFullWarnPulse .5s ease-in-out infinite; }
@@ -1895,11 +1902,18 @@ button {
 
 @keyframes bbSwordFloat { 0%, 100% { transform: translate(-50%, -50%) translateY(-14px); } 50% { transform: translate(-50%, -50%) translateY(14px); } }
 @keyframes bbTimerBlink { 50% { opacity: .35; } }
-@keyframes bbZonePulse { from { opacity: .75; } to { opacity: 1; } }
 @keyframes bbFullWarnPulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
 @keyframes bbFlashOut { from { opacity: .75; } to { opacity: 0; } }
 @keyframes bbRingShrink { from { width: 260px; height: 260px; } to { width: 90px; height: 90px; } }
+@keyframes bbSlashPlay {
+  0% { opacity: 0; transform: scale(.82); }
+  14% { opacity: 1; transform: scale(1.05); }
+  26% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08); }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .bb-boss-sword, .bb-zone--danger.bb-zone--active, .bb-full-warning--warn { animation: none; }
+  .bb-boss-sword, .bb-full-warning--warn { animation: none; }
+  .bb-slash { animation: bbSlashFade 650ms ease-out forwards; }
 }
+@keyframes bbSlashFade { from { opacity: 1; } to { opacity: 0; } }
