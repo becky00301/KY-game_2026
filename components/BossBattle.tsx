@@ -14,7 +14,7 @@ import {
   zoneOf,
 } from "@/lib/bossBattle";
 
-type Phase = "intro" | "combat" | "finale" | "result";
+type Phase = "intro" | "combat" | "finale" | "result" | "blackout";
 type SubPhase = "idle" | "warn" | "active";
 
 interface Pattern1State {
@@ -22,11 +22,6 @@ interface Pattern1State {
   phase: SubPhase;
   orientation: Orientation;
   dangerZones: ZoneIndex[];
-}
-
-interface Result {
-  win: boolean;
-  reason: string;
 }
 
 const IDLE_PATTERN1: Pattern1State = { id: 0, phase: "idle", orientation: "vertical", dangerZones: [] };
@@ -52,7 +47,9 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
-  const [result, setResult] = useState<Result | null>(null);
+
+  const onExitRef = useRef(onExit);
+  onExitRef.current = onExit;
 
   const phaseRef = useRef<Phase>("intro");
   const hpRef = useRef<number>(BOSS_BATTLE.maxHp);
@@ -80,19 +77,20 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
   }, []);
 
   const endBattle = useCallback(
-    (win: boolean, reason: string, flashKind?: "hit" | "success" | "finale-fail") => {
-      if (phaseRef.current === "result") return;
+    (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
+      if (phaseRef.current === "result" || phaseRef.current === "blackout") return;
       clearPendingTimers();
       phaseRef.current = "result";
       setPhase("result");
-      triggerFlash(flashKind ?? (win ? "success" : "hit"));
-      if (win) {
-        // 승리 이펙트가 결과창에 바로 가려지지 않도록, 결과창만 살짝 늦게 띄운다.
-        const t = window.setTimeout(() => setResult({ win, reason }), 700);
-        pendingTimers.current.push(t);
-      } else {
-        setResult({ win, reason });
-      }
+      const kind = flashKind ?? (win ? "success" : "hit");
+      triggerFlash(kind);
+      // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전되며 자연스럽게 입장맵으로 돌아간다.
+      const effectMs = kind === "success" ? 900 : kind === "finale-fail" ? 600 : 350;
+      const t = window.setTimeout(() => {
+        phaseRef.current = "blackout";
+        setPhase("blackout");
+      }, effectMs + 150);
+      pendingTimers.current.push(t);
     },
     [clearPendingTimers, triggerFlash]
   );
@@ -108,7 +106,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     finaleStartRef.current = Date.now();
     const { end } = finaleWindow();
     const timer = window.setTimeout(() => {
-      if (phaseRef.current === "finale") endBattle(false, "빈틈을 놓쳤다", "finale-fail");
+      if (phaseRef.current === "finale") endBattle(false, "finale-fail");
     }, end + 60);
     pendingTimers.current.push(timer);
   }, [clearPendingTimers, endBattle]);
@@ -121,7 +119,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
       comboRef.current = 0;
       setCombo(0);
       triggerFlash("hit");
-      if (next <= 0) endBattle(false, "목숨을 모두 잃었다");
+      if (next <= 0) endBattle(false);
     },
     [endBattle, triggerFlash]
   );
@@ -236,30 +234,9 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     if (phaseRef.current !== "finale") return;
     const elapsed = Date.now() - finaleStartRef.current;
     const { start, end } = finaleWindow();
-    if (elapsed >= start && elapsed <= end) endBattle(true, "");
-    else endBattle(false, "빈틈을 놓쳤다", "finale-fail");
+    if (elapsed >= start && elapsed <= end) endBattle(true);
+    else endBattle(false, "finale-fail");
   }, [endBattle]);
-
-  const retry = useCallback(() => {
-    clearPendingTimers();
-    hpRef.current = BOSS_BATTLE.maxHp;
-    comboRef.current = 0;
-    deathCountRef.current = BOSS_BATTLE.maxDeathCount;
-    lastTapAtRef.current = 0;
-    inPattern2Ref.current = false;
-    p1Ref.current = IDLE_PATTERN1;
-    crossedThresholds.current = new Set();
-    setHp(BOSS_BATTLE.maxHp);
-    setCombo(0);
-    setDeathCount(BOSS_BATTLE.maxDeathCount);
-    setTimeLeftMs(BOSS_BATTLE.timeLimitMs);
-    setP1(IDLE_PATTERN1);
-    setP2Phase("idle");
-    setFlash(null);
-    setResult(null);
-    phaseRef.current = "intro";
-    setPhase("intro");
-  }, [clearPendingTimers]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
@@ -298,10 +275,17 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
     const interval = window.setInterval(() => {
       const left = Math.max(0, BOSS_BATTLE.timeLimitMs - (Date.now() - battleStartRef.current));
       setTimeLeftMs(left);
-      if (left <= 0) endBattle(false, "시간초과");
+      if (left <= 0) endBattle(false);
     }, 500);
     return () => window.clearInterval(interval);
   }, [phase, endBattle]);
+
+  // 화면이 다 어두워지면 입장맵으로 돌아간다.
+  useEffect(() => {
+    if (phase !== "blackout") return;
+    const t = window.setTimeout(() => onExitRef.current(), 650);
+    return () => window.clearTimeout(t);
+  }, [phase]);
 
   // 언마운트 시 남아있는 타이머 정리.
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);
@@ -401,22 +385,7 @@ export default function BossBattle({ onExit }: { onExit: () => void }) {
       )}
       {flash && flash.kind === "hit" && <div key={flash.key} className="bb-flash bb-flash--hit" />}
 
-      {phase === "result" && result && (
-        <div className="bb-result">
-          <h2 className="bb-result-title">{result.win ? "서휘령을 밀어붙였다" : "패배했다"}</h2>
-          {!result.win && <p className="bb-result-reason">{result.reason}</p>}
-          <div className="bb-result-actions">
-            {!result.win && (
-              <button className="bb-result-retry" onClick={retry}>
-                다시 도전하기
-              </button>
-            )}
-            <button className="bb-result-exit" onClick={onExit}>
-              나가기
-            </button>
-          </div>
-        </div>
-      )}
+      {phase === "blackout" && <div className="bb-blackout" />}
     </section>
   );
 }

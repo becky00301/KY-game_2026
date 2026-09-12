@@ -1934,17 +1934,12 @@ button {
   50% { transform: scale(1.07); filter: drop-shadow(0 0 30px rgba(255, 196, 64, .9)); }
 }
 
-.bb-result {
-  position: absolute; inset: 0; z-index: 10;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background: rgba(4, 16, 14, .88); padding: 0 32px; text-align: center;
+/* 승패 문구 없이, 이펙트가 끝나면 화면이 서서히 어두워지며 입장맵으로 돌아간다. */
+.bb-blackout {
+  position: absolute; inset: 0; z-index: 20; background: #000;
+  animation: bbBlackoutIn 650ms ease forwards;
 }
-.bb-result-title { font-size: 24px; color: #dcfff4; margin: 0; }
-.bb-result-reason { font-size: 14px; color: #cbdedb; margin: 0; }
-.bb-result-actions { display: flex; gap: 12px; margin-top: 10px; }
-.bb-result-actions button { min-height: 46px; padding: 12px 20px; border-radius: 10px; font-size: 15px; font-weight: 800; }
-.bb-result-retry { border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; }
-.bb-result-exit { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
+@keyframes bbBlackoutIn { from { opacity: 0; } to { opacity: 1; } }
 
 @keyframes bbSwordFloat { 0%, 100% { transform: translate(-50%, -50%) translateY(-14px); } 50% { transform: translate(-50%, -50%) translateY(14px); } }
 @keyframes bbTimerBlink { 50% { opacity: .35; } }
