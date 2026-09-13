@@ -5,6 +5,8 @@ import {
   BOSS_BATTLE,
   BOSS_BATTLE_INTRO_LINE,
   BOSS_DEATH_TAUNT_LINES,
+  BOSS_DEFEAT_EXIT_MS,
+  BOSS_DEFEAT_LINE,
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
@@ -519,16 +521,18 @@ export default function BossBattle({
   // 승리라 그대로 입장맵으로, 그 외(실패/시간초과/죽음)는 전부 입장맵으로 돌아간다.
   useEffect(() => {
     if (phase !== "blackout") return;
-    const t = window.setTimeout(() => {
-      if (wonRef.current && stageRef.current === 1) {
+    if (wonRef.current && stageRef.current === 1) {
+      const t = window.setTimeout(() => {
         phaseRef.current = "phase2Intro";
         setPhase("phase2Intro");
-      } else {
-        onExitRef.current();
-      }
-    }, 650);
+      }, 650);
+      return () => window.clearTimeout(t);
+    }
+    if (!wonRef.current) showBossLine(BOSS_DEFEAT_LINE);
+    const exitMs = wonRef.current ? 650 : BOSS_DEFEAT_EXIT_MS;
+    const t = window.setTimeout(() => onExitRef.current(), exitMs);
     return () => window.clearTimeout(t);
-  }, [phase]);
+  }, [phase, showBossLine]);
 
   // 언마운트 시 남아있는 타이머 정리.
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);

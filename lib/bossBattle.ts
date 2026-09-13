@@ -39,6 +39,12 @@ export const BOSS_SUCCESS_LINES = [
   "당신을.. 도와드릴게요!",
 ] as const;
 
+/** 패배해서 퇴장당할 때, 암전과 함께 뜨는 대사. */
+export const BOSS_DEFEAT_LINE = "한심한 녀석. 다시는 이곳에 발을 들이지 마라.";
+
+/** 패배 후 대사를 읽을 시간을 주고 나서 입장맵으로 돌아가기까지의 시간. */
+export const BOSS_DEFEAT_EXIT_MS = 2600;
+
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
   maxHp: 1300,
@@ -100,8 +106,10 @@ export const BOSS_PHASE2 = {
   pattern1ActiveMs: 850,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
-  pattern2RandomMinMs: 1400,
-  pattern2RandomMaxMs: 2800,
+  // 전체패턴 warn 구간 동안은 패턴1이 멈춰서 사실상 프리딜 타임이 된다 — 너무 자주
+  // 뜨면 오히려 쉬워지므로 등장 확률(빈도)을 낮게 잡는다.
+  pattern2RandomMinMs: 7000,
+  pattern2RandomMaxMs: 12000,
   pattern2WarnMs: 1850,
   pattern2ActiveMs: 580,
   pattern2JudgeMs: 220,

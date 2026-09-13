@@ -1882,12 +1882,13 @@ button {
 .bb-death-icon--spent { opacity: .25; filter: grayscale(1); }
 .bb-combo { font-size: 15px; font-weight: 900; color: var(--accent); text-shadow: 0 0 10px var(--glow); align-self: center; }
 
-/* 패턴 등장/피격 시 뜨는 보스 도발 대사 — HUD 바로 아래에서 잠깐 떴다 사라진다. */
+/* 패턴 등장/피격/퇴장 시 뜨는 서휘령의 대사 — HUD 바로 아래에서 잠깐 떴다 사라진다.
+   서휘령의 기운을 나타내는 청록빛으로 빛난다(붉은빛은 피격 이펙트와 헷갈려서 제외). */
 .bb-boss-line {
-  position: absolute; top: calc(92px + env(safe-area-inset-top)); left: 16px; right: 16px; z-index: 5;
+  position: absolute; top: calc(92px + env(safe-area-inset-top)); left: 16px; right: 16px; z-index: 21;
   margin: 0; text-align: center; pointer-events: none;
-  font-size: 15px; font-weight: 800; color: #ffe4e0;
-  text-shadow: 0 0 12px rgba(220, 38, 38, .65), 0 2px 6px #000c;
+  font-size: 15px; font-weight: 800; color: #b9f5ea;
+  text-shadow: 0 0 12px rgba(54, 187, 174, .8), 0 2px 6px #000c;
   animation: bbBossLineInOut 1800ms ease-in-out forwards;
 }
 @keyframes bbBossLineInOut {
