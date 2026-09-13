@@ -505,6 +505,9 @@ export default function BossBattle({
   // 맞춘다 — 안 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다.
   const ringDurationMs =
     phase === "finale" && stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
+  // 2페이즈는 판정(유효 시간창)은 널널하게 두되, 링은 그 절반 주기로 두 번 반복해서
+  // 좁혀지게 해 체감 속도만 2배로 빠르게 한다. 1페이즈 발악은 기존처럼 한 번만 좁혀진다.
+  const ringLoops2x = stage === 2;
 
   return (
     <section className="bb-root boss-theme" role="dialog" aria-modal="true" aria-label="서휘령과의 전투">
@@ -539,6 +542,7 @@ export default function BossBattle({
               <div className="bb-hp-bar">
                 <div className="bb-hp-fill" style={{ width: `${Math.max(0, (hp / maxHp) * 100)}%` }} />
               </div>
+              <span className="bb-hp-pct">{Math.max(0, Math.round((hp / maxHp) * 100))}%</span>
               <span className={`bb-timer ${timeLeftMs <= 20_000 ? "bb-timer-danger" : ""}`}>
                 {formatClock(timeLeftMs)}
               </span>
@@ -611,7 +615,14 @@ export default function BossBattle({
           <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
           <div className="bb-finale-rings">
             <div className="bb-finale-ring-target" />
-            <div className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
+            <div
+              className="bb-finale-ring-shrink"
+              style={
+                ringLoops2x
+                  ? { animationDuration: `${ringDurationMs / 2}ms`, animationIterationCount: "infinite" }
+                  : { animationDuration: `${ringDurationMs}ms` }
+              }
+            />
           </div>
           <button
             className="bb-skill-btn"

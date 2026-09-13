@@ -1872,6 +1872,9 @@ button {
 .bb-hp-row { display: flex; align-items: center; gap: 10px; }
 .bb-hp-bar { flex: 1; height: 14px; border-radius: 999px; background: #0009; border: 1px solid #438b8255; overflow: hidden; }
 .bb-hp-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #175a53, #36bbae); transition: width .15s ease-out; }
+/* HP를 숫자로도 보여줘서, 75/50/25% 근처에서 특수패턴(체크포인트/발악)이 곧 온다는
+   걸 미리 대비할 수 있게 한다. */
+.bb-hp-pct { font-size: 13px; font-weight: 800; color: #cbdedb; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
 .bb-timer { font-size: 13px; font-weight: 800; color: #cbdedb; font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
 .bb-timer-danger { color: #ff8a8a; animation: bbTimerBlink .8s step-start infinite; }
 .bb-death-row { display: flex; gap: 6px; }

@@ -44,16 +44,16 @@ export const BOSS_BATTLE = {
 /**
  * 2페이즈 — 1페이즈를 격파(발악 패링 성공)한 뒤 이어지는 진짜 서휘령의 모습.
  *   - 3분할이 아니라 5분할, 그 중 3곳이 위험구역(안전 구역 2곳)이다.
- *   - 패턴1 시전 주기·예고·판정 시간은 1페이즈보다도 더 느리다(반응속도가 계속 너무
- *     빠르다는 피드백 반영) — 그래도 구역 수·무작위 전체패턴·발악 체크포인트 때문에
- *     체감 난이도는 1페이즈보다 높다.
+ *   - 패턴1/패턴2 시전 주기·예고·판정 시간은 1페이즈보다 1.75배 빠르다(느리다는
+ *     피드백으로 다시 올림) — 여기에 구역 수·무작위 전체패턴·발악 체크포인트까지
+ *     겹쳐서 체감 난이도는 1페이즈보다 확실히 높다.
  *   - 1페이즈에서 HP 75/50/25%마다 뜨던 전체공격(패턴2)은 이제 그 타이밍과 무관하게
  *     무작위 주기로 튀어나온다(단, 패턴1과 절대 안 겹치게 겹침 방지 로직을 그대로 적용).
  *   - 그 대신 HP 75/50/25%마다 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과
  *     달리, 성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다.
- *   - 발악(패링) 링은 1페이즈보다 훨씬 천천히 좁혀지고(3.6초) 유효 판정창도 훨씬
- *     넓어서(1.6초) 널널하게 맞출 수 있다.
+ *   - 발악(패링) 판정 자체는 널널하지만(1.6초 판정창), 링 애니메이션은 실제 판정
+ *     시간의 절반 주기로 두 번 반복해서 좁혀지므로 체감 속도는 2배 빠르다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 1280,
@@ -63,15 +63,15 @@ export const BOSS_PHASE2 = {
   maxDamageMultiplier: 3,
   zoneCount: 5,
   dangerZoneCount: 3,
-  pattern1IntervalMs: 3200,
-  pattern1WarnMs: 1000,
-  pattern1ActiveMs: 1300,
+  pattern1IntervalMs: 1800,
+  pattern1WarnMs: 570,
+  pattern1ActiveMs: 740,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
-  pattern2RandomMinMs: 7000,
-  pattern2RandomMaxMs: 12000,
-  pattern2WarnMs: 2800,
-  pattern2ActiveMs: 900,
+  pattern2RandomMinMs: 4000,
+  pattern2RandomMaxMs: 6850,
+  pattern2WarnMs: 1600,
+  pattern2ActiveMs: 510,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
@@ -79,7 +79,7 @@ export const BOSS_PHASE2 = {
   checkpointWindowMs: 1600,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
-  patternRestMs: 1200,
+  patternRestMs: 690,
 } as const;
 
 export type Orientation = "vertical" | "horizontal" | "diagonal";
