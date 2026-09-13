@@ -136,6 +136,13 @@ export default function BossBattle({
 
   const registerPatternHit = useCallback(
     (penalty: number) => {
+      // 한 번 맞으면 판정을 즉시 꺼서, 피격 이펙트가 나오는 동안 연타해도 중복으로
+      // 맞지 않게 한다(패턴1 위험구역이든 패턴2 전체판정이든 동일하게 즉시 해제).
+      p1Ref.current = IDLE_PATTERN1;
+      setP1(IDLE_PATTERN1);
+      inPattern2Ref.current = false;
+      setP2Phase("idle");
+
       const next = Math.max(0, deathCountRef.current - penalty);
       deathCountRef.current = next;
       setDeathCount(next);
