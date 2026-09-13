@@ -6,6 +6,7 @@ import SetupNotice from "@/components/SetupNotice";
 import TeamSelect from "@/components/TeamSelect";
 import TutorialIntro from "@/components/TutorialIntro";
 import { isMisconfigured } from "@/lib/backend";
+import { applyTeamFavicon } from "@/lib/favicon";
 import { TeamId, clearTeam, hasSeenTutorial, loadTeam, markTutorialSeen, saveTeam } from "@/lib/game";
 
 export default function Page() {
@@ -19,6 +20,11 @@ export default function Page() {
     setTeam(loadTeam());
     setReady(true);
   }, []);
+
+  // 탭 아이콘을 고른 팀 심볼로 바꾼다. 팀을 고르기 전에는 반반 심볼 그대로.
+  useEffect(() => {
+    applyTeamFavicon(team);
+  }, [team]);
 
   if (isMisconfigured) {
     return <SetupNotice />;
