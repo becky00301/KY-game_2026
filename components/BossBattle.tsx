@@ -317,6 +317,7 @@ export default function BossBattle({
       }
 
       const now = Date.now();
+      const prevCombo = comboRef.current;
       const nextCombo =
         now - lastTapAtRef.current <= BOSS_BATTLE.comboDecayMs
           ? Math.min(comboRef.current + 1, BOSS_BATTLE.maxCombo)
@@ -324,6 +325,13 @@ export default function BossBattle({
       lastTapAtRef.current = now;
       comboRef.current = nextCombo;
       setCombo(nextCombo);
+
+      // 콤보를 50까지 채우면(도달하는 그 순간 한 번만) 목숨을 한 칸 회복한다.
+      if (nextCombo === BOSS_BATTLE.maxCombo && prevCombo < BOSS_BATTLE.maxCombo) {
+        const recovered = Math.min(BOSS_BATTLE.maxDeathCount, deathCountRef.current + 1);
+        deathCountRef.current = recovered;
+        setDeathCount(recovered);
+      }
 
       const mult = damageMultiplier(nextCombo);
       const nextHp = Math.max(0, hpRef.current - BOSS_BATTLE.baseDamage * mult);

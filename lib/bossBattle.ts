@@ -45,9 +45,10 @@ export const BOSS_BATTLE = {
  *   - 그 대신 HP 75/50/25%마다 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과
  *     달리, 성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다.
+ *   - 발악(패링) 링은 1페이즈보다 천천히 좁혀져서(3.2초) 확실하게 보고 반응할 수 있다.
  */
 export const BOSS_PHASE2 = {
-  maxHp: 1600,
+  maxHp: 1280,
   baseDamage: 4,
   maxCombo: 50,
   comboDecayMs: 1500,
@@ -64,8 +65,8 @@ export const BOSS_PHASE2 = {
   pattern2ActiveMs: 400,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
-  checkpointRingDurationMs: 2200,
-  checkpointWindowMs: 450,
+  checkpointRingDurationMs: 3200,
+  checkpointWindowMs: 500,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
 } as const;
