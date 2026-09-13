@@ -552,11 +552,23 @@ export default function BossBattle({
             )}
             {p1.phase === "active" && stage === 2 && (
               <div className="bb-slash-scale-wrap">
-                <img key={p1.id} className={`bb-slash bb-slash--${p1.orientation}`} src={SLASH_SRC_PHASE2[p1.orientation]} alt="" />
+                <img
+                  key={p1.id}
+                  className={`bb-slash bb-slash--${p1.orientation}`}
+                  src={SLASH_SRC_PHASE2[p1.orientation]}
+                  style={{ animationDuration: `${BOSS_PHASE2.pattern1ActiveMs}ms` }}
+                  alt=""
+                />
               </div>
             )}
             {p1.phase === "active" && stage === 1 && (
-              <img key={p1.id} className={`bb-slash bb-slash--${p1.orientation}`} src={SLASH_SRC[p1.orientation]} alt="" />
+              <img
+                key={p1.id}
+                className={`bb-slash bb-slash--${p1.orientation}`}
+                src={SLASH_SRC[p1.orientation]}
+                style={{ animationDuration: `${BOSS_BATTLE.pattern1ActiveMs}ms` }}
+                alt=""
+              />
             )}
             {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
             {stage === 2 && p2Phase === "active" && (
