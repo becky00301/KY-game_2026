@@ -76,6 +76,13 @@ export default function BossBattle({
   const checkpointStartRef = useRef(0);
   const inPattern2Ref = useRef(false);
   const inCheckpointRef = useRef(false);
+  // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
+  // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
+  const nextPatternAllowedAtRef = useRef(0);
+  const grantPatternRest = useCallback(() => {
+    const restMs = stageRef.current === 1 ? BOSS_BATTLE.patternRestMs : BOSS_PHASE2.patternRestMs;
+    nextPatternAllowedAtRef.current = Date.now() + restMs;
+  }, []);
   const p1Ref = useRef<Pattern1State>(IDLE_PATTERN1);
   const crossedThresholds = useRef<Set<number>>(new Set());
   const crossedCheckpoints = useRef<Set<number>>(new Set());
@@ -144,6 +151,7 @@ export default function BossBattle({
       setP1(IDLE_PATTERN1);
       inPattern2Ref.current = false;
       setP2Phase("idle");
+      grantPatternRest();
 
       const next = Math.max(0, deathCountRef.current - penalty);
       deathCountRef.current = next;
@@ -153,7 +161,7 @@ export default function BossBattle({
       triggerFlash("hit");
       if (next <= 0) endBattle(false);
     },
-    [endBattle, triggerFlash]
+    [endBattle, triggerFlash, grantPatternRest]
   );
 
   const resolveCheckpoint = useCallback(
@@ -175,10 +183,11 @@ export default function BossBattle({
         }
       }
       lastTapAtRef.current = Date.now();
+      grantPatternRest();
       phaseRef.current = "combat";
       setPhase("combat");
     },
-    [endBattle, triggerFlash]
+    [endBattle, triggerFlash, grantPatternRest]
   );
 
   /** 2페이즈 전용 — HP 75/50/25% 체크포인트. 발악과 같은 연출이지만 끝나도 전투가 이어진다. */
@@ -199,6 +208,7 @@ export default function BossBattle({
 
   const triggerPattern2 = useCallback(() => {
     if (inCheckpointRef.current) return; // 체크포인트 중엔 전체패턴이 끼어들지 않는다.
+    if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
     inPattern2Ref.current = true;
     setP2Phase("warn");
     // 겹침 방지 규칙 2 — 진행 중이던 패턴1을 즉시 idle로 되돌린다.
@@ -214,11 +224,12 @@ export default function BossBattle({
         setP2Phase("idle");
         inPattern2Ref.current = false;
         lastTapAtRef.current = Date.now(); // 재개 시 콤보 유예시간을 새로 준다
+        grantPatternRest();
       }, activeMs);
       pendingTimers.current.push(activeTimer);
     }, warnMs);
     pendingTimers.current.push(warnTimer);
-  }, []);
+  }, [grantPatternRest]);
 
   /** 2페이즈 전용 — 전체패턴을 HP 임계값이 아니라 무작위 주기로 반복 예약한다. */
   const scheduleStage2Pattern2 = useCallback(() => {
@@ -238,6 +249,7 @@ export default function BossBattle({
   const checkHpThresholds = useCallback(
     (nextHp: number) => {
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
+      if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
       if (stageRef.current === 1) {
         for (const t of BOSS_BATTLE.pattern2Thresholds) {
           const absolute = t * BOSS_BATTLE.maxHp;
@@ -263,6 +275,7 @@ export default function BossBattle({
 
   const triggerPattern1 = useCallback(() => {
     if (inPattern2Ref.current || inCheckpointRef.current) return;
+    if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
     const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
     const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
@@ -287,11 +300,12 @@ export default function BossBattle({
       const activeTimer = window.setTimeout(() => {
         p1Ref.current = IDLE_PATTERN1;
         setP1(IDLE_PATTERN1);
+        grantPatternRest();
       }, activeMs);
       pendingTimers.current.push(activeTimer);
     }, warnMs);
     pendingTimers.current.push(warnTimer);
-  }, []);
+  }, [grantPatternRest]);
 
   const handleTap = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
