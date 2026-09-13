@@ -1882,13 +1882,11 @@ button {
 
 .bb-zones { position: absolute; inset: 0; display: flex; pointer-events: none; }
 .bb-zones--vertical { flex-direction: row; }
-.bb-zones--vertical .bb-zone { flex: 1 1 33.333%; height: 100%; }
+.bb-zones--vertical .bb-zone { flex: 1 1 0; height: 100%; }
 .bb-zones--horizontal { flex-direction: column; }
-.bb-zones--horizontal .bb-zone { flex: 1 1 33.333%; width: 100%; }
+.bb-zones--horizontal .bb-zone { flex: 1 1 0; width: 100%; }
+/* 대각선 구역은 구역 수(3분할/5분할)에 따라 clip-path를 JS에서 계산해 인라인으로 넣는다. */
 .bb-zones--diagonal .bb-zone { position: absolute; inset: 0; width: 100%; height: 100%; }
-.bb-zones--diagonal .bb-zone[data-zone="0"] { clip-path: polygon(0% 0%, 66.667% 0%, 0% 66.667%); }
-.bb-zones--diagonal .bb-zone[data-zone="1"] { clip-path: polygon(66.667% 0%, 100% 0%, 100% 33.333%, 33.333% 100%, 0% 100%, 0% 66.667%); }
-.bb-zones--diagonal .bb-zone[data-zone="2"] { clip-path: polygon(100% 100%, 100% 33.333%, 33.333% 100%); }
 .bb-zone--danger.bb-zone--warn { background: rgba(220, 38, 38, .32); }
 
 .bb-slash {
