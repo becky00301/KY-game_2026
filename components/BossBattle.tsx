@@ -15,6 +15,8 @@ import {
   timingWindow,
   zoneOf,
 } from "@/lib/bossBattle";
+import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
+import { setBossBgmPhase2 } from "@/lib/bgm";
 
 type Phase = "intro" | "combat" | "finale" | "checkpoint" | "result" | "blackout" | "phase2Intro";
 type SubPhase = "idle" | "warn" | "active";
@@ -378,6 +380,7 @@ export default function BossBattle({
   // 2페이즈 등장 연출 3초 후, 이어서 2페이즈 전투 시작.
   useEffect(() => {
     if (phase !== "phase2Intro") return;
+    setBossBgmPhase2();
     const timer = window.setTimeout(() => {
       stageRef.current = 2;
       setStage(2);
@@ -453,8 +456,16 @@ export default function BossBattle({
 
   return (
     <section className="bb-root boss-theme" role="dialog" aria-modal="true" aria-label="서휘령과의 전투">
-      <div className="bb-bg" />
-      <img className="bb-boss-sword" src="/images/boss/boss-map-sword.webp" alt="" aria-hidden />
+      <div
+        className="bb-bg"
+        style={stage === 2 ? { backgroundImage: `linear-gradient(#00100f55, #000c), url('${BOSS_PHASE2_ASSETS.battleBgSrc}')` } : undefined}
+      />
+      <img
+        className="bb-boss-sword"
+        src={stage === 2 ? BOSS_PHASE2_ASSETS.swordSrc : "/images/boss/boss-map-sword.webp"}
+        alt=""
+        aria-hidden
+      />
 
       {phase === "intro" && (
         <div className="bb-intro">

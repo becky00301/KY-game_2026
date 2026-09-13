@@ -37,6 +37,13 @@ export const BOSS_INTRO = {
   ],
 };
 
+/** 2페이즈 진입 시 교체되는 전투 배경·검 일러스트·브금. */
+export const BOSS_PHASE2_ASSETS = {
+  bgmSrc: "/audio/boss-phase2-bgm.mp3",
+  battleBgSrc: "/images/boss-battle/battle-bg-phase2.png",
+  swordSrc: "/images/boss/boss-map-sword-phase2.png",
+};
+
 // Add future story cards here; defeat/unlock conditions can be introduced with combat.
 export const BOSS_CARDS = [
   { id: "intro", title: "???", caption: "이야기는 아직 준비 중입니다." },

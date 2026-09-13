@@ -18,7 +18,7 @@
 
 import { attachGain, resumeAudioContext } from "./audioContext";
 import { getEffectiveBgmVolume } from "./settings";
-import { BOSS_INTRO } from "./boss";
+import { BOSS_INTRO, BOSS_PHASE2_ASSETS } from "./boss";
 
 const TITLE_BASE_VOLUME = 0.5;
 const GAMEPLAY_BASE_VOLUME = 0.45;
@@ -173,9 +173,13 @@ export function startBossBgm() {
   bossActive = true;
   if (gameplayEl) pausePlayback(gameplayEl); // preserve the original track's position
   if (!bossEl) {
-    bossEl = new Audio(BOSS_INTRO.bgmSrc);
+    bossEl = new Audio();
     bossEl.loop = true;
     bossGain = attachGain(bossEl);
+  }
+  // 매번 새로 입장할 때는 항상 1페이즈 트랙부터 시작한다(직전 판이 2페이즈까지 갔었어도).
+  if (bossEl.src !== new URL(BOSS_INTRO.bgmSrc, window.location.href).href) {
+    bossEl.src = BOSS_INTRO.bgmSrc;
   }
   setGain(bossEl, bossGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
   requestPlayback(bossEl);
@@ -189,4 +193,14 @@ export function stopBossBgm(resumeGameplay = true) {
     bossEl.currentTime = 0;
   }
   if (wasActive && resumeGameplay && gameplayEl) requestPlayback(gameplayEl);
+}
+
+/** 보스전 2페이즈 진입 시 브금만 끊김 없이 2페이즈 트랙으로 교체한다. */
+export function setBossBgmPhase2() {
+  if (typeof window === "undefined" || !bossEl) return;
+  const src = BOSS_PHASE2_ASSETS.bgmSrc;
+  if (bossEl.src === new URL(src, window.location.href).href) return;
+  bossEl.src = src;
+  setGain(bossEl, bossGain, gainFor(GAMEPLAY_BASE_VOLUME, gameplayMuted));
+  if (bossActive) requestPlayback(bossEl);
 }
