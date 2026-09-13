@@ -1836,12 +1836,18 @@ button {
   /* 원본이 세로로 아주 긴 이미지(419x1588)라, width 기준으로 재우면 좁은 모바일
      화면에서도 세로 길이가 화면 밖으로 튀어나가 "비율이 깨진" 것처럼 보인다.
      그래서 폭이 아니라 높이 기준으로 크기를 잡는다. */
+  --sword-x: -50%;
   position: absolute; left: 50%; top: 50%; height: min(92dvh, 760px); width: auto;
   max-width: 95%;
-  transform: translate(-50%, -50%); object-fit: contain;
+  transform: translate(var(--sword-x), -50%); object-fit: contain;
   pointer-events: none; filter: drop-shadow(0 12px 30px #000a);
   animation: bbSwordFloat 3.2s ease-in-out infinite;
 }
+/* 2페이즈 검 일러스트는 캔버스 안에서 칼날이 중앙보다 오른쪽으로 그려져 있어서(술
+   장식이 오른쪽으로 뻗음), 그대로 중앙정렬하면 칼날이 오른쪽으로 쏠려 보인다. 실제
+   칼날 중심(이미지 폭의 약 56%)이 화면 중앙에 오도록 --sword-x로 보정한다(bbSwordFloat
+   애니메이션이 transform을 덮어쓰므로, 커스텀 프로퍼티를 거쳐야 float와 공존한다). */
+.bb-boss-sword--phase2 { --sword-x: -56.1%; }
 
 .bb-intro { position: absolute; inset: 0; z-index: 25; display: flex; align-items: center; justify-content: center; background: #000; padding: 0 32px; }
 .bb-intro-line { color: #dcfff4; font-size: 19px; line-height: 1.7; text-align: center; animation: fadeIn .6s ease; }
@@ -1931,13 +1937,15 @@ button {
   width: 100%; height: 100%; object-fit: contain; object-position: center bottom;
   transform-origin: center bottom;
   filter: drop-shadow(0 0 40px rgba(255, 215, 120, .85));
-  animation: bbSuccessPop 900ms cubic-bezier(.2, .8, .3, 1) forwards;
+  animation: bbSuccessPop 2000ms cubic-bezier(.2, .8, .3, 1) forwards;
 }
+/* 더 크게, 더 오래 보이도록 — 확 커졌다가 큰 채로 대부분의 시간 동안 유지된 뒤 끝에만 빠진다. */
 @keyframes bbSuccessPop {
-  0% { opacity: 0; transform: scale(.75); }
-  14% { opacity: 1; transform: scale(1.06); }
-  26% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.02); }
+  0% { opacity: 0; transform: scale(.8); }
+  10% { opacity: 1; transform: scale(1.4); }
+  20% { opacity: 1; transform: scale(1.28); }
+  85% { opacity: 1; transform: scale(1.28); }
+  100% { opacity: 0; transform: scale(1.32); }
 }
 .bb-flash--finale-fail {
   width: 100%; height: 100%; object-fit: cover;
@@ -1984,7 +1992,7 @@ button {
 }
 @keyframes bbBlackoutIn { from { opacity: 0; } to { opacity: 1; } }
 
-@keyframes bbSwordFloat { 0%, 100% { transform: translate(-50%, -50%) translateY(-14px); } 50% { transform: translate(-50%, -50%) translateY(14px); } }
+@keyframes bbSwordFloat { 0%, 100% { transform: translate(var(--sword-x), -50%) translateY(-14px); } 50% { transform: translate(var(--sword-x), -50%) translateY(14px); } }
 @keyframes bbTimerBlink { 50% { opacity: .35; } }
 @keyframes bbFullWarnBuildup { from { opacity: .18; } to { opacity: 1; } }
 @keyframes bbFlashOut { from { opacity: .75; } to { opacity: 0; } }

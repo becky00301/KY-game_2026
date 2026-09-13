@@ -25,10 +25,14 @@ export const BOSS_BATTLE = {
   pattern1IntervalMs: 2400,
   pattern1WarnMs: 750,
   pattern1ActiveMs: 980,
+  /** 판정(위험구역이 실제로 맞는지 체크하는)이 열려있는 시간 — activeMs 전체가 아니라
+   * 이 짧은 순간에만 맞는다. 나머지는 이펙트만 보여주는 잔상 구간이라 눌러도 안전하다. */
+  pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
   pattern2Thresholds: [0.75, 0.5, 0.25],
   pattern2WarnMs: 2250,
   pattern2ActiveMs: 600,
+  pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   finaleRingDurationMs: 2200,
   finaleWindowMs: 900,
@@ -39,15 +43,17 @@ export const BOSS_BATTLE = {
 
 /**
  * 2페이즈 — 1페이즈를 격파(발악 패링 성공)한 뒤 이어지는 진짜 서휘령의 모습.
- *   - 3분할이 아니라 5분할, 그 중 4곳이 위험구역(안전 구역 1곳뿐)이라 더 빡빡하다.
- *   - 패턴1 시전 주기·예고·판정 시간은 1페이즈와 동일(반응속도가 너무 빠르다는 피드백으로
- *     되돌림) — 어려워지는 건 순전히 구역 수와 무작위 전체패턴·발악 체크포인트뿐이다.
+ *   - 3분할이 아니라 5분할, 그 중 3곳이 위험구역(안전 구역 2곳)이다.
+ *   - 패턴1 시전 주기·예고·판정 시간은 1페이즈보다도 더 느리다(반응속도가 계속 너무
+ *     빠르다는 피드백 반영) — 그래도 구역 수·무작위 전체패턴·발악 체크포인트 때문에
+ *     체감 난이도는 1페이즈보다 높다.
  *   - 1페이즈에서 HP 75/50/25%마다 뜨던 전체공격(패턴2)은 이제 그 타이밍과 무관하게
  *     무작위 주기로 튀어나온다(단, 패턴1과 절대 안 겹치게 겹침 방지 로직을 그대로 적용).
  *   - 그 대신 HP 75/50/25%마다 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과
  *     달리, 성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다.
- *   - 발악(패링) 링은 1페이즈보다 천천히 좁혀져서(3.2초) 확실하게 보고 반응할 수 있다.
+ *   - 발악(패링) 링은 1페이즈보다 훨씬 천천히 좁혀지고(3.6초) 유효 판정창도 훨씬
+ *     넓어서(1.6초) 널널하게 맞출 수 있다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 1280,
@@ -56,22 +62,24 @@ export const BOSS_PHASE2 = {
   comboDecayMs: 1500,
   maxDamageMultiplier: 3,
   zoneCount: 5,
-  dangerZoneCount: 4,
-  pattern1IntervalMs: 2400,
-  pattern1WarnMs: 750,
-  pattern1ActiveMs: 980,
+  dangerZoneCount: 3,
+  pattern1IntervalMs: 3200,
+  pattern1WarnMs: 1000,
+  pattern1ActiveMs: 1300,
+  pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
-  pattern2RandomMinMs: 6000,
-  pattern2RandomMaxMs: 10500,
-  pattern2WarnMs: 2250,
-  pattern2ActiveMs: 600,
+  pattern2RandomMinMs: 7000,
+  pattern2RandomMaxMs: 12000,
+  pattern2WarnMs: 2800,
+  pattern2ActiveMs: 900,
+  pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
-  checkpointRingDurationMs: 3200,
-  checkpointWindowMs: 900,
+  checkpointRingDurationMs: 3600,
+  checkpointWindowMs: 1600,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
-  patternRestMs: 900,
+  patternRestMs: 1200,
 } as const;
 
 export type Orientation = "vertical" | "horizontal" | "diagonal";

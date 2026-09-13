@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BossBattle from "@/components/BossBattle";
 import { BossGallery, BossMap } from "@/components/BossEncounter";
 import SettingsSheet from "@/components/SettingsSheet";
@@ -19,6 +19,17 @@ export default function BossDemoPage() {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
+  const [debugPhase2, setDebugPhase2] = useState(false);
+
+  // 개발용 지름길 — /boss-demo?debugBoss=2 로 2페이즈 등장 연출부터 바로 확인.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("debugBoss") === "2") {
+      unlockAudio();
+      startBossBgm();
+      setDebugPhase2(true);
+      setMode("battle");
+    }
+  }, []);
 
   return (
     <>
@@ -43,6 +54,7 @@ export default function BossDemoPage() {
 
       {mode === "battle" && (
         <BossBattle
+          debugStartPhase2={debugPhase2}
           onExit={() => {
             stopBossBgm();
             setMode("map");

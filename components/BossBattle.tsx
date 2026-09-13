@@ -25,11 +25,14 @@ type Stage = 1 | 2;
 interface Pattern1State {
   id: number;
   phase: SubPhase;
+  /** phase가 "active"인 전체 구간 중, 실제로 맞을 수 있는 짧은 판정 순간인지. 나머지는
+   * 이펙트만 보여주는 잔상 구간이라 안전하다. */
+  judgeable: boolean;
   orientation: Orientation;
   dangerZones: number[];
 }
 
-const IDLE_PATTERN1: Pattern1State = { id: 0, phase: "idle", orientation: "vertical", dangerZones: [] };
+const IDLE_PATTERN1: Pattern1State = { id: 0, phase: "idle", judgeable: false, orientation: "vertical", dangerZones: [] };
 
 /** 판정 구간(active)에 뜨는 검격 이펙트 — 방향별 전용 일러스트. */
 const SLASH_SRC: Record<Orientation, string> = {
@@ -86,6 +89,9 @@ export default function BossBattle({
   const checkpointStartRef = useRef(0);
   const inPattern2Ref = useRef(false);
   const inCheckpointRef = useRef(false);
+  // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
+  // 판정 순간만 true — 나머지는 이펙트만 보이는 잔상 구간이다.
+  const p2JudgeableRef = useRef(false);
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
   // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
   const nextPatternAllowedAtRef = useRef(0);
@@ -124,7 +130,7 @@ export default function BossBattle({
       // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전된다. 1페이즈에서 이겼으면 암전 뒤
       // 2페이즈 등장으로, 2페이즈에서 이겼으면 그게 곧 진짜 승리라 입장맵으로, 실패/시간초과/
       // 죽음이면 그대로 입장맵으로 돌아간다.
-      const effectMs = kind === "success" ? 900 : kind === "finale-fail" ? 600 : 350;
+      const effectMs = kind === "success" ? 2000 : kind === "finale-fail" ? 600 : 350;
       const t = window.setTimeout(() => {
         phaseRef.current = "blackout";
         setPhase("blackout");
@@ -160,6 +166,7 @@ export default function BossBattle({
       p1Ref.current = IDLE_PATTERN1;
       setP1(IDLE_PATTERN1);
       inPattern2Ref.current = false;
+      p2JudgeableRef.current = false;
       setP2Phase("idle");
       grantPatternRest();
 
@@ -227,12 +234,20 @@ export default function BossBattle({
 
     const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern2WarnMs : BOSS_PHASE2.pattern2WarnMs;
     const activeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern2ActiveMs : BOSS_PHASE2.pattern2ActiveMs;
+    const judgeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern2JudgeMs : BOSS_PHASE2.pattern2JudgeMs;
 
     const warnTimer = window.setTimeout(() => {
       setP2Phase("active");
+      p2JudgeableRef.current = true;
+      // 판정은 active 시작 시점의 짧은 순간만 — 나머지 잔상 구간은 이펙트만 보이고 안전하다.
+      const judgeTimer = window.setTimeout(() => {
+        p2JudgeableRef.current = false;
+      }, judgeMs);
+      pendingTimers.current.push(judgeTimer);
       const activeTimer = window.setTimeout(() => {
         setP2Phase("idle");
         inPattern2Ref.current = false;
+        p2JudgeableRef.current = false;
         lastTapAtRef.current = Date.now(); // 재개 시 콤보 유예시간을 새로 준다
         grantPatternRest();
       }, activeMs);
@@ -290,10 +305,12 @@ export default function BossBattle({
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
     const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
     const activeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
+    const judgeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1JudgeMs : BOSS_PHASE2.pattern1JudgeMs;
     const orientation = pickOrientation();
     const dangerZones = pickDangerZones(zoneCount, dangerZoneCount);
     slashId.current += 1;
-    const warnState: Pattern1State = { id: slashId.current, phase: "warn", orientation, dangerZones };
+    const myId = slashId.current;
+    const warnState: Pattern1State = { id: myId, phase: "warn", judgeable: false, orientation, dangerZones };
     p1Ref.current = warnState;
     setP1(warnState);
 
@@ -304,9 +321,16 @@ export default function BossBattle({
         setP1(IDLE_PATTERN1);
         return;
       }
-      const activeState: Pattern1State = { ...warnState, phase: "active" };
+      const activeState: Pattern1State = { ...warnState, phase: "active", judgeable: true };
       p1Ref.current = activeState;
       setP1(activeState);
+      // 판정은 active 시작 시점의 짧은 순간만 — 나머지 잔상 구간은 이펙트만 보이고 안전하다.
+      const judgeTimer = window.setTimeout(() => {
+        if (p1Ref.current.id !== myId) return;
+        p1Ref.current = { ...p1Ref.current, judgeable: false };
+        setP1(p1Ref.current);
+      }, judgeMs);
+      pendingTimers.current.push(judgeTimer);
       const activeTimer = window.setTimeout(() => {
         p1Ref.current = IDLE_PATTERN1;
         setP1(IDLE_PATTERN1);
@@ -329,11 +353,11 @@ export default function BossBattle({
       const pattern2Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern2DeathPenalty : BOSS_PHASE2.pattern2DeathPenalty;
       const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
 
-      if (inPattern2Ref.current && p2Phase === "active") {
+      if (inPattern2Ref.current && p2Phase === "active" && p2JudgeableRef.current) {
         registerPatternHit(pattern2Penalty);
         return;
       }
-      if (p1Ref.current.phase === "active") {
+      if (p1Ref.current.phase === "active" && p1Ref.current.judgeable) {
         const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
         const zone = zoneOf(p1Ref.current.orientation, xFrac, yFrac, zoneCount);
         if (p1Ref.current.dangerZones.includes(zone)) {
@@ -477,6 +501,10 @@ export default function BossBattle({
   const showCombat = phase === "combat" || phase === "finale" || phase === "checkpoint";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
+  // 발악/체크포인트 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와
+  // 맞춘다 — 안 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다.
+  const ringDurationMs =
+    phase === "finale" && stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
 
   return (
     <section className="bb-root boss-theme" role="dialog" aria-modal="true" aria-label="서휘령과의 전투">
@@ -485,7 +513,7 @@ export default function BossBattle({
         style={stage === 2 ? { backgroundImage: `linear-gradient(#00100f55, #000c), url('${BOSS_PHASE2_ASSETS.battleBgSrc}')` } : undefined}
       />
       <img
-        className="bb-boss-sword"
+        className={`bb-boss-sword ${stage === 2 ? "bb-boss-sword--phase2" : ""}`}
         src={stage === 2 ? BOSS_PHASE2_ASSETS.swordSrc : "/images/boss/boss-map-sword.webp"}
         alt=""
         aria-hidden
@@ -583,7 +611,7 @@ export default function BossBattle({
           <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
           <div className="bb-finale-rings">
             <div className="bb-finale-ring-target" />
-            <div className="bb-finale-ring-shrink" />
+            <div className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
           </div>
           <button
             className="bb-skill-btn"
