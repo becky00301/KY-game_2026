@@ -38,7 +38,8 @@ export const BOSS_BATTLE = {
 /**
  * 2페이즈 — 1페이즈를 격파(발악 패링 성공)한 뒤 이어지는 진짜 서휘령의 모습.
  *   - 3분할이 아니라 5분할, 그 중 4곳이 위험구역(안전 구역 1곳뿐)이라 더 빡빡하다.
- *   - 패턴1 시전 주기·예고·판정 시간이 전부 짧아져서 더 빠르게 몰아친다.
+ *   - 패턴1 시전 주기·예고·판정 시간은 1페이즈와 동일(반응속도가 너무 빠르다는 피드백으로
+ *     되돌림) — 어려워지는 건 순전히 구역 수와 무작위 전체패턴·발악 체크포인트뿐이다.
  *   - 1페이즈에서 HP 75/50/25%마다 뜨던 전체공격(패턴2)은 이제 그 타이밍과 무관하게
  *     무작위 주기로 튀어나온다(단, 패턴1과 절대 안 겹치게 겹침 방지 로직을 그대로 적용).
  *   - 그 대신 HP 75/50/25%마다 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과
@@ -53,13 +54,13 @@ export const BOSS_PHASE2 = {
   maxDamageMultiplier: 3,
   zoneCount: 5,
   dangerZoneCount: 4,
-  pattern1IntervalMs: 1100,
-  pattern1WarnMs: 350,
-  pattern1ActiveMs: 450,
+  pattern1IntervalMs: 1600,
+  pattern1WarnMs: 500,
+  pattern1ActiveMs: 650,
   pattern1DeathPenalty: 1,
   pattern2RandomMinMs: 4000,
   pattern2RandomMaxMs: 7000,
-  pattern2WarnMs: 1400,
+  pattern2WarnMs: 1500,
   pattern2ActiveMs: 400,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
