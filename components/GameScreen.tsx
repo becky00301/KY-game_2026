@@ -175,9 +175,10 @@ export default function GameScreen({
 
   const enterBoss = useCallback(() => {
     const current = swordStateRef.current;
-    if (!ready || stageOf(current.lifetime) < maxStage) return;
-    if (starRank(current.lifetime) < 1) {
-      setNotice("아직은 들어갈 수 없는 것 같다. 검술을 조금만 더 강화해보자.");
+    if (!ready) return;
+    const unlocked = stageOf(current.lifetime) >= maxStage && starRank(current.lifetime) >= 1;
+    if (!unlocked) {
+      setNotice("아직은 준비가 되지 않은 것 같다. 검술을 계속 단련해보자.");
       return;
     }
     if (bossEntryClaimed.current) return;
@@ -602,9 +603,9 @@ export default function GameScreen({
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
           <div className="stage-hint">{stageHintText}</div>
-          {isMaxStage && <button ref={bossEntryRef} className="boss-entry-btn" onClick={enterBoss} disabled={!ready}>
+          <button ref={bossEntryRef} className="boss-entry-btn" onClick={enterBoss} disabled={!ready}>
             <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
-          </button>}
+          </button>
         </div>
       </header>
 

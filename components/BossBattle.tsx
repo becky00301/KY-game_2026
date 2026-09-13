@@ -38,6 +38,16 @@ const SLASH_SRC: Record<Orientation, string> = {
   vertical: "/images/boss-battle/slash-vertical.png",
 };
 
+/** 2페이즈 전용 — 같은 판정, 더 웅장해진 검격 이펙트. */
+const SLASH_SRC_PHASE2: Record<Orientation, string> = {
+  diagonal: "/images/boss-battle/slash-diagonal-phase2.png",
+  horizontal: "/images/boss-battle/slash-horizontal-phase2.png",
+  vertical: "/images/boss-battle/slash-vertical-phase2.png",
+};
+
+/** 2페이즈 전용 — 패턴2(전체판정) active 구간에 뜨는 화면 전체 베기 이펙트. */
+const FULL_SLASH_PHASE2_SRC = "/images/boss-battle/full-slash-phase2.png";
+
 /**
  * 서휘령 실전 전투 — 3초 암전 대사로 시작해, 콤보 기반 딜링과 두 가지 회피 패턴을 거쳐
  * 발악(피니시) 타이밍 판정으로 끝난다. 발악 성공 시 2페이즈 등장 연출로 이어지고, 5분할
@@ -540,15 +550,18 @@ export default function BossBattle({
                 ))}
               </div>
             )}
-            {p1.phase === "active" && (
-              <img
-                key={p1.id}
-                className={`bb-slash bb-slash--${p1.orientation}`}
-                src={SLASH_SRC[p1.orientation]}
-                alt=""
-              />
+            {p1.phase === "active" && stage === 2 && (
+              <div className="bb-slash-scale-wrap">
+                <img key={p1.id} className={`bb-slash bb-slash--${p1.orientation}`} src={SLASH_SRC_PHASE2[p1.orientation]} alt="" />
+              </div>
+            )}
+            {p1.phase === "active" && stage === 1 && (
+              <img key={p1.id} className={`bb-slash bb-slash--${p1.orientation}`} src={SLASH_SRC[p1.orientation]} alt="" />
             )}
             {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
+            {stage === 2 && p2Phase === "active" && (
+              <img className="bb-full-slash-phase2" src={FULL_SLASH_PHASE2_SRC} alt="" />
+            )}
           </button>
         </>
       )}

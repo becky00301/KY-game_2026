@@ -1896,6 +1896,12 @@ button {
   filter: drop-shadow(0 0 26px rgba(93, 210, 255, .65));
   animation: bbSlashPlay 650ms cubic-bezier(.2, .8, .3, 1) forwards;
 }
+/* 2페이즈 전용 업그레이드 이펙트 — 판정(활성 구간 크기·시간)은 그대로 두고 이펙트만
+   화면을 꽉 채우도록 확대해 더 웅장하게 보이게 한다. .bb-slash 자체가 bbSlashPlay로
+   transform을 애니메이션하기 때문에, 정적 확대는 별도 래퍼에 걸어야 애니메이션에
+   덮어써지지 않는다. */
+.bb-slash-scale-wrap { position: absolute; inset: 0; transform: scale(1.55); pointer-events: none; }
+.bb-slash-scale-wrap .bb-slash { filter: drop-shadow(0 0 40px rgba(93, 210, 255, .8)); }
 
 .bb-full-warning { position: absolute; inset: 0; pointer-events: none; }
 /* 예전엔 0.5초마다 반복(infinite)되는 펄스였는데, 전체화면에서 계속 깜빡이니
@@ -1904,6 +1910,15 @@ button {
    깜빡임 없이 읽을 수 있게 했다. */
 .bb-full-warning--warn { background: rgba(220, 38, 38, .75); animation: bbFullWarnBuildup 1.5s ease-in forwards; }
 .bb-full-warning--active { background: rgba(220, 38, 38, .58); }
+/* 2페이즈 패턴2(전체판정) active 구간 전용 — 화면 전체 베기 일러스트를 판정 위에 겹쳐
+   보여준다(판정 자체는 여전히 .bb-full-warning--active의 배경색이 담당, 이펙트는 순수 연출). */
+.bb-full-slash-phase2 {
+  position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; object-fit: cover;
+  pointer-events: none;
+  filter: drop-shadow(0 0 50px rgba(93, 210, 255, .7));
+  animation: bbFullSlashPop 180ms ease-out forwards;
+}
+@keyframes bbFullSlashPop { from { opacity: 0; transform: scale(1.12); } to { opacity: 1; transform: scale(1); } }
 
 .bb-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; animation: bbFlashOut .35s ease forwards; }
 .bb-flash--hit { background: #dc2626; }
