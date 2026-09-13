@@ -31,7 +31,7 @@ export const BOSS_BATTLE = {
   pattern2ActiveMs: 400,
   pattern2DeathPenalty: 3,
   finaleRingDurationMs: 2200,
-  finaleWindowMs: 500,
+  finaleWindowMs: 900,
   timeLimitMs: 3 * 60 * 1000,
 } as const;
 
@@ -66,7 +66,7 @@ export const BOSS_PHASE2 = {
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
   checkpointRingDurationMs: 3200,
-  checkpointWindowMs: 500,
+  checkpointWindowMs: 900,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
 } as const;
