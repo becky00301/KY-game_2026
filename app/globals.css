@@ -1949,11 +1949,13 @@ button {
 }
 .bb-flash--finale-fail {
   width: 100%; height: 100%; object-fit: cover;
-  animation: bbFinaleFailFlash 600ms ease-out forwards;
+  /* 예전엔 600ms로 짧아서 정신없는 전투 중엔 놓치기 쉬웠다 — 눈에 확실히 띄도록 늘렸다. */
+  animation: bbFinaleFailFlash 1300ms ease-out forwards;
 }
 @keyframes bbFinaleFailFlash {
   0% { opacity: 0; transform: scale(1.06); }
-  18% { opacity: 1; transform: scale(1); }
+  10% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; }
 }
 

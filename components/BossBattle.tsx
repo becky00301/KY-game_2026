@@ -130,7 +130,7 @@ export default function BossBattle({
       // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전된다. 1페이즈에서 이겼으면 암전 뒤
       // 2페이즈 등장으로, 2페이즈에서 이겼으면 그게 곧 진짜 승리라 입장맵으로, 실패/시간초과/
       // 죽음이면 그대로 입장맵으로 돌아간다.
-      const effectMs = kind === "success" ? 2000 : kind === "finale-fail" ? 600 : 350;
+      const effectMs = kind === "success" ? 2000 : kind === "finale-fail" ? 1300 : 350;
       const t = window.setTimeout(() => {
         phaseRef.current = "blackout";
         setPhase("blackout");
