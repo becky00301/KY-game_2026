@@ -4,6 +4,9 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   BOSS_BATTLE,
   BOSS_BATTLE_INTRO_LINE,
+  BOSS_DEATH_TAUNT_LINES,
+  BOSS_LINE_DISPLAY_MS,
+  BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
   PHASE2_INTRO_LINE,
   Orientation,
@@ -48,8 +51,8 @@ const SLASH_SRC_PHASE2: Record<Orientation, string> = {
   vertical: "/images/boss-battle/slash-vertical-phase2.png",
 };
 
-/** 2페이즈 전용 — 패턴2(전체판정) active 구간에 뜨는 화면 전체 베기 이펙트. */
-const FULL_SLASH_PHASE2_SRC = "/images/boss-battle/full-slash-phase2.png";
+/** 1·2페이즈 공통 — 패턴2(전체판정) active 구간에 뜨는 화면 전체 공격 이펙트. */
+const FULL_SLASH_SRC = "/images/boss-battle/full-slash-downstrike.png";
 
 /**
  * 서휘령 실전 전투 — 3초 암전 대사로 시작해, 콤보 기반 딜링과 두 가지 회피 패턴을 거쳐
@@ -74,6 +77,7 @@ export default function BossBattle({
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
+  const [bossLine, setBossLine] = useState<{ key: number; text: string } | null>(null);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -103,6 +107,7 @@ export default function BossBattle({
   const crossedThresholds = useRef<Set<number>>(new Set());
   const crossedCheckpoints = useRef<Set<number>>(new Set());
   const flashId = useRef(0);
+  const bossLineId = useRef(0);
   const slashId = useRef(0);
   const wonRef = useRef(false);
   const tapAreaRef = useRef<HTMLButtonElement>(null);
@@ -117,6 +122,23 @@ export default function BossBattle({
     flashId.current += 1;
     setFlash({ key: flashId.current, kind });
   }, []);
+
+  const showBossLine = useCallback((text: string) => {
+    bossLineId.current += 1;
+    const myId = bossLineId.current;
+    setBossLine({ key: myId, text });
+    const timer = window.setTimeout(() => {
+      setBossLine((cur) => (cur && cur.key === myId ? null : cur));
+    }, BOSS_LINE_DISPLAY_MS);
+    pendingTimers.current.push(timer);
+  }, []);
+
+  // 1페이즈에서 패턴1/패턴2가 새로 나올 때마다 50% 확률로 도발 대사를 띄운다.
+  const maybeShowPatternTaunt = useCallback(() => {
+    if (stageRef.current !== 1) return;
+    if (Math.random() >= 0.5) return;
+    showBossLine(BOSS_PATTERN_TAUNT_LINES[Math.floor(Math.random() * BOSS_PATTERN_TAUNT_LINES.length)]);
+  }, [showBossLine]);
 
   const endBattle = useCallback(
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
@@ -170,15 +192,17 @@ export default function BossBattle({
       setP2Phase("idle");
       grantPatternRest();
 
-      const next = Math.max(0, deathCountRef.current - penalty);
+      const prev = deathCountRef.current;
+      const next = Math.max(0, prev - penalty);
       deathCountRef.current = next;
       setDeathCount(next);
       comboRef.current = 0;
       setCombo(0);
       triggerFlash("hit");
+      if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
       if (next <= 0) endBattle(false);
     },
-    [endBattle, triggerFlash, grantPatternRest]
+    [endBattle, triggerFlash, grantPatternRest, showBossLine]
   );
 
   const resolveCheckpoint = useCallback(
@@ -194,6 +218,7 @@ export default function BossBattle({
         const next = Math.max(0, deathCountRef.current - BOSS_PHASE2.checkpointFailPenalty);
         deathCountRef.current = next;
         setDeathCount(next);
+        showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
         if (next <= 0) {
           endBattle(false);
           return;
@@ -204,7 +229,7 @@ export default function BossBattle({
       phaseRef.current = "combat";
       setPhase("combat");
     },
-    [endBattle, triggerFlash, grantPatternRest]
+    [endBattle, triggerFlash, grantPatternRest, showBossLine]
   );
 
   /** 2페이즈 전용 — HP 75/50/25% 체크포인트. 발악과 같은 연출이지만 끝나도 전투가 이어진다. */
@@ -226,6 +251,7 @@ export default function BossBattle({
   const triggerPattern2 = useCallback(() => {
     if (inCheckpointRef.current) return; // 체크포인트 중엔 전체패턴이 끼어들지 않는다.
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
+    maybeShowPatternTaunt();
     inPattern2Ref.current = true;
     setP2Phase("warn");
     // 겹침 방지 규칙 2 — 진행 중이던 패턴1을 즉시 idle로 되돌린다.
@@ -254,7 +280,7 @@ export default function BossBattle({
       pendingTimers.current.push(activeTimer);
     }, warnMs);
     pendingTimers.current.push(warnTimer);
-  }, [grantPatternRest]);
+  }, [grantPatternRest, maybeShowPatternTaunt]);
 
   /** 2페이즈 전용 — 전체패턴을 HP 임계값이 아니라 무작위 주기로 반복 예약한다. */
   const scheduleStage2Pattern2 = useCallback(() => {
@@ -301,6 +327,7 @@ export default function BossBattle({
   const triggerPattern1 = useCallback(() => {
     if (inPattern2Ref.current || inCheckpointRef.current) return;
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
+    maybeShowPatternTaunt();
     const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
     const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
@@ -339,7 +366,7 @@ export default function BossBattle({
       pendingTimers.current.push(activeTimer);
     }, warnMs);
     pendingTimers.current.push(warnTimer);
-  }, [grantPatternRest]);
+  }, [grantPatternRest, maybeShowPatternTaunt]);
 
   const handleTap = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -560,6 +587,12 @@ export default function BossBattle({
             {combo > 0 && <p className="bb-combo">{combo} 콤보</p>}
           </header>
 
+          {bossLine && (
+            <p key={bossLine.key} className="bb-boss-line">
+              {bossLine.text}
+            </p>
+          )}
+
           <button
             ref={tapAreaRef}
             className="bb-tap-area"
@@ -603,9 +636,7 @@ export default function BossBattle({
               />
             )}
             {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
-            {stage === 2 && p2Phase === "active" && (
-              <img className="bb-full-slash-phase2" src={FULL_SLASH_PHASE2_SRC} alt="" />
-            )}
+            {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
           </button>
         </>
       )}

@@ -1882,6 +1882,21 @@ button {
 .bb-death-icon--spent { opacity: .25; filter: grayscale(1); }
 .bb-combo { font-size: 15px; font-weight: 900; color: var(--accent); text-shadow: 0 0 10px var(--glow); align-self: center; }
 
+/* 패턴 등장/피격 시 뜨는 보스 도발 대사 — HUD 바로 아래에서 잠깐 떴다 사라진다. */
+.bb-boss-line {
+  position: absolute; top: calc(92px + env(safe-area-inset-top)); left: 16px; right: 16px; z-index: 5;
+  margin: 0; text-align: center; pointer-events: none;
+  font-size: 15px; font-weight: 800; color: #ffe4e0;
+  text-shadow: 0 0 12px rgba(220, 38, 38, .65), 0 2px 6px #000c;
+  animation: bbBossLineInOut 1800ms ease-in-out forwards;
+}
+@keyframes bbBossLineInOut {
+  0% { opacity: 0; transform: translateY(-6px); }
+  8% { opacity: 1; transform: translateY(0); }
+  78% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
 .bb-tap-area {
   position: absolute; inset: 0; width: 100%; height: 100%;
   background: none; border: none; padding: 0; margin: 0; cursor: pointer;
@@ -1919,9 +1934,10 @@ button {
    깜빡임 없이 읽을 수 있게 했다. */
 .bb-full-warning--warn { background: rgba(220, 38, 38, .75); animation: bbFullWarnBuildup 1.5s ease-in forwards; }
 .bb-full-warning--active { background: rgba(220, 38, 38, .58); }
-/* 2페이즈 패턴2(전체판정) active 구간 전용 — 화면 전체 베기 일러스트를 판정 위에 겹쳐
-   보여준다(판정 자체는 여전히 .bb-full-warning--active의 배경색이 담당, 이펙트는 순수 연출). */
-.bb-full-slash-phase2 {
+/* 1·2페이즈 공통 — 패턴2(전체판정) active 구간에 화면 전체 공격 일러스트를 판정 위에
+   겹쳐 보여준다(판정 자체는 여전히 .bb-full-warning--active의 배경색이 담당, 이펙트는
+   순수 연출). 화면을 꽉 채우도록 cover로 최대한 크게 표시한다. */
+.bb-full-slash {
   position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; object-fit: cover;
   pointer-events: none;
   filter: drop-shadow(0 0 50px rgba(93, 210, 255, .7));

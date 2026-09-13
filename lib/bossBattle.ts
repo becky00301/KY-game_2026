@@ -12,6 +12,25 @@ export const BOSS_BATTLE_INTRO_LINE = "과연, 너는 얼마나 버틸 수 있�
 /** 발악 패링 성공 후 암전 뒤에 2페이즈 등장과 함께 뜨는 대사. */
 export const PHASE2_INTRO_LINE = "여기서.. 여기서 물러날 순 없다!";
 
+/** 1페이즈에서 패턴(패턴1/패턴2)이 새로 나올 때, 50% 확률로 이 중 하나가 랜덤으로 뜬다. */
+export const BOSS_PATTERN_TAUNT_LINES = [
+  "감히, 이곳이 어디라고!",
+  "너는 절대 나를 이길 수 없을 것이다.",
+  "실력을 보여봐라!",
+  "겨우 이정도로 나에게 덤비다니!",
+] as const;
+
+/** 1·2페이즈 공통 — 목숨(데스카운트)이 줄어들 때마다 이 중 하나가 랜덤으로 뜬다. */
+export const BOSS_DEATH_TAUNT_LINES = [
+  "한심하구나.",
+  "자비는 없다.",
+  "포기하는게 어때?",
+  "겨우 이정도였나..",
+] as const;
+
+/** 보스 대사 한 줄이 화면에 떠 있다가 사라지는 시간. */
+export const BOSS_LINE_DISPLAY_MS = 1800;
+
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
   maxHp: 1300,
@@ -22,23 +41,28 @@ export const BOSS_BATTLE = {
   maxDeathCount: 5,
   zoneCount: 3,
   dangerZoneCount: 2,
-  pattern1IntervalMs: 2400,
-  pattern1WarnMs: 750,
-  pattern1ActiveMs: 980,
+  /** 패턴 하나하나의 시전 주기 자체는 살짝 느긋해졌지만(휘몰아치는 느낌은
+   * intervalMs/patternRestMs 쪽에서 만든다), 새 패턴이 튀어나오는 간격은 훨씬 짧아서
+   * 이전 패턴의 잔상이 채 사라지기도 전에 다음 패턴이 겹쳐 들어온다. */
+  pattern1IntervalMs: 1100,
+  pattern1WarnMs: 850,
+  pattern1ActiveMs: 1100,
   /** 판정(위험구역이 실제로 맞는지 체크하는)이 열려있는 시간 — activeMs 전체가 아니라
    * 이 짧은 순간에만 맞는다. 나머지는 이펙트만 보여주는 잔상 구간이라 눌러도 안전하다. */
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
   pattern2Thresholds: [0.75, 0.5, 0.25],
-  pattern2WarnMs: 2250,
-  pattern2ActiveMs: 600,
+  pattern2WarnMs: 2500,
+  pattern2ActiveMs: 680,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   finaleRingDurationMs: 2200,
   finaleWindowMs: 900,
   timeLimitMs: 3 * 60 * 1000,
-  /** 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록 주는 최소 휴식시간. */
-  patternRestMs: 900,
+  /** 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록 주는 최소 휴식시간 —
+   * 휘몰아치는 느낌을 위해 짧게 줄였다(완전히 안 겹치게 하려던 목적이 아니라, 서로
+   * 다른 두 패턴이 정확히 같은 프레임에 시작하는 것만 막는 정도). */
+  patternRestMs: 300,
 } as const;
 
 /**
@@ -63,15 +87,15 @@ export const BOSS_PHASE2 = {
   maxDamageMultiplier: 3,
   zoneCount: 5,
   dangerZoneCount: 3,
-  pattern1IntervalMs: 1800,
-  pattern1WarnMs: 570,
-  pattern1ActiveMs: 740,
+  pattern1IntervalMs: 850,
+  pattern1WarnMs: 650,
+  pattern1ActiveMs: 850,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
-  pattern2RandomMinMs: 4000,
-  pattern2RandomMaxMs: 6850,
-  pattern2WarnMs: 1600,
-  pattern2ActiveMs: 510,
+  pattern2RandomMinMs: 1400,
+  pattern2RandomMaxMs: 2800,
+  pattern2WarnMs: 1850,
+  pattern2ActiveMs: 580,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
@@ -79,7 +103,7 @@ export const BOSS_PHASE2 = {
   checkpointWindowMs: 1600,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
-  patternRestMs: 690,
+  patternRestMs: 250,
 } as const;
 
 export type Orientation = "vertical" | "horizontal" | "diagonal";
