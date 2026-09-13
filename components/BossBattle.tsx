@@ -8,6 +8,7 @@ import {
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
+  BOSS_SUCCESS_LINES,
   PHASE2_INTRO_LINE,
   Orientation,
   damageMultiplier,
@@ -77,7 +78,7 @@ export default function BossBattle({
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
-  const [bossLine, setBossLine] = useState<{ key: number; text: string } | null>(null);
+  const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -123,10 +124,10 @@ export default function BossBattle({
     setFlash({ key: flashId.current, kind });
   }, []);
 
-  const showBossLine = useCallback((text: string) => {
+  const showBossLine = useCallback((text: string, kind: "taunt" | "success" = "taunt") => {
     bossLineId.current += 1;
     const myId = bossLineId.current;
-    setBossLine({ key: myId, text });
+    setBossLine({ key: myId, text, kind });
     const timer = window.setTimeout(() => {
       setBossLine((cur) => (cur && cur.key === myId ? null : cur));
     }, BOSS_LINE_DISPLAY_MS);
@@ -140,6 +141,11 @@ export default function BossBattle({
     showBossLine(BOSS_PATTERN_TAUNT_LINES[Math.floor(Math.random() * BOSS_PATTERN_TAUNT_LINES.length)]);
   }, [showBossLine]);
 
+  // 발악/체크포인트(특수스킬 패턴) 성공 시 노란색 대사를 띄운다.
+  const showSuccessLine = useCallback(() => {
+    showBossLine(BOSS_SUCCESS_LINES[Math.floor(Math.random() * BOSS_SUCCESS_LINES.length)], "success");
+  }, [showBossLine]);
+
   const endBattle = useCallback(
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
       if (phaseRef.current === "result" || phaseRef.current === "blackout") return;
@@ -149,6 +155,7 @@ export default function BossBattle({
       setPhase("result");
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);
+      if (kind === "success") showSuccessLine();
       // 승패 텍스트 없이, 이펙트가 다 보인 뒤 화면이 암전된다. 1페이즈에서 이겼으면 암전 뒤
       // 2페이즈 등장으로, 2페이즈에서 이겼으면 그게 곧 진짜 승리라 입장맵으로, 실패/시간초과/
       // 죽음이면 그대로 입장맵으로 돌아간다.
@@ -159,7 +166,7 @@ export default function BossBattle({
       }, effectMs + 150);
       pendingTimers.current.push(t);
     },
-    [clearPendingTimers, triggerFlash]
+    [clearPendingTimers, triggerFlash, showSuccessLine]
   );
 
   const enterFinale = useCallback(() => {
@@ -211,6 +218,7 @@ export default function BossBattle({
       inCheckpointRef.current = false;
       if (success) {
         triggerFlash("success");
+        showSuccessLine();
       } else {
         triggerFlash("finale-fail");
         comboRef.current = 0;
@@ -229,7 +237,7 @@ export default function BossBattle({
       phaseRef.current = "combat";
       setPhase("combat");
     },
-    [endBattle, triggerFlash, grantPatternRest, showBossLine]
+    [endBattle, triggerFlash, grantPatternRest, showBossLine, showSuccessLine]
   );
 
   /** 2페이즈 전용 — HP 75/50/25% 체크포인트. 발악과 같은 연출이지만 끝나도 전투가 이어진다. */
@@ -530,11 +538,9 @@ export default function BossBattle({
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
   // 발악/체크포인트 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와
   // 맞춘다 — 안 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다.
+  // 2페이즈 체크포인트는 이제 1페이즈 발악과 완전히 같은 사양이라 별도 처리가 필요 없다.
   const ringDurationMs =
     phase === "finale" && stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
-  // 2페이즈는 판정(유효 시간창)은 널널하게 두되, 링은 그 절반 주기로 두 번 반복해서
-  // 좁혀지게 해 체감 속도만 2배로 빠르게 한다. 1페이즈 발악은 기존처럼 한 번만 좁혀진다.
-  const ringLoops2x = stage === 2;
 
   return (
     <section className="bb-root boss-theme" role="dialog" aria-modal="true" aria-label="서휘령과의 전투">
@@ -586,12 +592,6 @@ export default function BossBattle({
             </div>
             {combo > 0 && <p className="bb-combo">{combo} 콤보</p>}
           </header>
-
-          {bossLine && (
-            <p key={bossLine.key} className="bb-boss-line">
-              {bossLine.text}
-            </p>
-          )}
 
           <button
             ref={tapAreaRef}
@@ -646,14 +646,7 @@ export default function BossBattle({
           <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
           <div className="bb-finale-rings">
             <div className="bb-finale-ring-target" />
-            <div
-              className="bb-finale-ring-shrink"
-              style={
-                ringLoops2x
-                  ? { animationDuration: `${ringDurationMs / 2}ms`, animationIterationCount: "infinite" }
-                  : { animationDuration: `${ringDurationMs}ms` }
-              }
-            />
+            <div className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
           </div>
           <button
             className="bb-skill-btn"
@@ -675,6 +668,12 @@ export default function BossBattle({
         </Fragment>
       )}
       {flash && flash.kind === "hit" && <div key={flash.key} className="bb-flash bb-flash--hit" />}
+
+      {bossLine && (
+        <p key={bossLine.key} className={`bb-boss-line ${bossLine.kind === "success" ? "bb-boss-line--success" : ""}`}>
+          {bossLine.text}
+        </p>
+      )}
 
       {phase === "blackout" && <div className="bb-blackout" />}
     </section>

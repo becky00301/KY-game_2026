@@ -31,6 +31,14 @@ export const BOSS_DEATH_TAUNT_LINES = [
 /** 보스 대사 한 줄이 화면에 떠 있다가 사라지는 시간. */
 export const BOSS_LINE_DISPLAY_MS = 1800;
 
+/** 발악/체크포인트(특수스킬 패턴) 성공 시 노란색으로 뜨는 대사 — 4가지 중 하나가 랜덤 등장. */
+export const BOSS_SUCCESS_LINES = [
+  "제발, 정신 차려 서휘령!",
+  "이 힘이, 부디 도움이 되길..",
+  "서휘령, 이제 그만해!",
+  "당신을.. 도와드릴게요!",
+] as const;
+
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
   maxHp: 1300,
@@ -76,8 +84,8 @@ export const BOSS_BATTLE = {
  *   - 그 대신 HP 75/50/25%마다 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과
  *     달리, 성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다.
- *   - 발악(패링) 판정 자체는 널널하지만(1.6초 판정창), 링 애니메이션은 실제 판정
- *     시간의 절반 주기로 두 번 반복해서 좁혀지므로 체감 속도는 2배 빠르다.
+ *   - 발악(패링) 판정은 1페이즈와 완전히 동일한 사양이다(반복된 "너무 촉박하다"
+ *     피드백으로 통일) — 링 2.2초, 판정창 0.9초, 한 번만 좁혀진다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 1280,
@@ -99,8 +107,10 @@ export const BOSS_PHASE2 = {
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
-  checkpointRingDurationMs: 3600,
-  checkpointWindowMs: 1600,
+  // 발악(패링) 판정이 너무 촉박하다는 반복된 피드백으로, 1페이즈 발악과 완전히 같은
+  // 사양(링 2.2초, 판정창 0.9초, 한 번만 좁혀짐)으로 통일했다.
+  checkpointRingDurationMs: 2200,
+  checkpointWindowMs: 900,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
   patternRestMs: 250,
