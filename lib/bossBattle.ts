@@ -71,7 +71,7 @@ export const BOSS_BATTLE = {
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
   finaleRingDurationMs: 2200,
-  finaleWindowMs: 900,
+  finaleWindowMs: 1400,
   timeLimitMs: 3 * 60 * 1000,
   /** 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록 주는 최소 휴식시간 —
    * 휘몰아치는 느낌을 위해 짧게 줄였다(완전히 안 겹치게 하려던 목적이 아니라, 서로
@@ -91,8 +91,8 @@ export const BOSS_BATTLE = {
  *     달리, 성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다.
  *   - 발악(패링) 유효 시간창은 1페이즈와 완전히 동일하게 널널하다(링 2.2초, 판정창
- *     0.9초) — 다만 링 애니메이션만 절반 주기로 두 번 반복해서 좁혀져 체감 속도가
- *     2배 빠르다. 판정 자체가 빡빡해지는 건 아니다.
+ *     1.4초로 더 후하게 조정) — 다만 링 애니메이션만 절반 주기로 두 번 반복해서
+ *     좁혀져 체감 속도가 2배 빠르다. 판정 자체가 빡빡해지는 건 아니다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 1280,
@@ -117,9 +117,9 @@ export const BOSS_PHASE2 = {
   pattern2DeathPenalty: 3,
   checkpointThresholds: [0.75, 0.5, 0.25],
   // 발악(패링) 판정이 너무 촉박하다는 반복된 피드백으로, 1페이즈 발악과 완전히 같은
-  // 사양(링 2.2초, 판정창 0.9초, 한 번만 좁혀짐)으로 통일했다.
+  // 사양(링 2.2초, 판정창 1.4초)으로 통일했다. 링 애니메이션만 별도로 2배속 반복.
   checkpointRingDurationMs: 2200,
-  checkpointWindowMs: 900,
+  checkpointWindowMs: 1400,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
   patternRestMs: 250,
