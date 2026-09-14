@@ -61,7 +61,6 @@ cp .env.local.example .env.local
 app/
   page.tsx            팀 선택 ↔ 게임 화면
   globals.css         전체 스타일 (팀 색상은 CSS 변수로 주입)
-  preview/page.tsx    개발용 — 칼 5단계를 두 팀 모두 한 화면에서 확인
   api/sword/          개발용 로컬 백엔드 (Supabase 없을 때만)
 components/
   TeamSelect.tsx      고대 / 연대 선택
@@ -94,8 +93,6 @@ supabase/schema.sql   테이블·함수·권한·초기 데이터
 
 Supabase를 연결한 뒤에는 `game_config` / `upgrade_defs` 행을 대시보드에서 직접 고치면
 배포 없이 진행 속도를 조절할 수 있다. 행사 중에 칼이 너무 빨리 혹은 느리게 자랄 때 쓴다.
-
-`app/preview`는 칼 디자인을 다듬을 때 쓰는 개발용 페이지다. 배포 전에 지워도 된다.
 
 ## 아직 없는 것
 

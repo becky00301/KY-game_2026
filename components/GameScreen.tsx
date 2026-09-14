@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
+import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
 import BossBattle from "./BossBattle";
 import { claimBossIntro, crossedBossThreshold, hasSeenBossIntro } from "@/lib/boss";
@@ -172,6 +173,8 @@ export default function GameScreen({
   const feverActive = isFeverActive(sword);
   const maxStage = theme.stages.length - 1;
   const isMaxStage = stage >= maxStage;
+  // 보스전은 최종 단계 + 별 1개부터. 버튼은 늘 보이되, 잠겨 있으면 흐리게 보여준다.
+  const bossUnlocked = isMaxStage && stars >= 1;
 
   const enterBoss = useCallback(() => {
     const current = swordStateRef.current;
@@ -603,7 +606,7 @@ export default function GameScreen({
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
           <div className="stage-hint">{stageHintText}</div>
-          <button ref={bossEntryRef} className="boss-entry-btn" onClick={enterBoss} disabled={!ready}>
+          <button ref={bossEntryRef} className={`boss-entry-btn ${bossUnlocked ? "" : "locked"}`} onClick={enterBoss} disabled={!ready}>
             <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
           </button>
         </div>
@@ -649,6 +652,7 @@ export default function GameScreen({
               }
             />
           )}
+          <SwordFx stage={stage} team={team} />
           <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} />
           {tapEffects.map((e) => (
             <img
