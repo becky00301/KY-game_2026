@@ -23,6 +23,7 @@ import {
   BOSS_LASER_INTERVAL_MAX_MS,
   BOSS_LASER_INTERVAL_MIN_MS,
   BOSS_LASER_START_HP,
+  BOSS_LASER_START_LINE,
   BOSS_LASER_WARN_MS,
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
@@ -597,6 +598,7 @@ export default function BossBattle({
       // 진행 중이든 HP 25% 아래로 내려가는 순간 바로 시작된다.
       if (stageRef.current === 2 && !laserModeRef.current && nextHp < BOSS_LASER_START_HP * BOSS_PHASE2.maxHp) {
         laserModeRef.current = true;
+        showBossLine(BOSS_LASER_START_LINE);
         scheduleLaser();
       }
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
@@ -627,7 +629,7 @@ export default function BossBattle({
         }
       }
     },
-    [triggerPattern2, enterCheckpoint, enterInvertTransition, scheduleLaser]
+    [triggerPattern2, enterCheckpoint, enterInvertTransition, scheduleLaser, showBossLine]
   );
 
   const triggerPattern1 = useCallback(() => {
@@ -759,10 +761,11 @@ export default function BossBattle({
   /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원들의 논리 좌표와 비교한다.
    * 여러 원이 동시에 떠 있을 수 있으므로, 판정 범위 안에서 가장 가까운 원 하나만 맞힌다.
    * 범위 밖을 눌렀다면 그냥 무시(각 원 자신의 타이머가 놓침을 처리한다). */
+  /** 거꾸로 패턴 — 빨간 원이 아닌 곳을 누르면 그 즉시 사망한다. 원이 하나도 없을 때
+   * 누르는 것도 마찬가지(= 빨간 원 이외의 부분이므로). */
   const handleCircleTap = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
       if (phaseRef.current !== "invertCircles") return;
-      if (circleTargetsRef.current.length === 0) return;
       e.preventDefault();
       const rect = tapAreaRef.current?.getBoundingClientRect();
       if (!rect || rect.width === 0 || rect.height === 0) return;
@@ -778,8 +781,9 @@ export default function BossBattle({
         if (dist <= CIRCLE_HIT_RADIUS_PX && (!closest || dist < closest.dist)) closest = { key: target.key, dist };
       }
       if (closest) resolveCircle(closest.key, true);
+      else endBattle(false);
     },
-    [resolveCircle]
+    [resolveCircle, endBattle]
   );
 
   const handleFinaleSkill = useCallback(() => {
@@ -1040,7 +1044,16 @@ export default function BossBattle({
                   alt=""
                 />
               )}
-              {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
+              {p2Phase !== "idle" && (
+                <div
+                  className={`bb-full-warning bb-full-warning--${p2Phase}`}
+                  style={
+                    p2Phase === "warn"
+                      ? { animationDuration: `${stage === 1 ? BOSS_BATTLE.pattern2WarnMs : BOSS_PHASE2.pattern2WarnMs}ms` }
+                      : undefined
+                  }
+                />
+              )}
               {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
               {laser && (
                 <div

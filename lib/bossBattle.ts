@@ -59,6 +59,7 @@ export const BOSS_INVERT_TRANSITION_MS = 2600;
  *     안 사라졌어도 그대로 겹쳐서 새로 뜬다(여러 개가 동시에 떠 있을 수 있다).
  *   - 원이 뜨고 나서 INVERT_CIRCLE_WINDOW_MS 안에 터치하지 못하면 그 원은 놓친 것으로
  *     처리된다(목숨 감소). INVERT_CIRCLE_DURATION_MS 동안 이 과정이 반복된다.
+ *   - 빨간 원이 아닌 곳을 터치하면(원이 하나도 없을 때 터치하는 것 포함) 그 즉시 사망한다.
  *   - 이 구간에서 하나라도 놓쳤다면, 다 끝난 뒤 그대로 죽는다(즉시 죽는 게 아니라
  *     원 하나하나는 목숨만 깎고, 뜬 원이 전부 정리된 시점에 최종적으로 사망 처리된다).
  *   - 하나도 안 놓치고 전부 맞혔다면, 서휘령이 INVERT_STUN_MS 동안 기절한다 —
@@ -79,9 +80,11 @@ export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기�
  *  동시에 뜰 수 있다), HP가 다시 올라가도 한 번 시작되면 전투가 끝날 때까지 계속된다.
  *  레이저(판정 구간)를 터치하면 데스카운트가 줄어든다. */
 export const BOSS_LASER_START_HP = 0.25;
+/** HP 25% 아래로 내려가는 순간 뜨는 서휘령의 대사. */
+export const BOSS_LASER_START_LINE = "온 힘을 다해, 너를 처단하리라!!";
 export const BOSS_LASER_INTERVAL_MIN_MS = 3500;
 export const BOSS_LASER_INTERVAL_MAX_MS = 6000;
-export const BOSS_LASER_WARN_MS = 900;
+export const BOSS_LASER_WARN_MS = 500;
 export const BOSS_LASER_ACTIVE_MS = 500;
 export const BOSS_LASER_DEATH_PENALTY = 1;
 /** 판정 폭의 절반(px) — 실제 표시는 훨씬 얇지만 터치 여유를 약간 준다. */
@@ -101,14 +104,15 @@ export const BOSS_BATTLE = {
    * intervalMs/patternRestMs 쪽에서 만든다), 새 패턴이 튀어나오는 간격은 훨씬 짧아서
    * 이전 패턴의 잔상이 채 사라지기도 전에 다음 패턴이 겹쳐 들어온다. */
   pattern1IntervalMs: 1100,
-  pattern1WarnMs: 850,
+  // 전조(warn) 시간을 짧게 줄여서, 빨갛게 변한 뒤 거의 바로 반응해야 피할 수 있게 했다.
+  pattern1WarnMs: 380,
   pattern1ActiveMs: 1100,
   /** 판정(위험구역이 실제로 맞는지 체크하는)이 열려있는 시간 — activeMs 전체가 아니라
    * 이 짧은 순간에만 맞는다. 나머지는 이펙트만 보여주는 잔상 구간이라 눌러도 안전하다. */
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
   pattern2Thresholds: [0.75, 0.5, 0.25],
-  pattern2WarnMs: 2500,
+  pattern2WarnMs: 1000,
   pattern2ActiveMs: 680,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
@@ -149,7 +153,8 @@ export const BOSS_PHASE2 = {
   dangerZoneCount: 4,
   // 기본패턴(가로/세로/대각선 베기) 속도 추가로 살짝 더 증가.
   pattern1IntervalMs: 600,
-  pattern1WarnMs: 480,
+  // 전조(warn) 시간을 짧게 줄여서, 빨갛게 변한 뒤 거의 바로 반응해야 피할 수 있게 했다.
+  pattern1WarnMs: 260,
   pattern1ActiveMs: 620,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
@@ -157,7 +162,7 @@ export const BOSS_PHASE2 = {
   // 뜨면 오히려 쉬워지므로 등장 확률(빈도)을 낮게 잡는다.
   pattern2RandomMinMs: 7000,
   pattern2RandomMaxMs: 12000,
-  pattern2WarnMs: 1850,
+  pattern2WarnMs: 750,
   pattern2ActiveMs: 580,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
