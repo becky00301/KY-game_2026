@@ -172,7 +172,15 @@ export default function BossBattle({
     pendingTimers.current = [];
   }, []);
 
+  // 같은 종류의 피격 이펙트가 아주 짧은 간격으로 중복 호출되는 걸 막는 안전장치 —
+  // 실제 서로 다른 패턴에 두 번 맞는 최소 간격(휴식시간+예고시간)보다 훨씬 짧은 700ms
+  // 안에 같은 kind가 다시 들어오면 무시한다. 정상적인 연속 피격은 이보다 항상 더
+  // 길게 벌어지므로 절대 걸러지지 않는다.
+  const lastFlashAtRef = useRef<Partial<Record<"hit" | "success" | "finale-fail", number>>>({});
   const triggerFlash = useCallback((kind: "hit" | "success" | "finale-fail") => {
+    const now = Date.now();
+    if (now - (lastFlashAtRef.current[kind] ?? 0) < 700) return;
+    lastFlashAtRef.current[kind] = now;
     flashId.current += 1;
     setFlash({ key: flashId.current, kind });
   }, []);
