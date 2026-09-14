@@ -2043,3 +2043,165 @@ button {
   .bb-slash, .bb-flash--finale-fail, .bb-flash--success { animation: bbSlashFade 650ms ease-out forwards; }
 }
 @keyframes bbSlashFade { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---------------- 검 단계 이펙트 (3단계부터, components/SwordFx.tsx) ---------------- */
+
+.sword-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.sword-fx-back {
+  z-index: 0;
+}
+
+.sword-fx-front {
+  z-index: 2;
+}
+
+/* --fx-a: 번지는 빛 색, --fx-b: 입자·고리 색 */
+.sword-fx[data-team="ku"] {
+  --fx-a: 255, 96, 80;
+  --fx-b: 255, 214, 140;
+}
+
+.sword-fx[data-team="yu"] {
+  --fx-a: 70, 175, 255;
+  --fx-b: 210, 246, 255;
+}
+
+/* 검 뒤 빛기둥 */
+.sfx-pillar {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  bottom: 8%;
+  width: 40%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 50% at 50% 56%, rgba(var(--fx-a), 0.6), rgba(var(--fx-a), 0) 72%);
+  filter: blur(16px);
+  animation: sfxPillar 5.5s ease-in-out infinite;
+}
+
+.sword-fx[data-tier="1"] .sfx-pillar {
+  opacity: 0.35;
+}
+
+.sword-fx[data-tier="2"] .sfx-pillar {
+  opacity: 0.5;
+}
+
+.sword-fx[data-tier="3"] .sfx-pillar {
+  opacity: 0.68;
+  width: 48%;
+}
+
+/* 연대는 배경이 파래서 같은 밝기면 빛기둥이 안 보인다 — 한 단계씩 더 밝게 */
+.sword-fx[data-team="yu"][data-tier="1"] .sfx-pillar {
+  opacity: 0.52;
+}
+
+.sword-fx[data-team="yu"][data-tier="2"] .sfx-pillar {
+  opacity: 0.66;
+}
+
+.sword-fx[data-team="yu"][data-tier="3"] .sfx-pillar {
+  opacity: 0.82;
+}
+
+@keyframes sfxPillar {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1, 1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.12, 1.04);
+  }
+}
+
+/* 검 밑동을 눕혀서 도는 고리 */
+.sfx-ring {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 88%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(var(--fx-b), 0.5);
+  box-shadow: 0 0 12px rgba(var(--fx-a), 0.35), inset 0 0 12px rgba(var(--fx-a), 0.25);
+  animation: sfxRingSpin 16s linear infinite;
+}
+
+.sword-fx[data-team="yu"] .sfx-ring {
+  border-style: dotted;
+  border-width: 2px;
+}
+
+.sfx-ring--outer {
+  width: 122%;
+  opacity: 0.55;
+  animation-duration: 26s;
+  animation-direction: reverse;
+}
+
+@keyframes sfxRingSpin {
+  from {
+    transform: translate(-50%, -50%) rotateX(74deg) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotateX(74deg) rotate(360deg);
+  }
+}
+
+/* 피어오르는 입자 — 고대는 둥근 불티, 연대는 네모난 데이터 조각 */
+.sfx-mote {
+  position: absolute;
+  bottom: 16%;
+  border-radius: 50%;
+  background: rgb(var(--fx-b));
+  box-shadow: 0 0 6px 1px rgba(var(--fx-a), 0.85);
+  opacity: 0;
+  animation-name: sfxRise;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+/* 파란 배경에 묻히지 않도록 연대 입자는 번짐을 조금 더 준다 */
+.sword-fx[data-team="yu"] .sfx-mote {
+  border-radius: 1px;
+  box-shadow: 0 0 9px 2px rgba(var(--fx-a), 0.95);
+}
+
+@keyframes sfxRise {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(var(--drift, 0px), calc(-1 * min(44dvh, 340px))) scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sfx-mote {
+    display: none;
+  }
+
+  .sfx-pillar,
+  .sfx-ring {
+    animation: none;
+  }
+
+  .sfx-ring {
+    transform: translate(-50%, -50%) rotateX(74deg);
+  }
+}

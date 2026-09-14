@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
+import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
 import BossBattle from "./BossBattle";
 import { claimBossIntro, crossedBossThreshold, hasSeenBossIntro } from "@/lib/boss";
@@ -651,6 +652,7 @@ export default function GameScreen({
               }
             />
           )}
+          <SwordFx stage={stage} team={team} />
           <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} />
           {tapEffects.map((e) => (
             <img
