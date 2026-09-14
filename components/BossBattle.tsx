@@ -18,6 +18,8 @@ import {
   BOSS_INVERT_STUN_MS,
   BOSS_INVERT_TRANSITION_MS,
   BOSS_LASER_ACTIVE_MS,
+  BOSS_LASER_COUNT_MAX,
+  BOSS_LASER_COUNT_MIN,
   BOSS_LASER_DEATH_PENALTY,
   BOSS_LASER_HIT_HALF_WIDTH_PX,
   BOSS_LASER_INTERVAL_MAX_MS,
@@ -47,7 +49,6 @@ type Phase =
   | "intro"
   | "combat"
   | "finale"
-  | "checkpoint"
   | "result"
   | "blackout"
   | "phase2Intro"
@@ -121,14 +122,11 @@ export default function BossBattle({
   const [hitEffects, setHitEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
   // 원을 놓쳤을 때 그 자리에 잠깐 남는 표시 — 화면 전체 플래시 대신 국소적으로만 보여준다.
   const [missEffects, setMissEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
-  // 2페이즈 HP 25% 이하 — 다른 모든 패턴과 무관하게 겹쳐서 뜨는 얇은 레이저.
-  const [laser, setLaser] = useState<{
-    key: number;
-    cxFrac: number;
-    cyFrac: number;
-    angleDeg: number;
-    phase: "warn" | "active";
-  } | null>(null);
+  // 2페이즈 HP 25% 이하 — 다른 모든 패턴과 무관하게 겹쳐서 뜨는 얇은 레이저들(한 번에
+  // 여러 가닥이 볼레이로 뜬다).
+  const [laserBeams, setLaserBeams] = useState<
+    { key: number; cxFrac: number; cyFrac: number; angleDeg: number; phase: "warn" | "active" }[]
+  >([]);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -141,12 +139,10 @@ export default function BossBattle({
   const lastTapAtRef = useRef(0);
   const battleStartRef = useRef(0);
   const finaleStartRef = useRef(0);
-  const checkpointStartRef = useRef(0);
-  // 발악/체크포인트 스킬 버튼 — 한 번 쓰면 즉시 잠가서, 결과 연출이 나오는 동안
-  // 연타해도 중복으로 처리되지 않게 한다.
+  // 발악 스킬 버튼 — 한 번 쓰면 즉시 잠가서, 결과 연출이 나오는 동안 연타해도 중복으로
+  // 처리되지 않게 한다.
   const skillLockRef = useRef(false);
   const inPattern2Ref = useRef(false);
-  const inCheckpointRef = useRef(false);
   // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
   // 판정 순간만 true — 나머지는 이펙트만 보이는 잔상 구간이다.
   const p2JudgeableRef = useRef(false);
@@ -164,7 +160,7 @@ export default function BossBattle({
   // 예약하지 않는다(이미 떠 있는 원들은 각자의 타이머대로 마저 처리된다).
   const invertSeqEndAtRef = useRef(0);
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
-  // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
+  // 최소 시각을 기록해둔다(피격/자연 종료 시마다 갱신).
   const nextPatternAllowedAtRef = useRef(0);
   const grantPatternRest = useCallback(() => {
     const restMs = stageRef.current === 1 ? BOSS_BATTLE.patternRestMs : BOSS_PHASE2.patternRestMs;
@@ -176,7 +172,6 @@ export default function BossBattle({
   const invertBufferUntilRef = useRef(0);
   const p1Ref = useRef<Pattern1State>(IDLE_PATTERN1);
   const crossedThresholds = useRef<Set<number>>(new Set());
-  const crossedCheckpoints = useRef<Set<number>>(new Set());
   const flashId = useRef(0);
   const bossLineId = useRef(0);
   const slashId = useRef(0);
@@ -190,10 +185,13 @@ export default function BossBattle({
   }, []);
 
   // 레이저 — 지금 떠 있는 레이저 정보(ref로도 들고 있어 타이머 콜백에서 즉시 읽는다).
-  const laserRef = useRef<{ key: number; cxFrac: number; cyFrac: number; angleDeg: number; phase: "warn" | "active" } | null>(
-    null
+  const laserBeamsRef = useRef<{ key: number; cxFrac: number; cyFrac: number; angleDeg: number; phase: "warn" | "active" }[]>(
+    []
   );
   const laserIdRef = useRef(0);
+  // 지금 떠 있는 볼레이의 식별자 — 중첩 타이머가 이미 정리된(혹은 다음) 볼레이를 잘못
+  // 건드리지 않도록 확인하는 용도.
+  const laserVolleyRef = useRef(0);
   // HP 25% 아래로 내려가면 한 번만 true가 되고, 그 뒤로는 HP가 다시 올라가도 계속 유지된다.
   const laserModeRef = useRef(false);
   // 레이저 타이머는 체크포인트/거꾸로 패턴 진입 시 clearPendingTimers로 같이 끊기면 안
@@ -273,47 +271,56 @@ export default function BossBattle({
     [clearPendingTimers, clearLaserTimers, triggerFlash, showSuccessLine]
   );
 
-  /** 레이저 — 패턴1/패턴2/체크포인트와 무관하게 독립적으로 판정되는 피격. p1Ref/p2Phase는
-   * 건드리지 않아서, 다른 패턴이 진행 중이어도 그대로 유지된 채 레이저만 처리된다. */
-  const registerLaserHit = useCallback(() => {
-    laserRef.current = null;
-    setLaser(null);
-    triggerFlash("hit");
-    const prev = deathCountRef.current;
-    const next = Math.max(0, prev - BOSS_LASER_DEATH_PENALTY);
-    deathCountRef.current = next;
-    setDeathCount(next);
-    if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
-    if (next <= 0) endBattle(false);
-  }, [endBattle, triggerFlash, showBossLine]);
+  /** 레이저 — 패턴1/패턴2와 무관하게 독립적으로 판정되는 피격. p1Ref/p2Phase는 건드리지
+   * 않아서, 다른 패턴이 진행 중이어도 그대로 유지된 채 맞은 그 가닥만 처리된다. */
+  const registerLaserHit = useCallback(
+    (key: number) => {
+      laserBeamsRef.current = laserBeamsRef.current.filter((b) => b.key !== key);
+      setLaserBeams(laserBeamsRef.current);
+      triggerFlash("hit");
+      // 레이저에 맞았을 때도 패턴1/패턴2는 똑같이 잠깐 숨 돌릴 틈을 준다(레이저 자체는
+      // 계속 독립적으로 이어진다).
+      nextPatternAllowedAtRef.current = Date.now() + (stageRef.current === 1 ? BOSS_BATTLE.hitRestMs : BOSS_PHASE2.hitRestMs);
+      const prev = deathCountRef.current;
+      const next = Math.max(0, prev - BOSS_LASER_DEATH_PENALTY);
+      deathCountRef.current = next;
+      setDeathCount(next);
+      if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
+      if (next <= 0) endBattle(false);
+    },
+    [endBattle, triggerFlash, showBossLine]
+  );
 
   /** 레이저 — 2페이즈 HP 25% 아래로 내려가면 시작되어, 다른 모든 패턴과 무관하게 무작위
-   * 주기로 계속 발사된다. pendingTimers가 아니라 laserTimers로 따로 관리하므로 체크포인트나
-   * 거꾸로 패턴이 진입해도 이 예약 자체는 끊기지 않는다(다만 실제로 뜨는 건 combat 중일 때뿐). */
+   * 주기로 볼레이(한 번에 여러 가닥)가 계속 발사된다. pendingTimers가 아니라 laserTimers로
+   * 따로 관리하므로 거꾸로 패턴이 진입해도 이 예약 자체는 끊기지 않는다(다만 실제로 뜨는
+   * 건 combat 중일 때뿐). */
   const scheduleLaser = useCallback(() => {
     const delay = BOSS_LASER_INTERVAL_MIN_MS + Math.random() * (BOSS_LASER_INTERVAL_MAX_MS - BOSS_LASER_INTERVAL_MIN_MS);
     const timer = window.setTimeout(() => {
       if (phaseRef.current === "combat") {
         laserIdRef.current += 1;
-        const myId = laserIdRef.current;
-        const warnState = {
-          key: myId,
-          cxFrac: 0.2 + Math.random() * 0.6,
-          cyFrac: 0.2 + Math.random() * 0.6,
+        const volleyId = laserIdRef.current;
+        laserVolleyRef.current = volleyId;
+        const count = BOSS_LASER_COUNT_MIN + Math.floor(Math.random() * (BOSS_LASER_COUNT_MAX - BOSS_LASER_COUNT_MIN + 1));
+        const warnBeams = Array.from({ length: count }, (_, i) => ({
+          key: volleyId * 100 + i,
+          cxFrac: 0.15 + Math.random() * 0.7,
+          cyFrac: 0.15 + Math.random() * 0.7,
           angleDeg: Math.random() * 180,
           phase: "warn" as const,
-        };
-        laserRef.current = warnState;
-        setLaser(warnState);
+        }));
+        laserBeamsRef.current = warnBeams;
+        setLaserBeams(warnBeams);
         const warnTimer = window.setTimeout(() => {
-          if (laserRef.current?.key !== myId) return;
-          const activeState = { ...warnState, phase: "active" as const };
-          laserRef.current = activeState;
-          setLaser(activeState);
+          if (laserVolleyRef.current !== volleyId) return;
+          const activeBeams = laserBeamsRef.current.map((b) => ({ ...b, phase: "active" as const }));
+          laserBeamsRef.current = activeBeams;
+          setLaserBeams(activeBeams);
           const activeTimer = window.setTimeout(() => {
-            if (laserRef.current?.key !== myId) return;
-            laserRef.current = null;
-            setLaser(null);
+            if (laserVolleyRef.current !== volleyId) return;
+            laserBeamsRef.current = [];
+            setLaserBeams([]);
           }, BOSS_LASER_ACTIVE_MS);
           laserTimers.current.push(activeTimer);
         }, BOSS_LASER_WARN_MS);
@@ -420,13 +427,12 @@ export default function BossBattle({
   const enterInvertTransition = useCallback(() => {
     clearPendingTimers();
     inPattern2Ref.current = false;
-    inCheckpointRef.current = false;
     p2JudgeableRef.current = false;
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
-    laserRef.current = null;
-    setLaser(null);
+    laserBeamsRef.current = [];
+    setLaserBeams([]);
     phaseRef.current = "invertTransition";
     setPhase("invertTransition");
     showBossLine(BOSS_INVERT_LINE, "success");
@@ -447,18 +453,17 @@ export default function BossBattle({
   const enterFinale = useCallback(() => {
     clearPendingTimers();
     inPattern2Ref.current = false;
-    inCheckpointRef.current = false;
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
-    laserRef.current = null;
-    setLaser(null);
+    laserBeamsRef.current = [];
+    setLaserBeams([]);
     phaseRef.current = "finale";
     setPhase("finale");
     skillLockRef.current = false;
     finaleStartRef.current = Date.now();
-    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
-    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.checkpointWindowMs;
+    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
+    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.finaleWindowMs;
     const { end } = timingWindow(durationMs, windowMs);
     const timer = window.setTimeout(() => {
       if (phaseRef.current === "finale") endBattle(false, "finale-fail");
@@ -475,7 +480,10 @@ export default function BossBattle({
       inPattern2Ref.current = false;
       p2JudgeableRef.current = false;
       setP2Phase("idle");
-      grantPatternRest();
+      // 방금 맞은 직후에는 일반 패턴 휴식시간(grantPatternRest)보다 훨씬 긴 여유를 줘서,
+      // 맞자마자 다음 패턴이 바로 쏟아지는 느낌이 들지 않게 한다.
+      const hitRestMs = stageRef.current === 1 ? BOSS_BATTLE.hitRestMs : BOSS_PHASE2.hitRestMs;
+      nextPatternAllowedAtRef.current = Date.now() + hitRestMs;
 
       const prev = deathCountRef.current;
       const next = Math.max(0, prev - penalty);
@@ -487,58 +495,10 @@ export default function BossBattle({
       if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
       if (next <= 0) endBattle(false);
     },
-    [endBattle, triggerFlash, grantPatternRest, showBossLine]
+    [endBattle, triggerFlash, showBossLine]
   );
-
-  const resolveCheckpoint = useCallback(
-    (success: boolean) => {
-      if (phaseRef.current !== "checkpoint") return;
-      inCheckpointRef.current = false;
-      if (success) {
-        triggerFlash("success");
-        showSuccessLine();
-      } else {
-        triggerFlash("finale-fail");
-        comboRef.current = 0;
-        setCombo(0);
-        const next = Math.max(0, deathCountRef.current - BOSS_PHASE2.checkpointFailPenalty);
-        deathCountRef.current = next;
-        setDeathCount(next);
-        showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
-        if (next <= 0) {
-          endBattle(false);
-          return;
-        }
-      }
-      lastTapAtRef.current = Date.now();
-      grantPatternRest();
-      phaseRef.current = "combat";
-      setPhase("combat");
-    },
-    [endBattle, triggerFlash, grantPatternRest, showBossLine, showSuccessLine]
-  );
-
-  /** 2페이즈 전용 — HP 75/50/25% 체크포인트. 발악과 같은 연출이지만 끝나도 전투가 이어진다. */
-  const enterCheckpoint = useCallback(() => {
-    clearPendingTimers();
-    inPattern2Ref.current = false;
-    inCheckpointRef.current = true;
-    p1Ref.current = IDLE_PATTERN1;
-    setP1(IDLE_PATTERN1);
-    setP2Phase("idle");
-    laserRef.current = null;
-    setLaser(null);
-    phaseRef.current = "checkpoint";
-    setPhase("checkpoint");
-    skillLockRef.current = false;
-    checkpointStartRef.current = Date.now();
-    const { end } = timingWindow(BOSS_PHASE2.checkpointRingDurationMs, BOSS_PHASE2.checkpointWindowMs);
-    const timer = window.setTimeout(() => resolveCheckpoint(false), end + 60);
-    pendingTimers.current.push(timer);
-  }, [clearPendingTimers, resolveCheckpoint]);
 
   const triggerPattern2 = useCallback(() => {
-    if (inCheckpointRef.current) return; // 체크포인트 중엔 전체패턴이 끼어들지 않는다.
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
     if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
     maybeShowPatternTaunt();
@@ -577,12 +537,11 @@ export default function BossBattle({
     const delay =
       BOSS_PHASE2.pattern2RandomMinMs + Math.random() * (BOSS_PHASE2.pattern2RandomMaxMs - BOSS_PHASE2.pattern2RandomMinMs);
     const timer = window.setTimeout(() => {
-      if (phaseRef.current === "combat" && stageRef.current === 2 && !inPattern2Ref.current && !inCheckpointRef.current) {
+      if (phaseRef.current === "combat" && stageRef.current === 2 && !inPattern2Ref.current) {
         triggerPattern2();
       }
       if (
         phaseRef.current === "combat" ||
-        phaseRef.current === "checkpoint" ||
         phaseRef.current === "invertTransition" ||
         phaseRef.current === "invertCircles"
       ) {
@@ -601,7 +560,7 @@ export default function BossBattle({
         showBossLine(BOSS_LASER_START_LINE);
         scheduleLaser();
       }
-      if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
+      if (inPattern2Ref.current) return; // 겹침 방지 규칙 1
       if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
       if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
       if (stageRef.current === 1) {
@@ -619,21 +578,13 @@ export default function BossBattle({
           enterInvertTransition();
           return;
         }
-        for (const t of BOSS_PHASE2.checkpointThresholds) {
-          const absolute = t * BOSS_PHASE2.maxHp;
-          if (nextHp < absolute && !crossedCheckpoints.current.has(t)) {
-            crossedCheckpoints.current.add(t);
-            enterCheckpoint();
-            break;
-          }
-        }
       }
     },
-    [triggerPattern2, enterCheckpoint, enterInvertTransition, scheduleLaser, showBossLine]
+    [triggerPattern2, enterInvertTransition, scheduleLaser, showBossLine]
   );
 
   const triggerPattern1 = useCallback(() => {
-    if (inPattern2Ref.current || inCheckpointRef.current) return;
+    if (inPattern2Ref.current) return;
     // 패턴1의 반복 주기(intervalMs)가 예고+판정 전체 길이(warnMs+activeMs)보다 짧아서,
     // 이 가드가 없으면 이전 패턴이 채 안 끝났는데 다음 패턴이 겹쳐 덮어써 버린다 —
     // 경고 없이 갑자기 위험구역이 바뀌거나, 베기 이펙트가 끝까지 재생되지 못하고
@@ -656,7 +607,7 @@ export default function BossBattle({
     setP1(warnState);
 
     const warnTimer = window.setTimeout(() => {
-      if (inPattern2Ref.current || inCheckpointRef.current) {
+      if (inPattern2Ref.current) {
         // 겹침 방지 규칙 3 — 전환하지 않고 조용히 idle로.
         p1Ref.current = IDLE_PATTERN1;
         setP1(IDLE_PATTERN1);
@@ -694,17 +645,17 @@ export default function BossBattle({
       const yFrac = Math.min(1, Math.max(0, tapY / rect.height));
 
       // 레이저 — 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정한다. 다른 위험판정보다
-      // 먼저 확인해서, 레이저 위를 눌렀다면 그걸로 확정한다.
-      if (laserRef.current && laserRef.current.phase === "active") {
-        const L = laserRef.current;
-        const cx = L.cxFrac * rect.width;
-        const cy = L.cyFrac * rect.height;
-        const rad = (L.angleDeg * Math.PI) / 180;
+      // 먼저 확인해서, 여러 가닥 중 하나라도 닿았다면 그걸로 확정한다.
+      for (const beam of laserBeamsRef.current) {
+        if (beam.phase !== "active") continue;
+        const cx = beam.cxFrac * rect.width;
+        const cy = beam.cyFrac * rect.height;
+        const rad = (beam.angleDeg * Math.PI) / 180;
         const dx = tapX - cx;
         const dy = tapY - cy;
         const perpDist = Math.abs(dx * Math.sin(rad) - dy * Math.cos(rad));
         if (perpDist <= BOSS_LASER_HIT_HALF_WIDTH_PX) {
-          registerLaserHit();
+          registerLaserHit(beam.key);
           return;
         }
       }
@@ -790,20 +741,12 @@ export default function BossBattle({
     if (phaseRef.current !== "finale" || skillLockRef.current) return;
     skillLockRef.current = true;
     const elapsed = Date.now() - finaleStartRef.current;
-    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
-    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.checkpointWindowMs;
+    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
+    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.finaleWindowMs;
     const { start, end } = timingWindow(durationMs, windowMs);
     if (elapsed >= start && elapsed <= end) endBattle(true);
     else endBattle(false, "finale-fail");
   }, [endBattle]);
-
-  const handleCheckpointSkill = useCallback(() => {
-    if (phaseRef.current !== "checkpoint" || skillLockRef.current) return;
-    skillLockRef.current = true;
-    const elapsed = Date.now() - checkpointStartRef.current;
-    const { start, end } = timingWindow(BOSS_PHASE2.checkpointRingDurationMs, BOSS_PHASE2.checkpointWindowMs);
-    resolveCheckpoint(elapsed >= start && elapsed <= end);
-  }, [resolveCheckpoint]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
@@ -827,7 +770,6 @@ export default function BossBattle({
       setHp(BOSS_PHASE2.maxHp);
       comboRef.current = 0;
       setCombo(0);
-      crossedCheckpoints.current = new Set();
       invertCrossedRef.current = false;
       invertedRef.current = false;
       invertMissedRef.current = false;
@@ -850,11 +792,11 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase, stage, triggerPattern1]);
 
-  // 콤보 자동 초기화(1.5초 무입력) — 패턴2/체크포인트 진행 중에는 멈춘다.
+  // 콤보 자동 초기화(1.5초 무입력) — 패턴2 진행 중에는 멈춘다.
   useEffect(() => {
     if (phase !== "combat") return;
     const interval = window.setInterval(() => {
-      if (inPattern2Ref.current || inCheckpointRef.current) return;
+      if (inPattern2Ref.current) return;
       if (comboRef.current > 0 && Date.now() - lastTapAtRef.current > BOSS_BATTLE.comboDecayMs) {
         comboRef.current = 0;
         setCombo(0);
@@ -863,12 +805,11 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase]);
 
-  // 제한시간 3분 카운트다운 — 발악/체크포인트/거꾸로 패턴 중에도 계속 흐른다.
+  // 제한시간 3분 카운트다운 — 발악/거꾸로 패턴 중에도 계속 흐른다.
   useEffect(() => {
     if (
       phase !== "combat" &&
       phase !== "finale" &&
-      phase !== "checkpoint" &&
       phase !== "invertTransition" &&
       phase !== "invertCircles"
     )
@@ -903,14 +844,13 @@ export default function BossBattle({
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);
   useEffect(() => () => clearLaserTimers(), [clearLaserTimers]);
 
-  const showCombat = phase === "combat" || phase === "finale" || phase === "checkpoint" || phase === "invertCircles";
+  const showCombat = phase === "combat" || phase === "finale" || phase === "invertCircles";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
-  // 발악/체크포인트 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와
-  // 맞춘다 — 안 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다.
-  // 2페이즈 체크포인트는 1페이즈 발악과 완전히 같은 사양이라 별도 처리가 필요 없다.
-  const ringDurationMs =
-    phase === "finale" && stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
+  // 발악 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와 맞춘다 — 안
+  // 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다. 2페이즈 발악은
+  // 1페이즈 발악과 완전히 같은 사양이라 별도 처리가 필요 없다.
+  const ringDurationMs = stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
 
   return (
     <section
@@ -1055,33 +995,30 @@ export default function BossBattle({
                 />
               )}
               {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
-              {laser && (
+              {laserBeams.map((beam) => (
                 <div
-                  className={`bb-laser bb-laser--${laser.phase}`}
+                  key={beam.key}
+                  className={`bb-laser bb-laser--${beam.phase}`}
                   style={{
-                    left: `${laser.cxFrac * 100}%`,
-                    top: `${laser.cyFrac * 100}%`,
-                    transform: `translate(-50%, -50%) rotate(${laser.angleDeg}deg)`,
+                    left: `${beam.cxFrac * 100}%`,
+                    top: `${beam.cyFrac * 100}%`,
+                    transform: `translate(-50%, -50%) rotate(${beam.angleDeg}deg)`,
                   }}
                 />
-              )}
+              ))}
             </button>
           )}
         </>
       )}
 
-      {(phase === "finale" || phase === "checkpoint") && (
+      {phase === "finale" && (
         <div className="bb-finale-layer">
           <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
           <div className="bb-finale-rings">
             <div className="bb-finale-ring-target" />
             <div className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
           </div>
-          <button
-            className="bb-skill-btn"
-            onClick={phase === "finale" ? handleFinaleSkill : handleCheckpointSkill}
-            aria-label="특수 스킬 사용"
-          >
+          <button className="bb-skill-btn" onClick={handleFinaleSkill} aria-label="특수 스킬 사용">
             <img className="bb-skill-icon" src="/images/boss-battle/skill-bind.png" alt="" />
           </button>
         </div>

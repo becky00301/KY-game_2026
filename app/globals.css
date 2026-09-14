@@ -2019,13 +2019,13 @@ button {
   position: absolute; z-index: 8; width: 220vmax; height: 3px;
   pointer-events: none; border-radius: 2px;
 }
-/* 실제로 발사될 경로를 그대로 굵고 진한 빨간 실선으로 미리 보여준다 — 점선처럼
+/* 실제로 발사될 경로를 그대로 굵고 진한 청록빛 실선으로 미리 보여준다 — 점선처럼
    장식적으로 보이지 않고 "여기로 지나간다"가 명확해야 짧은 예고시간 안에도 피할 수
    있다. animationDuration은 컴포넌트에서 실제 WARN_MS 값으로 맞춰 넘긴다. */
 .bb-laser--warn {
   height: 4px;
-  background: rgba(255, 60, 60, .85);
-  box-shadow: 0 0 12px rgba(255, 60, 60, .8), 0 0 24px rgba(255, 60, 60, .45);
+  background: rgba(56, 226, 214, .85);
+  box-shadow: 0 0 12px rgba(56, 226, 214, .8), 0 0 24px rgba(56, 226, 214, .45);
   animation: bbLaserWarnPulse 260ms ease-in-out infinite;
 }
 @keyframes bbLaserWarnPulse {
@@ -2034,8 +2034,8 @@ button {
 }
 .bb-laser--active {
   height: 5px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, .3), #fff 45%, #ff3b3b 50%, #fff 55%, rgba(255, 255, 255, .3));
-  box-shadow: 0 0 16px rgba(255, 60, 60, .95), 0 0 34px rgba(255, 60, 60, .7);
+  background: linear-gradient(90deg, rgba(255, 255, 255, .3), #fff 45%, #2ee8d6 50%, #fff 55%, rgba(255, 255, 255, .3));
+  box-shadow: 0 0 16px rgba(46, 232, 214, .95), 0 0 34px rgba(46, 232, 214, .7);
   animation: bbLaserFire 500ms ease-out forwards;
 }
 @keyframes bbLaserFire {

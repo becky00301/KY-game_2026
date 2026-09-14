@@ -75,15 +75,18 @@ export const BOSS_INVERT_STUN_MS = 5000;
 export const BOSS_INVERT_STUN_BUFFER_MS = 500;
 export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";
 
-/** 2페이즈 HP 25% 이하 — 맵을 가로지르는 얇은 레이저가 무작위 위치·방향으로 주기적으로
- *  발사된다. 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정되며(그래서 다른 모든 패턴과
- *  동시에 뜰 수 있다), HP가 다시 올라가도 한 번 시작되면 전투가 끝날 때까지 계속된다.
- *  레이저(판정 구간)를 터치하면 데스카운트가 줄어든다. */
+/** 2페이즈 HP 25% 이하 — 맵을 가로지르는 얇은 레이저 여러 가닥이 한 번에(볼레이) 무작위
+ *  위치·방향으로 자주 발사된다. 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정되며(그래서
+ *  다른 모든 패턴과 동시에 뜰 수 있다), HP가 다시 올라가도 한 번 시작되면 전투가 끝날
+ *  때까지 계속된다. 레이저(판정 구간)를 터치하면 데스카운트가 줄어든다. */
 export const BOSS_LASER_START_HP = 0.25;
 /** HP 25% 아래로 내려가는 순간 뜨는 서휘령의 대사. */
 export const BOSS_LASER_START_LINE = "온 힘을 다해, 너를 처단하리라!!";
-export const BOSS_LASER_INTERVAL_MIN_MS = 3500;
-export const BOSS_LASER_INTERVAL_MAX_MS = 6000;
+/** 한 볼레이에 동시에 뜨는 레이저 가닥 수 (최소~최대 중 무작위). */
+export const BOSS_LASER_COUNT_MIN = 5;
+export const BOSS_LASER_COUNT_MAX = 6;
+export const BOSS_LASER_INTERVAL_MIN_MS = 1600;
+export const BOSS_LASER_INTERVAL_MAX_MS = 2800;
 export const BOSS_LASER_WARN_MS = 500;
 export const BOSS_LASER_ACTIVE_MS = 500;
 export const BOSS_LASER_DEATH_PENALTY = 1;
@@ -123,6 +126,9 @@ export const BOSS_BATTLE = {
    * 휘몰아치는 느낌을 위해 짧게 줄였다(완전히 안 겹치게 하려던 목적이 아니라, 서로
    * 다른 두 패턴이 정확히 같은 프레임에 시작하는 것만 막는 정도). */
   patternRestMs: 300,
+  /** 맞았을 때만 주는 별도의 더 긴 휴식시간 — 방금 맞아서 정신 없는데 바로 다음 패턴이
+   * 쏟아지면 너무 가혹해서, 피격 직후에는 일반 휴식시간보다 훨씬 길게 숨 돌릴 틈을 준다. */
+  hitRestMs: 700,
 } as const;
 
 /**
@@ -134,14 +140,14 @@ export const BOSS_BATTLE = {
  *     동안이 오히려 프리딜 타임이 되어버리기 때문).
  *   - 1페이즈에서 HP 75/50/25%마다 뜨던 전체공격(패턴2)은 이제 그 타이밍과 무관하게
  *     무작위 주기로 튀어나온다(단, 패턴1과 절대 안 겹치게 겹침 방지 로직을 그대로 적용).
- *   - HP 75%때만 발악(패링)이 뜬다 — 1페이즈의 "죽으면 뜨는 최후의 한 번"과 달리,
- *     성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
- *     HP가 0이 되는 순간 그게 곧 최종 승리다. 발악 자체는 1페이즈와 완전히 동일한
- *     사양(링 2.2초, 판정창 1.4초, 한 번만 좁혀짐)이다.
+ *   - 중간 체크포인트(발악) 없이, HP가 0이 되는 순간에만 1페이즈와 완전히 동일한 사양
+ *     (링 2.2초, 판정창 1.4초, 한 번만 좁혀짐)의 발악이 뜬다 — 그게 곧 최종 승리다.
  *   - HP 50%에 도달하면(1회성) "거꾸로 패턴"에 들어간다 — 암전과 예고 대사 뒤 화면이
  *     거꾸로 뒤집히고, 모든 일반 패턴이 멈춘 채로 10초간 맵 곳곳에 빨간 원이 반복해서
  *     나타난다. 하나라도 놓치면 10초 뒤 그대로 사망, 전부 맞히면 서휘령이 5초간
  *     기절해서 순수 프리딜 타임이 된다. 이후 일반 전투로 돌아온다.
+ *   - HP 25% 아래로 내려가면 맵을 가로지르는 레이저 볼레이가 다른 모든 패턴과 무관하게
+ *     계속 겹쳐서 발사된다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 2304,
@@ -166,15 +172,15 @@ export const BOSS_PHASE2 = {
   pattern2ActiveMs: 580,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
-  // 25%·50% 때는 더 이상 뜨지 않는다(50%는 "거꾸로 패턴" 구간과 겹쳐서 뺐다) — 75%때만.
-  checkpointThresholds: [0.75],
-  // 발악(패링) 판정이 너무 촉박하다는 반복된 피드백으로, 1페이즈 발악과 완전히 같은
-  // 사양(링 2.2초, 판정창 1.4초, 한 번만 좁혀짐 — 2배속 반복 없음)으로 통일했다.
-  checkpointRingDurationMs: 2200,
-  checkpointWindowMs: 1400,
-  checkpointFailPenalty: 2,
+  // 중간 체크포인트(75%) 없이, HP 0%때 발악만 뜬다 — 1페이즈 발악과 완전히 같은 사양
+  // (링 2.2초, 판정창 1.4초, 한 번만 좁혀짐 — 2배속 반복 없음)으로 통일했다.
+  finaleRingDurationMs: 2200,
+  finaleWindowMs: 1400,
   timeLimitMs: 3 * 60 * 1000,
   patternRestMs: 180,
+  /** 맞았을 때만 주는 별도의 더 긴 휴식시간 — 방금 맞아서 정신 없는데 바로 다음 패턴이
+   * 쏟아지면 너무 가혹해서, 피격 직후에는 일반 휴식시간보다 훨씬 길게 숨 돌릴 틈을 준다. */
+  hitRestMs: 650,
 } as const;
 
 export type Orientation = "vertical" | "horizontal" | "diagonal";
