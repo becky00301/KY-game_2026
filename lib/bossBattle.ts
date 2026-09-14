@@ -74,6 +74,19 @@ export const BOSS_INVERT_STUN_MS = 5000;
 export const BOSS_INVERT_STUN_BUFFER_MS = 500;
 export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";
 
+/** 2페이즈 HP 25% 이하 — 맵을 가로지르는 얇은 레이저가 무작위 위치·방향으로 주기적으로
+ *  발사된다. 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정되며(그래서 다른 모든 패턴과
+ *  동시에 뜰 수 있다), HP가 다시 올라가도 한 번 시작되면 전투가 끝날 때까지 계속된다.
+ *  레이저(판정 구간)를 터치하면 데스카운트가 줄어든다. */
+export const BOSS_LASER_START_HP = 0.25;
+export const BOSS_LASER_INTERVAL_MIN_MS = 3500;
+export const BOSS_LASER_INTERVAL_MAX_MS = 6000;
+export const BOSS_LASER_WARN_MS = 900;
+export const BOSS_LASER_ACTIVE_MS = 500;
+export const BOSS_LASER_DEATH_PENALTY = 1;
+/** 판정 폭의 절반(px) — 실제 표시는 훨씬 얇지만 터치 여유를 약간 준다. */
+export const BOSS_LASER_HIT_HALF_WIDTH_PX = 16;
+
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
   maxHp: 1300,
@@ -127,17 +140,17 @@ export const BOSS_BATTLE = {
  *     기절해서 순수 프리딜 타임이 된다. 이후 일반 전투로 돌아온다.
  */
 export const BOSS_PHASE2 = {
-  maxHp: 1920,
+  maxHp: 2304,
   baseDamage: 4,
   maxCombo: 50,
   comboDecayMs: 1500,
   maxDamageMultiplier: 3,
   zoneCount: 5,
   dangerZoneCount: 4,
-  // 기본패턴(가로/세로/대각선 베기) 속도 20% 증가.
-  pattern1IntervalMs: 710,
-  pattern1WarnMs: 540,
-  pattern1ActiveMs: 710,
+  // 기본패턴(가로/세로/대각선 베기) 속도 추가로 살짝 더 증가.
+  pattern1IntervalMs: 600,
+  pattern1WarnMs: 480,
+  pattern1ActiveMs: 620,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
   // 전체패턴 warn 구간 동안은 패턴1이 멈춰서 사실상 프리딜 타임이 된다 — 너무 자주
@@ -156,7 +169,7 @@ export const BOSS_PHASE2 = {
   checkpointWindowMs: 1400,
   checkpointFailPenalty: 2,
   timeLimitMs: 3 * 60 * 1000,
-  patternRestMs: 250,
+  patternRestMs: 180,
 } as const;
 
 export type Orientation = "vertical" | "horizontal" | "diagonal";

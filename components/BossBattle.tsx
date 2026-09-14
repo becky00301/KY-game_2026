@@ -17,6 +17,13 @@ import {
   BOSS_INVERT_STUN_BUFFER_MS,
   BOSS_INVERT_STUN_MS,
   BOSS_INVERT_TRANSITION_MS,
+  BOSS_LASER_ACTIVE_MS,
+  BOSS_LASER_DEATH_PENALTY,
+  BOSS_LASER_HIT_HALF_WIDTH_PX,
+  BOSS_LASER_INTERVAL_MAX_MS,
+  BOSS_LASER_INTERVAL_MIN_MS,
+  BOSS_LASER_START_HP,
+  BOSS_LASER_WARN_MS,
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
@@ -33,6 +40,7 @@ import {
 } from "@/lib/bossBattle";
 import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
 import { setBossBgmPhase2 } from "@/lib/bgm";
+import { playHit } from "@/lib/sfx";
 
 type Phase =
   | "intro"
@@ -112,6 +120,14 @@ export default function BossBattle({
   const [hitEffects, setHitEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
   // 원을 놓쳤을 때 그 자리에 잠깐 남는 표시 — 화면 전체 플래시 대신 국소적으로만 보여준다.
   const [missEffects, setMissEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
+  // 2페이즈 HP 25% 이하 — 다른 모든 패턴과 무관하게 겹쳐서 뜨는 얇은 레이저.
+  const [laser, setLaser] = useState<{
+    key: number;
+    cxFrac: number;
+    cyFrac: number;
+    angleDeg: number;
+    phase: "warn" | "active";
+  } | null>(null);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -172,6 +188,22 @@ export default function BossBattle({
     pendingTimers.current = [];
   }, []);
 
+  // 레이저 — 지금 떠 있는 레이저 정보(ref로도 들고 있어 타이머 콜백에서 즉시 읽는다).
+  const laserRef = useRef<{ key: number; cxFrac: number; cyFrac: number; angleDeg: number; phase: "warn" | "active" } | null>(
+    null
+  );
+  const laserIdRef = useRef(0);
+  // HP 25% 아래로 내려가면 한 번만 true가 되고, 그 뒤로는 HP가 다시 올라가도 계속 유지된다.
+  const laserModeRef = useRef(false);
+  // 레이저 타이머는 체크포인트/거꾸로 패턴 진입 시 clearPendingTimers로 같이 끊기면 안
+  // 되므로(모든 패턴에 겹쳐서 계속 유지되어야 하니까), pendingTimers와 완전히 분리해서
+  // 따로 관리한다. 전투가 끝날 때(endBattle)와 언마운트 시에만 정리한다.
+  const laserTimers = useRef<number[]>([]);
+  const clearLaserTimers = useCallback(() => {
+    laserTimers.current.forEach((id) => window.clearTimeout(id));
+    laserTimers.current = [];
+  }, []);
+
   // 같은 종류의 피격 이펙트가 아주 짧은 간격으로 중복 호출되는 걸 막는 안전장치 —
   // 실제 서로 다른 패턴에 두 번 맞는 최소 간격(휴식시간+예고시간)보다 훨씬 짧은 700ms
   // 안에 같은 kind가 다시 들어오면 무시한다. 정상적인 연속 피격은 이보다 항상 더
@@ -220,6 +252,7 @@ export default function BossBattle({
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
       if (phaseRef.current === "result" || phaseRef.current === "blackout") return;
       clearPendingTimers();
+      clearLaserTimers();
       wonRef.current = win;
       phaseRef.current = "result";
       setPhase("result");
@@ -236,8 +269,60 @@ export default function BossBattle({
       }, effectMs + 150);
       pendingTimers.current.push(t);
     },
-    [clearPendingTimers, triggerFlash, showSuccessLine]
+    [clearPendingTimers, clearLaserTimers, triggerFlash, showSuccessLine]
   );
+
+  /** 레이저 — 패턴1/패턴2/체크포인트와 무관하게 독립적으로 판정되는 피격. p1Ref/p2Phase는
+   * 건드리지 않아서, 다른 패턴이 진행 중이어도 그대로 유지된 채 레이저만 처리된다. */
+  const registerLaserHit = useCallback(() => {
+    laserRef.current = null;
+    setLaser(null);
+    triggerFlash("hit");
+    const prev = deathCountRef.current;
+    const next = Math.max(0, prev - BOSS_LASER_DEATH_PENALTY);
+    deathCountRef.current = next;
+    setDeathCount(next);
+    if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
+    if (next <= 0) endBattle(false);
+  }, [endBattle, triggerFlash, showBossLine]);
+
+  /** 레이저 — 2페이즈 HP 25% 아래로 내려가면 시작되어, 다른 모든 패턴과 무관하게 무작위
+   * 주기로 계속 발사된다. pendingTimers가 아니라 laserTimers로 따로 관리하므로 체크포인트나
+   * 거꾸로 패턴이 진입해도 이 예약 자체는 끊기지 않는다(다만 실제로 뜨는 건 combat 중일 때뿐). */
+  const scheduleLaser = useCallback(() => {
+    const delay = BOSS_LASER_INTERVAL_MIN_MS + Math.random() * (BOSS_LASER_INTERVAL_MAX_MS - BOSS_LASER_INTERVAL_MIN_MS);
+    const timer = window.setTimeout(() => {
+      if (phaseRef.current === "combat") {
+        laserIdRef.current += 1;
+        const myId = laserIdRef.current;
+        const warnState = {
+          key: myId,
+          cxFrac: 0.2 + Math.random() * 0.6,
+          cyFrac: 0.2 + Math.random() * 0.6,
+          angleDeg: Math.random() * 180,
+          phase: "warn" as const,
+        };
+        laserRef.current = warnState;
+        setLaser(warnState);
+        const warnTimer = window.setTimeout(() => {
+          if (laserRef.current?.key !== myId) return;
+          const activeState = { ...warnState, phase: "active" as const };
+          laserRef.current = activeState;
+          setLaser(activeState);
+          const activeTimer = window.setTimeout(() => {
+            if (laserRef.current?.key !== myId) return;
+            laserRef.current = null;
+            setLaser(null);
+          }, BOSS_LASER_ACTIVE_MS);
+          laserTimers.current.push(activeTimer);
+        }, BOSS_LASER_WARN_MS);
+        laserTimers.current.push(warnTimer);
+      }
+      // 전투가 완전히 끝난 게 아니라면 다른 어떤 패턴이 진행 중이어도 계속 예약한다.
+      if (phaseRef.current !== "result" && phaseRef.current !== "blackout") scheduleLaser();
+    }, delay);
+    laserTimers.current.push(timer);
+  }, []);
 
   /** 거꾸로 패턴 원 시퀀스가 끝난 뒤 — 하나라도 놓쳤으면 사망, 전부 맞혔으면 5초 기절(프리딜). */
   const finishInvertCircles = useCallback(() => {
@@ -339,6 +424,8 @@ export default function BossBattle({
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
+    laserRef.current = null;
+    setLaser(null);
     phaseRef.current = "invertTransition";
     setPhase("invertTransition");
     showBossLine(BOSS_INVERT_LINE, "success");
@@ -363,6 +450,8 @@ export default function BossBattle({
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
+    laserRef.current = null;
+    setLaser(null);
     phaseRef.current = "finale";
     setPhase("finale");
     skillLockRef.current = false;
@@ -436,6 +525,8 @@ export default function BossBattle({
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
+    laserRef.current = null;
+    setLaser(null);
     phaseRef.current = "checkpoint";
     setPhase("checkpoint");
     skillLockRef.current = false;
@@ -502,6 +593,12 @@ export default function BossBattle({
 
   const checkHpThresholds = useCallback(
     (nextHp: number) => {
+      // 레이저 시작 여부는 다른 패턴의 겹침 방지 규칙과 완전히 무관하다 — 무엇이
+      // 진행 중이든 HP 25% 아래로 내려가는 순간 바로 시작된다.
+      if (stageRef.current === 2 && !laserModeRef.current && nextHp < BOSS_LASER_START_HP * BOSS_PHASE2.maxHp) {
+        laserModeRef.current = true;
+        scheduleLaser();
+      }
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
       if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
       if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
@@ -530,7 +627,7 @@ export default function BossBattle({
         }
       }
     },
-    [triggerPattern2, enterCheckpoint, enterInvertTransition]
+    [triggerPattern2, enterCheckpoint, enterInvertTransition, scheduleLaser]
   );
 
   const triggerPattern1 = useCallback(() => {
@@ -589,8 +686,26 @@ export default function BossBattle({
       e.preventDefault();
       const rect = tapAreaRef.current?.getBoundingClientRect();
       if (!rect || rect.width === 0 || rect.height === 0) return;
-      const xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      const tapX = e.clientX - rect.left;
+      const tapY = e.clientY - rect.top;
+      const xFrac = Math.min(1, Math.max(0, tapX / rect.width));
+      const yFrac = Math.min(1, Math.max(0, tapY / rect.height));
+
+      // 레이저 — 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정한다. 다른 위험판정보다
+      // 먼저 확인해서, 레이저 위를 눌렀다면 그걸로 확정한다.
+      if (laserRef.current && laserRef.current.phase === "active") {
+        const L = laserRef.current;
+        const cx = L.cxFrac * rect.width;
+        const cy = L.cyFrac * rect.height;
+        const rad = (L.angleDeg * Math.PI) / 180;
+        const dx = tapX - cx;
+        const dy = tapY - cy;
+        const perpDist = Math.abs(dx * Math.sin(rad) - dy * Math.cos(rad));
+        if (perpDist <= BOSS_LASER_HIT_HALF_WIDTH_PX) {
+          registerLaserHit();
+          return;
+        }
+      }
 
       const pattern2Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern2DeathPenalty : BOSS_PHASE2.pattern2DeathPenalty;
       const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
@@ -607,6 +722,8 @@ export default function BossBattle({
           return;
         }
       }
+
+      playHit("ku", 0); // 평소 검 터치음과 동일한 사운드로 타격감을 준다(단계 전용음은 안 씀).
 
       const now = Date.now();
       const prevCombo = comboRef.current;
@@ -636,7 +753,7 @@ export default function BossBattle({
       }
       checkHpThresholds(nextHp);
     },
-    [p2Phase, registerPatternHit, checkHpThresholds, enterFinale]
+    [p2Phase, registerPatternHit, checkHpThresholds, enterFinale, registerLaserHit]
   );
 
   /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원들의 논리 좌표와 비교한다.
@@ -780,6 +897,7 @@ export default function BossBattle({
 
   // 언마운트 시 남아있는 타이머 정리.
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);
+  useEffect(() => () => clearLaserTimers(), [clearLaserTimers]);
 
   const showCombat = phase === "combat" || phase === "finale" || phase === "checkpoint" || phase === "invertCircles";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
@@ -924,6 +1042,16 @@ export default function BossBattle({
               )}
               {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
               {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
+              {laser && (
+                <div
+                  className={`bb-laser bb-laser--${laser.phase}`}
+                  style={{
+                    left: `${laser.cxFrac * 100}%`,
+                    top: `${laser.cyFrac * 100}%`,
+                    transform: `translate(-50%, -50%) rotate(${laser.angleDeg}deg)`,
+                  }}
+                />
+              )}
             </button>
           )}
         </>
