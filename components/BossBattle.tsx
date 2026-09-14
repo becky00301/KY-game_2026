@@ -182,7 +182,16 @@ export default function BossBattle({
     if (now - (lastFlashAtRef.current[kind] ?? 0) < 700) return;
     lastFlashAtRef.current[kind] = now;
     flashId.current += 1;
-    setFlash({ key: flashId.current, kind });
+    const myId = flashId.current;
+    setFlash({ key: myId, kind });
+    // flash는 여태 트리거된 뒤로 계속 true로 남아있어서, 그다음 렌더에서 같은 자리에
+    // 같은 key로 다시 그려지는 걸 온전히 key 비교에만 맡기고 있었다 — 애니메이션이 다
+    // 끝나는 시점에 명시적으로 null로 되돌려서 그 자리 자체가 사라지게 한다.
+    const durationMs = kind === "success" ? 2000 : kind === "finale-fail" ? 1300 : 350;
+    const clearTimer = window.setTimeout(() => {
+      setFlash((cur) => (cur && cur.key === myId ? null : cur));
+    }, durationMs);
+    pendingTimers.current.push(clearTimer);
   }, []);
 
   const showBossLine = useCallback((text: string, kind: "taunt" | "success" = "taunt") => {
