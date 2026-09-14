@@ -7,9 +7,13 @@ import {
   BOSS_DEATH_TAUNT_LINES,
   BOSS_DEFEAT_EXIT_MS,
   BOSS_DEFEAT_LINE,
-  BOSS_INVERT_END_HP,
+  BOSS_INVERT_CIRCLE_DURATION_MS,
+  BOSS_INVERT_CIRCLE_MISS_PENALTY,
+  BOSS_INVERT_CIRCLE_WINDOW_MS,
   BOSS_INVERT_LINE,
   BOSS_INVERT_START_HP,
+  BOSS_INVERT_STUN_LINE,
+  BOSS_INVERT_STUN_MS,
   BOSS_INVERT_TRANSITION_MS,
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
@@ -28,7 +32,16 @@ import {
 import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
 import { setBossBgmPhase2 } from "@/lib/bgm";
 
-type Phase = "intro" | "combat" | "finale" | "checkpoint" | "result" | "blackout" | "phase2Intro" | "invertTransition";
+type Phase =
+  | "intro"
+  | "combat"
+  | "finale"
+  | "checkpoint"
+  | "result"
+  | "blackout"
+  | "phase2Intro"
+  | "invertTransition"
+  | "invertCircles";
 type SubPhase = "idle" | "warn" | "active";
 type Stage = 1 | 2;
 
@@ -61,6 +74,9 @@ const SLASH_SRC_PHASE2: Record<Orientation, string> = {
 /** 1·2페이즈 공통 — 패턴2(전체판정) active 구간에 뜨는 화면 전체 공격 이펙트. */
 const FULL_SLASH_SRC = "/images/boss-battle/full-slash-downstrike.png";
 
+/** 거꾸로 패턴 — 빨간 원의 판정 반경(px). CSS의 원 지름(80px)에 약간의 여유를 더했다. */
+const CIRCLE_HIT_RADIUS_PX = 50;
+
 /**
  * 서휘령 실전 전투 — 3초 암전 대사로 시작해, 콤보 기반 딜링과 두 가지 회피 패턴을 거쳐
  * 발악(피니시) 타이밍 판정으로 끝난다. 발악 성공 시 2페이즈 등장 연출로 이어지고, 5분할
@@ -86,6 +102,7 @@ export default function BossBattle({
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
+  const [circleTarget, setCircleTarget] = useState<{ key: number; xFrac: number; yFrac: number } | null>(null);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -104,10 +121,21 @@ export default function BossBattle({
   // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
   // 판정 순간만 true — 나머지는 이펙트만 보이는 잔상 구간이다.
   const p2JudgeableRef = useRef(false);
-  // 2페이즈 HP 50~40% 구간 — "거꾸로 패턴". 화면이 거꾸로 뒤집히고 패턴1 판정이 반전된다.
+  // 거꾸로 패턴 — 화면이 뒤집힌 채로 빨간 원을 터치하는 구간인지.
   const invertedRef = useRef(false);
-  // 거꾸로 패턴 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다(되돌아간 뒤에도).
+  // 거꾸로 패턴 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다.
   const invertCrossedRef = useRef(false);
+  // 거꾸로 패턴 중 원을 하나라도 놓쳤는지 — 10초가 다 지난 시점에 이걸로 성공/사망을 가른다.
+  const invertMissedRef = useRef(false);
+  // 지금 떠 있는 원의 정보 — state와 동일하지만 타이머 콜백에서 최신값을 동기적으로 읽기 위해.
+  const circleTargetRef = useRef<{ key: number; xFrac: number; yFrac: number } | null>(null);
+  const circleIdRef = useRef(0);
+  // 10초 원 시퀀스가 끝나는 시각 — 원 하나가 끝날 때마다 이 시각을 넘었는지 확인해서
+  // 다음 원을 새로 띄울지, 시퀀스를 마무리할지 결정한다.
+  const invertSeqEndAtRef = useRef(0);
+  // spawnCircle이 resolveCircle을 직접 참조하면 두 콜백이 서로를 의존해 순환 참조가
+  // 생기므로, ref를 거쳐 항상 최신 resolveCircle을 호출한다.
+  const resolveCircleRef = useRef<(hit: boolean) => void>(() => {});
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
   // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
   const nextPatternAllowedAtRef = useRef(0);
@@ -157,30 +185,6 @@ export default function BossBattle({
     showBossLine(BOSS_SUCCESS_LINES[Math.floor(Math.random() * BOSS_SUCCESS_LINES.length)], "success");
   }, [showBossLine]);
 
-  /** 2페이즈 HP 50% — "거꾸로 패턴" 진입. 암전+예고 대사 동안 패턴을 멈췄다가, 화면이
-   * 뒤집힌 채로 전투를 재개한다(판정 반전은 handleTap에서 처리). */
-  const enterInvertTransition = useCallback(() => {
-    clearPendingTimers();
-    inPattern2Ref.current = false;
-    inCheckpointRef.current = false;
-    p2JudgeableRef.current = false;
-    p1Ref.current = IDLE_PATTERN1;
-    setP1(IDLE_PATTERN1);
-    setP2Phase("idle");
-    phaseRef.current = "invertTransition";
-    setPhase("invertTransition");
-    showBossLine(BOSS_INVERT_LINE, "success");
-    const timer = window.setTimeout(() => {
-      invertedRef.current = true;
-      setInverted(true);
-      lastTapAtRef.current = Date.now();
-      grantPatternRest();
-      phaseRef.current = "combat";
-      setPhase("combat");
-    }, BOSS_INVERT_TRANSITION_MS);
-    pendingTimers.current.push(timer);
-  }, [clearPendingTimers, showBossLine, grantPatternRest]);
-
   const endBattle = useCallback(
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
       if (phaseRef.current === "result" || phaseRef.current === "blackout") return;
@@ -203,6 +207,89 @@ export default function BossBattle({
     },
     [clearPendingTimers, triggerFlash, showSuccessLine]
   );
+
+  /** 거꾸로 패턴 — 맵 위 랜덤한 위치에 새 빨간 원을 띄운다. */
+  const spawnCircle = useCallback(() => {
+    circleIdRef.current += 1;
+    const myId = circleIdRef.current;
+    // 화면 가장자리는 피해서 중앙 쪽 70% 범위 안에서만 뜬다.
+    const target = { key: myId, xFrac: 0.15 + Math.random() * 0.7, yFrac: 0.15 + Math.random() * 0.7 };
+    circleTargetRef.current = target;
+    setCircleTarget(target);
+    const timer = window.setTimeout(() => {
+      if (circleTargetRef.current?.key === myId) resolveCircleRef.current(false);
+    }, BOSS_INVERT_CIRCLE_WINDOW_MS);
+    pendingTimers.current.push(timer);
+  }, []);
+
+  /** 거꾸로 패턴 10초가 끝난 뒤 — 하나라도 놓쳤으면 사망, 전부 맞혔으면 5초 기절(프리딜). */
+  const finishInvertCircles = useCallback(() => {
+    invertedRef.current = false;
+    setInverted(false);
+    circleTargetRef.current = null;
+    setCircleTarget(null);
+    if (invertMissedRef.current) {
+      endBattle(false);
+      return;
+    }
+    showBossLine(BOSS_INVERT_STUN_LINE, "success");
+    // 기절 동안은 기존 "패턴 휴식" 타이머를 그대로 활용해 모든 패턴을 막는다.
+    nextPatternAllowedAtRef.current = Date.now() + BOSS_INVERT_STUN_MS;
+    lastTapAtRef.current = Date.now();
+    phaseRef.current = "combat";
+    setPhase("combat");
+  }, [endBattle, showBossLine]);
+
+  /** 거꾸로 패턴 — 원 하나의 결과(맞혔는지)를 처리하고, 다음 원을 띄우거나 10초 시퀀스를 마무리한다. */
+  const resolveCircle = useCallback(
+    (hit: boolean) => {
+      if (!circleTargetRef.current) return;
+      circleTargetRef.current = null;
+      setCircleTarget(null);
+      if (!hit) {
+        invertMissedRef.current = true;
+        triggerFlash("hit");
+        const prev = deathCountRef.current;
+        const next = Math.max(0, prev - BOSS_INVERT_CIRCLE_MISS_PENALTY);
+        deathCountRef.current = next;
+        setDeathCount(next);
+        if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
+        if (next <= 0) {
+          endBattle(false);
+          return;
+        }
+      }
+      if (Date.now() >= invertSeqEndAtRef.current) finishInvertCircles();
+      else spawnCircle();
+    },
+    [endBattle, triggerFlash, showBossLine, spawnCircle, finishInvertCircles]
+  );
+  resolveCircleRef.current = resolveCircle;
+
+  /** 2페이즈 HP 50% — "거꾸로 패턴" 진입. 암전+예고 대사 동안 모든 패턴을 멈췄다가,
+   * 화면이 뒤집힌 채로 10초간 빨간 원 시퀀스가 시작된다. */
+  const enterInvertTransition = useCallback(() => {
+    clearPendingTimers();
+    inPattern2Ref.current = false;
+    inCheckpointRef.current = false;
+    p2JudgeableRef.current = false;
+    p1Ref.current = IDLE_PATTERN1;
+    setP1(IDLE_PATTERN1);
+    setP2Phase("idle");
+    phaseRef.current = "invertTransition";
+    setPhase("invertTransition");
+    showBossLine(BOSS_INVERT_LINE, "success");
+    const timer = window.setTimeout(() => {
+      invertedRef.current = true;
+      setInverted(true);
+      invertMissedRef.current = false;
+      invertSeqEndAtRef.current = Date.now() + BOSS_INVERT_CIRCLE_DURATION_MS;
+      phaseRef.current = "invertCircles";
+      setPhase("invertCircles");
+      spawnCircle();
+    }, BOSS_INVERT_TRANSITION_MS);
+    pendingTimers.current.push(timer);
+  }, [clearPendingTimers, showBossLine, spawnCircle]);
 
   const enterFinale = useCallback(() => {
     clearPendingTimers();
@@ -333,7 +420,12 @@ export default function BossBattle({
       if (phaseRef.current === "combat" && stageRef.current === 2 && !inPattern2Ref.current && !inCheckpointRef.current) {
         triggerPattern2();
       }
-      if (phaseRef.current === "combat" || phaseRef.current === "checkpoint") {
+      if (
+        phaseRef.current === "combat" ||
+        phaseRef.current === "checkpoint" ||
+        phaseRef.current === "invertTransition" ||
+        phaseRef.current === "invertCircles"
+      ) {
         scheduleStage2Pattern2();
       }
     }, delay);
@@ -342,11 +434,6 @@ export default function BossBattle({
 
   const checkHpThresholds = useCallback(
     (nextHp: number) => {
-      // 거꾸로 패턴에서 원래대로 되돌아가는 건 다른 패턴 진행 여부와 무관하게 즉시 처리한다.
-      if (stageRef.current === 2 && invertedRef.current && nextHp < BOSS_INVERT_END_HP * BOSS_PHASE2.maxHp) {
-        invertedRef.current = false;
-        setInverted(false);
-      }
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
       if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
       if (stageRef.current === 1) {
@@ -383,10 +470,8 @@ export default function BossBattle({
     maybeShowPatternTaunt();
     const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
-    const warnMs =
-      stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : invertedRef.current ? BOSS_PHASE2.invertPattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
-    const activeMs =
-      stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : invertedRef.current ? BOSS_PHASE2.invertPattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
+    const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
+    const activeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
     const judgeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1JudgeMs : BOSS_PHASE2.pattern1JudgeMs;
     const orientation = pickOrientation();
     const dangerZones = pickDangerZones(zoneCount, dangerZoneCount);
@@ -429,14 +514,8 @@ export default function BossBattle({
       e.preventDefault();
       const rect = tapAreaRef.current?.getBoundingClientRect();
       if (!rect || rect.width === 0 || rect.height === 0) return;
-      let xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      let yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-      // 거꾸로 패턴에서는 화면이 180도 뒤집혀 있으니, 보이는 위치와 논리 좌표가 맞도록
-      // 탭 좌표도 같이 뒤집어준다(그래야 눈에 보이는 빨간 구역을 정확히 노려 누를 수 있다).
-      if (invertedRef.current) {
-        xFrac = 1 - xFrac;
-        yFrac = 1 - yFrac;
-      }
+      const xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
 
       const pattern2Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern2DeathPenalty : BOSS_PHASE2.pattern2DeathPenalty;
       const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
@@ -445,26 +524,13 @@ export default function BossBattle({
         registerPatternHit(pattern2Penalty);
         return;
       }
-
-      let p1DangerHit = false;
-      const p1IsActiveJudgeable = p1Ref.current.phase === "active" && p1Ref.current.judgeable;
-      if (p1IsActiveJudgeable) {
+      if (p1Ref.current.phase === "active" && p1Ref.current.judgeable) {
         const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
         const zone = zoneOf(p1Ref.current.orientation, xFrac, yFrac, zoneCount);
-        p1DangerHit = p1Ref.current.dangerZones.includes(zone);
-      }
-
-      if (invertedRef.current && !inPattern2Ref.current) {
-        // 거꾸로 패턴 — 지금 이 순간 빨간 위험구역을 정확히 맞혀야만 안전하다. 패턴1이
-        // 아예 안 나와 있을 때든, 판정 순간에 다른 구역을 눌렀든, 빨간 구역을 정확히
-        // 맞히지 못한 탭은 전부 목숨이 깎인다.
-        if (!p1DangerHit) {
+        if (p1Ref.current.dangerZones.includes(zone)) {
           registerPatternHit(pattern1Penalty);
           return;
         }
-      } else if (p1IsActiveJudgeable && p1DangerHit) {
-        registerPatternHit(pattern1Penalty);
-        return;
       }
 
       const now = Date.now();
@@ -496,6 +562,27 @@ export default function BossBattle({
       checkHpThresholds(nextHp);
     },
     [p2Phase, registerPatternHit, checkHpThresholds, enterFinale]
+  );
+
+  /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원의 논리 좌표와 비교한다.
+   * 원 판정 범위 밖을 눌렀다면 그냥 무시(원 자체의 0.5초 타이머가 놓침을 처리한다). */
+  const handleCircleTap = useCallback(
+    (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (phaseRef.current !== "invertCircles") return;
+      const target = circleTargetRef.current;
+      if (!target) return;
+      e.preventDefault();
+      const rect = tapAreaRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      const rawXFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      const rawYFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      const xFrac = 1 - rawXFrac;
+      const yFrac = 1 - rawYFrac;
+      const dx = (xFrac - target.xFrac) * rect.width;
+      const dy = (yFrac - target.yFrac) * rect.height;
+      if (Math.sqrt(dx * dx + dy * dy) <= CIRCLE_HIT_RADIUS_PX) resolveCircle(true);
+    },
+    [resolveCircle]
   );
 
   const handleFinaleSkill = useCallback(() => {
@@ -540,6 +627,7 @@ export default function BossBattle({
       crossedCheckpoints.current = new Set();
       invertCrossedRef.current = false;
       invertedRef.current = false;
+      invertMissedRef.current = false;
       setInverted(false);
       lastTapAtRef.current = Date.now();
       battleStartRef.current = Date.now();
@@ -551,14 +639,13 @@ export default function BossBattle({
     return () => window.clearTimeout(timer);
   }, [phase, scheduleStage2Pattern2]);
 
-  // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다(거꾸로 패턴 중엔 다시 늦춰짐).
+  // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다.
   useEffect(() => {
     if (phase !== "combat") return;
-    const intervalMs =
-      stage === 1 ? BOSS_BATTLE.pattern1IntervalMs : inverted ? BOSS_PHASE2.invertPattern1IntervalMs : BOSS_PHASE2.pattern1IntervalMs;
+    const intervalMs = stage === 1 ? BOSS_BATTLE.pattern1IntervalMs : BOSS_PHASE2.pattern1IntervalMs;
     const interval = window.setInterval(() => triggerPattern1(), intervalMs);
     return () => window.clearInterval(interval);
-  }, [phase, stage, inverted, triggerPattern1]);
+  }, [phase, stage, triggerPattern1]);
 
   // 콤보 자동 초기화(1.5초 무입력) — 패턴2/체크포인트 진행 중에는 멈춘다.
   useEffect(() => {
@@ -573,9 +660,16 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase]);
 
-  // 제한시간 3분 카운트다운 — 발악/체크포인트/거꾸로 패턴 전환 중에도 계속 흐른다.
+  // 제한시간 3분 카운트다운 — 발악/체크포인트/거꾸로 패턴 중에도 계속 흐른다.
   useEffect(() => {
-    if (phase !== "combat" && phase !== "finale" && phase !== "checkpoint" && phase !== "invertTransition") return;
+    if (
+      phase !== "combat" &&
+      phase !== "finale" &&
+      phase !== "checkpoint" &&
+      phase !== "invertTransition" &&
+      phase !== "invertCircles"
+    )
+      return;
     const interval = window.setInterval(() => {
       const timeLimitMs = stageRef.current === 1 ? BOSS_BATTLE.timeLimitMs : BOSS_PHASE2.timeLimitMs;
       const left = Math.max(0, timeLimitMs - (Date.now() - battleStartRef.current));
@@ -605,7 +699,7 @@ export default function BossBattle({
   // 언마운트 시 남아있는 타이머 정리.
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);
 
-  const showCombat = phase === "combat" || phase === "finale" || phase === "checkpoint";
+  const showCombat = phase === "combat" || phase === "finale" || phase === "checkpoint" || phase === "invertCircles";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
   // 발악/체크포인트 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와
@@ -670,51 +764,68 @@ export default function BossBattle({
             {combo > 0 && <p className="bb-combo">{combo} 콤보</p>}
           </header>
 
-          <button
-            ref={tapAreaRef}
-            className="bb-tap-area"
-            onPointerDown={handleTap}
-            disabled={phase !== "combat"}
-            aria-label="검격 가하기"
-          >
-            {p1.phase !== "idle" && (
-              <div className={`bb-zones bb-zones--${p1.orientation}`}>
-                {Array.from({ length: zoneCount }, (_, z) => z).map((z) => (
-                  <div
-                    key={z}
-                    data-orient={p1.orientation}
-                    data-zone={z}
-                    className={`bb-zone ${
-                      p1.dangerZones.includes(z) ? `bb-zone--danger bb-zone--${p1.phase}` : ""
-                    }`}
-                    style={p1.orientation === "diagonal" ? { clipPath: diagonalZoneClipPath(z, zoneCount) } : undefined}
+          {phase === "invertCircles" ? (
+            <button
+              ref={tapAreaRef}
+              className="bb-tap-area bb-invert-circle-area"
+              onPointerDown={handleCircleTap}
+              aria-label="빨간 원 터치"
+            >
+              {circleTarget && (
+                <div
+                  key={circleTarget.key}
+                  className="bb-invert-circle"
+                  style={{ left: `${circleTarget.xFrac * 100}%`, top: `${circleTarget.yFrac * 100}%` }}
+                />
+              )}
+            </button>
+          ) : (
+            <button
+              ref={tapAreaRef}
+              className="bb-tap-area"
+              onPointerDown={handleTap}
+              disabled={phase !== "combat"}
+              aria-label="검격 가하기"
+            >
+              {p1.phase !== "idle" && (
+                <div className={`bb-zones bb-zones--${p1.orientation}`}>
+                  {Array.from({ length: zoneCount }, (_, z) => z).map((z) => (
+                    <div
+                      key={z}
+                      data-orient={p1.orientation}
+                      data-zone={z}
+                      className={`bb-zone ${
+                        p1.dangerZones.includes(z) ? `bb-zone--danger bb-zone--${p1.phase}` : ""
+                      }`}
+                      style={p1.orientation === "diagonal" ? { clipPath: diagonalZoneClipPath(z, zoneCount) } : undefined}
+                    />
+                  ))}
+                </div>
+              )}
+              {p1.phase === "active" && stage === 2 && (
+                <div className="bb-slash-scale-wrap">
+                  <img
+                    key={p1.id}
+                    className={`bb-slash bb-slash--${p1.orientation}`}
+                    src={SLASH_SRC_PHASE2[p1.orientation]}
+                    style={{ animationDuration: `${BOSS_PHASE2.pattern1ActiveMs}ms` }}
+                    alt=""
                   />
-                ))}
-              </div>
-            )}
-            {p1.phase === "active" && stage === 2 && (
-              <div className="bb-slash-scale-wrap">
+                </div>
+              )}
+              {p1.phase === "active" && stage === 1 && (
                 <img
                   key={p1.id}
                   className={`bb-slash bb-slash--${p1.orientation}`}
-                  src={SLASH_SRC_PHASE2[p1.orientation]}
-                  style={{ animationDuration: `${inverted ? BOSS_PHASE2.invertPattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs}ms` }}
+                  src={SLASH_SRC[p1.orientation]}
+                  style={{ animationDuration: `${BOSS_BATTLE.pattern1ActiveMs}ms` }}
                   alt=""
                 />
-              </div>
-            )}
-            {p1.phase === "active" && stage === 1 && (
-              <img
-                key={p1.id}
-                className={`bb-slash bb-slash--${p1.orientation}`}
-                src={SLASH_SRC[p1.orientation]}
-                style={{ animationDuration: `${BOSS_BATTLE.pattern1ActiveMs}ms` }}
-                alt=""
-              />
-            )}
-            {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
-            {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
-          </button>
+              )}
+              {p2Phase !== "idle" && <div className={`bb-full-warning bb-full-warning--${p2Phase}`} />}
+              {p2Phase === "active" && <img className="bb-full-slash" src={FULL_SLASH_SRC} alt="" />}
+            </button>
+          )}
         </>
       )}
 

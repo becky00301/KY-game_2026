@@ -48,12 +48,26 @@ export const BOSS_DEFEAT_EXIT_MS = 2600;
 /** 2페이즈 HP 50%에서 뜨는 "거꾸로 패턴" 예고 대사(노란빛). */
 export const BOSS_INVERT_LINE = "주의하세요. 서휘령이 모든걸 뒤바꿀거에요. 현실도, 당신의 감각마저도!";
 
-/** 거꾸로 패턴이 시작되는/끝나는 HP 비율(2페이즈 전용). */
+/** 거꾸로 패턴이 시작되는 HP 비율(2페이즈 전용, 1회성 — HP가 이 아래로 떨어지는 순간 한 번만). */
 export const BOSS_INVERT_START_HP = 0.5;
-export const BOSS_INVERT_END_HP = 0.4;
 
-/** 암전 상태로 대사를 읽고, 그동안 패턴이 멈춰 있는 시간. */
+/** 암전 상태로 예고 대사를 읽고, 그동안 모든 패턴이 멈춰 있는 시간. */
 export const BOSS_INVERT_TRANSITION_MS = 2600;
+
+/** 거꾸로 패턴 본체 — 화면이 뒤집힌 채로 맵 곳곳에 빨간 원이 반복해서 나타난다.
+ *   - 원이 뜨고 나서 INVERT_CIRCLE_WINDOW_MS 안에 터치하지 못하면 그 원은 놓친 것으로
+ *     처리되고(목숨 감소), 즉시 다음 원이 새 위치에 뜬다. INVERT_CIRCLE_DURATION_MS
+ *     동안 이 과정이 반복된다.
+ *   - 이 구간에서 하나라도 놓쳤다면, 다 끝난 뒤 그대로 죽는다(즉시 죽는 게 아니라
+ *     원 하나하나는 목숨만 깎고, 10초가 다 지난 시점에 최종적으로 사망 처리된다).
+ *   - 하나도 안 놓치고 전부 맞혔다면, 서휘령이 INVERT_STUN_MS 동안 기절한다 —
+ *     이 사이엔 어떤 패턴도 안 뜨는 순수 프리딜 타임이다.
+ */
+export const BOSS_INVERT_CIRCLE_DURATION_MS = 10000;
+export const BOSS_INVERT_CIRCLE_WINDOW_MS = 500;
+export const BOSS_INVERT_CIRCLE_MISS_PENALTY = 1;
+export const BOSS_INVERT_STUN_MS = 5000;
+export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";
 
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
 export const BOSS_BATTLE = {
@@ -102,11 +116,10 @@ export const BOSS_BATTLE = {
  *     성공/실패해도 전투가 끝나지 않고(실패하면 목숨만 깎이고) 계속 이어지다가,
  *     HP가 0이 되는 순간 그게 곧 최종 승리다. 발악 자체는 1페이즈와 완전히 동일한
  *     사양(링 2.2초, 판정창 1.4초, 한 번만 좁혀짐)이다.
- *   - HP 50%에 도달하면 "거꾸로 패턴" 구간에 들어간다 — 암전과 예고 대사 뒤 화면이
- *     거꾸로 뒤집히고, 지금 활성화된 빨간 위험구역을 정확히 맞혀야만 데미지가 들어가며
- *     그 외(패턴이 안 나와 있을 때 포함) 모든 탭은 목숨이 깎인다. 판정 자체가 워낙
- *     가혹해서, 이 구간만큼은 패턴1 속도를 평소보다 늦춰 최소한의 여유를 준다.
- *     HP 40%에서 원래대로 돌아온다.
+ *   - HP 50%에 도달하면(1회성) "거꾸로 패턴"에 들어간다 — 암전과 예고 대사 뒤 화면이
+ *     거꾸로 뒤집히고, 모든 일반 패턴이 멈춘 채로 10초간 맵 곳곳에 빨간 원이 반복해서
+ *     나타난다. 하나라도 놓치면 10초 뒤 그대로 사망, 전부 맞히면 서휘령이 5초간
+ *     기절해서 순수 프리딜 타임이 된다. 이후 일반 전투로 돌아온다.
  */
 export const BOSS_PHASE2 = {
   maxHp: 1920,
@@ -122,11 +135,6 @@ export const BOSS_PHASE2 = {
   pattern1ActiveMs: 710,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,
-  // 거꾸로 패턴 중에는 "빨간 구역을 정확히 맞혀야만 산다"는 판정 자체가 이미 훨씬
-  // 어렵기 때문에, 패턴1 속도는 평소보다 느긋하게 늦춰서 최소한의 여유를 준다.
-  invertPattern1IntervalMs: 1700,
-  invertPattern1WarnMs: 950,
-  invertPattern1ActiveMs: 1200,
   // 전체패턴 warn 구간 동안은 패턴1이 멈춰서 사실상 프리딜 타임이 된다 — 너무 자주
   // 뜨면 오히려 쉬워지므로 등장 확률(빈도)을 낮게 잡는다.
   pattern2RandomMinMs: 7000,
