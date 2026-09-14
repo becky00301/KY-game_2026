@@ -1887,6 +1887,14 @@ button {
    칼날 중심(이미지 폭의 약 56%)이 화면 중앙에 오도록 --sword-x로 보정한다(bbSwordFloat
    애니메이션이 transform을 덮어쓰므로, 커스텀 프로퍼티를 거쳐야 float와 공존한다). */
 .bb-boss-sword--phase2 { --sword-x: -56.1%; }
+/* 거꾸로 패턴 성공 후 기절 상태 — 검이 노란빛으로 은은하게 맥동해 프리딜 타임임을
+   바로 알 수 있게 한다. bbSwordFloat과 별개 애니메이션이라 둥실거리는 움직임은
+   그대로 유지된다. */
+.bb-boss-sword--stunned { animation: bbSwordFloat 3.2s ease-in-out infinite, bbSwordStunPulse 700ms ease-in-out infinite; }
+@keyframes bbSwordStunPulse {
+  0%, 100% { filter: drop-shadow(0 12px 30px #000a) drop-shadow(0 0 18px rgba(255, 214, 64, .7)) drop-shadow(0 0 34px rgba(255, 214, 64, .4)); }
+  50% { filter: drop-shadow(0 12px 30px #000a) drop-shadow(0 0 32px rgba(255, 214, 64, 1)) drop-shadow(0 0 56px rgba(255, 214, 64, .75)); }
+}
 
 .bb-intro { position: absolute; inset: 0; z-index: 25; display: flex; align-items: center; justify-content: center; background: #000; padding: 0 32px; }
 .bb-intro-line { color: #dcfff4; font-size: 19px; line-height: 1.7; text-align: center; animation: fadeIn .6s ease; }

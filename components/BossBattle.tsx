@@ -14,6 +14,7 @@ import {
   BOSS_INVERT_LINE,
   BOSS_INVERT_START_HP,
   BOSS_INVERT_STUN_LINE,
+  BOSS_INVERT_STUN_BUFFER_MS,
   BOSS_INVERT_STUN_MS,
   BOSS_INVERT_TRANSITION_MS,
   BOSS_LINE_DISPLAY_MS,
@@ -103,6 +104,8 @@ export default function BossBattle({
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
+  // 거꾸로 패턴 성공 후 서휘령이 기절해 있는 동안 검이 노란빛으로 빛난다.
+  const [stunned, setStunned] = useState(false);
   const [circleTargets, setCircleTargets] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
   // 원을 맞혔을 때 그 자리에 잠깐 떴다가 사라지는 초록빛 확인 표시 — 게임 로직과는
   // 무관한 순수 연출용이라 별도 상태로 둔다.
@@ -120,6 +123,9 @@ export default function BossBattle({
   const battleStartRef = useRef(0);
   const finaleStartRef = useRef(0);
   const checkpointStartRef = useRef(0);
+  // 발악/체크포인트 스킬 버튼 — 한 번 쓰면 즉시 잠가서, 결과 연출이 나오는 동안
+  // 연타해도 중복으로 처리되지 않게 한다.
+  const skillLockRef = useRef(false);
   const inPattern2Ref = useRef(false);
   const inCheckpointRef = useRef(false);
   // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
@@ -221,8 +227,13 @@ export default function BossBattle({
       return;
     }
     showBossLine(BOSS_INVERT_STUN_LINE, "success");
-    // 기절 동안은 기존 "패턴 휴식" 타이머를 그대로 활용해 모든 패턴을 막는다.
-    nextPatternAllowedAtRef.current = Date.now() + BOSS_INVERT_STUN_MS;
+    setStunned(true);
+    // 기절 동안(+ 끝난 뒤 여유시간)은 기존 "패턴 휴식" 타이머를 그대로 활용해 모든 패턴을
+    // 막는다. 검의 노란빛은 STUN_MS에 정확히 꺼지지만, 패턴은 그보다 BUFFER_MS만큼
+    // 더 늦게 재개되어 기절이 끝났다는 걸 인지할 여유를 준다.
+    nextPatternAllowedAtRef.current = Date.now() + BOSS_INVERT_STUN_MS + BOSS_INVERT_STUN_BUFFER_MS;
+    const stunOffTimer = window.setTimeout(() => setStunned(false), BOSS_INVERT_STUN_MS);
+    pendingTimers.current.push(stunOffTimer);
     lastTapAtRef.current = Date.now();
     phaseRef.current = "combat";
     setPhase("combat");
@@ -316,6 +327,7 @@ export default function BossBattle({
     setP2Phase("idle");
     phaseRef.current = "finale";
     setPhase("finale");
+    skillLockRef.current = false;
     finaleStartRef.current = Date.now();
     const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
     const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.checkpointWindowMs;
@@ -388,6 +400,7 @@ export default function BossBattle({
     setP2Phase("idle");
     phaseRef.current = "checkpoint";
     setPhase("checkpoint");
+    skillLockRef.current = false;
     checkpointStartRef.current = Date.now();
     const { end } = timingWindow(BOSS_PHASE2.checkpointRingDurationMs, BOSS_PHASE2.checkpointWindowMs);
     const timer = window.setTimeout(() => resolveCheckpoint(false), end + 60);
@@ -607,7 +620,8 @@ export default function BossBattle({
   );
 
   const handleFinaleSkill = useCallback(() => {
-    if (phaseRef.current !== "finale") return;
+    if (phaseRef.current !== "finale" || skillLockRef.current) return;
+    skillLockRef.current = true;
     const elapsed = Date.now() - finaleStartRef.current;
     const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
     const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.checkpointWindowMs;
@@ -617,7 +631,8 @@ export default function BossBattle({
   }, [endBattle]);
 
   const handleCheckpointSkill = useCallback(() => {
-    if (phaseRef.current !== "checkpoint") return;
+    if (phaseRef.current !== "checkpoint" || skillLockRef.current) return;
+    skillLockRef.current = true;
     const elapsed = Date.now() - checkpointStartRef.current;
     const { start, end } = timingWindow(BOSS_PHASE2.checkpointRingDurationMs, BOSS_PHASE2.checkpointWindowMs);
     resolveCheckpoint(elapsed >= start && elapsed <= end);
@@ -741,7 +756,7 @@ export default function BossBattle({
         style={stage === 2 ? { backgroundImage: `linear-gradient(#00100f55, #000c), url('${BOSS_PHASE2_ASSETS.battleBgSrc}')` } : undefined}
       />
       <img
-        className={`bb-boss-sword ${stage === 2 ? "bb-boss-sword--phase2" : ""}`}
+        className={`bb-boss-sword ${stage === 2 ? "bb-boss-sword--phase2" : ""} ${stunned ? "bb-boss-sword--stunned" : ""}`}
         src={stage === 2 ? BOSS_PHASE2_ASSETS.swordSrc : "/images/boss/boss-map-sword.webp"}
         alt=""
         aria-hidden

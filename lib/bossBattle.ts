@@ -68,7 +68,10 @@ export const BOSS_INVERT_CIRCLE_DURATION_MS = 10000;
 export const BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS = 900;
 export const BOSS_INVERT_CIRCLE_WINDOW_MS = 1700;
 export const BOSS_INVERT_CIRCLE_MISS_PENALTY = 1;
+/** 기절 지속시간 — 이 동안 검이 노란빛으로 빛나 한눈에 기절 상태임을 알 수 있다. */
 export const BOSS_INVERT_STUN_MS = 5000;
+/** 기절이 풀린 뒤에도 이만큼은 패턴이 나오지 않는다 — 기절 종료를 인지할 여유를 준다. */
+export const BOSS_INVERT_STUN_BUFFER_MS = 500;
 export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";
 
 /** 1페이즈 — 전부 임시값, 실제 플레이테스트 후 조정 권장. */
