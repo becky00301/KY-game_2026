@@ -104,9 +104,9 @@ export default function BossBattle({
   // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
   // 판정 순간만 true — 나머지는 이펙트만 보이는 잔상 구간이다.
   const p2JudgeableRef = useRef(false);
-  // 2페이즈 HP 50~40% 구간 — "뒤바뀐 현실". 화면이 거꾸로 뒤집히고 패턴1 판정이 반전된다.
+  // 2페이즈 HP 50~40% 구간 — "거꾸로 패턴". 화면이 거꾸로 뒤집히고 패턴1 판정이 반전된다.
   const invertedRef = useRef(false);
-  // 뒤바뀐 현실 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다(되돌아간 뒤에도).
+  // 거꾸로 패턴 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다(되돌아간 뒤에도).
   const invertCrossedRef = useRef(false);
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
   // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
@@ -157,7 +157,7 @@ export default function BossBattle({
     showBossLine(BOSS_SUCCESS_LINES[Math.floor(Math.random() * BOSS_SUCCESS_LINES.length)], "success");
   }, [showBossLine]);
 
-  /** 2페이즈 HP 50% — "뒤바뀐 현실" 진입. 암전+예고 대사 동안 패턴을 멈췄다가, 화면이
+  /** 2페이즈 HP 50% — "거꾸로 패턴" 진입. 암전+예고 대사 동안 패턴을 멈췄다가, 화면이
    * 뒤집힌 채로 전투를 재개한다(판정 반전은 handleTap에서 처리). */
   const enterInvertTransition = useCallback(() => {
     clearPendingTimers();
@@ -342,7 +342,7 @@ export default function BossBattle({
 
   const checkHpThresholds = useCallback(
     (nextHp: number) => {
-      // 뒤바뀐 현실에서 원래대로 되돌아가는 건 다른 패턴 진행 여부와 무관하게 즉시 처리한다.
+      // 거꾸로 패턴에서 원래대로 되돌아가는 건 다른 패턴 진행 여부와 무관하게 즉시 처리한다.
       if (stageRef.current === 2 && invertedRef.current && nextHp < BOSS_INVERT_END_HP * BOSS_PHASE2.maxHp) {
         invertedRef.current = false;
         setInverted(false);
@@ -429,7 +429,7 @@ export default function BossBattle({
       if (!rect || rect.width === 0 || rect.height === 0) return;
       let xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
       let yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
-      // 뒤바뀐 현실에서는 화면이 180도 뒤집혀 있으니, 보이는 위치와 논리 좌표가 맞도록
+      // 거꾸로 패턴에서는 화면이 180도 뒤집혀 있으니, 보이는 위치와 논리 좌표가 맞도록
       // 탭 좌표도 같이 뒤집어준다(그래야 눈에 보이는 빨간 구역을 정확히 노려 누를 수 있다).
       if (invertedRef.current) {
         xFrac = 1 - xFrac;
@@ -443,17 +443,26 @@ export default function BossBattle({
         registerPatternHit(pattern2Penalty);
         return;
       }
-      if (p1Ref.current.phase === "active" && p1Ref.current.judgeable) {
+
+      let p1DangerHit = false;
+      const p1IsActiveJudgeable = p1Ref.current.phase === "active" && p1Ref.current.judgeable;
+      if (p1IsActiveJudgeable) {
         const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
         const zone = zoneOf(p1Ref.current.orientation, xFrac, yFrac, zoneCount);
-        const isDangerZone = p1Ref.current.dangerZones.includes(zone);
-        // 뒤바뀐 현실에서는 판정이 반전된다 — 빨간 위험구역을 터치해야 정상 공격(데미지)이
-        // 들어가고, 반대로 아무것도 없는 빈 구역을 터치하면 목숨이 깎인다.
-        const shouldPenalize = invertedRef.current ? !isDangerZone : isDangerZone;
-        if (shouldPenalize) {
+        p1DangerHit = p1Ref.current.dangerZones.includes(zone);
+      }
+
+      if (invertedRef.current && !inPattern2Ref.current) {
+        // 거꾸로 패턴 — 지금 이 순간 빨간 위험구역을 정확히 맞혀야만 안전하다. 패턴1이
+        // 아예 안 나와 있을 때든, 판정 순간에 다른 구역을 눌렀든, 빨간 구역을 정확히
+        // 맞히지 못한 탭은 전부 목숨이 깎인다.
+        if (!p1DangerHit) {
           registerPatternHit(pattern1Penalty);
           return;
         }
+      } else if (p1IsActiveJudgeable && p1DangerHit) {
+        registerPatternHit(pattern1Penalty);
+        return;
       }
 
       const now = Date.now();
@@ -561,7 +570,7 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase]);
 
-  // 제한시간 3분 카운트다운 — 발악/체크포인트/뒤바뀐 현실 전환 중에도 계속 흐른다.
+  // 제한시간 3분 카운트다운 — 발악/체크포인트/거꾸로 패턴 전환 중에도 계속 흐른다.
   useEffect(() => {
     if (phase !== "combat" && phase !== "finale" && phase !== "checkpoint" && phase !== "invertTransition") return;
     const interval = window.setInterval(() => {
