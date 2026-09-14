@@ -75,8 +75,8 @@ const SLASH_SRC_PHASE2: Record<Orientation, string> = {
 /** 1·2페이즈 공통 — 패턴2(전체판정) active 구간에 뜨는 화면 전체 공격 이펙트. */
 const FULL_SLASH_SRC = "/images/boss-battle/full-slash-downstrike.png";
 
-/** 거꾸로 패턴 — 빨간 원의 판정 반경(px). CSS의 원 지름(80px)에 약간의 여유를 더했다. */
-const CIRCLE_HIT_RADIUS_PX = 50;
+/** 거꾸로 패턴 — 빨간 원의 판정 반경(px). CSS의 원 지름(120px)에 약간의 여유를 더했다. */
+const CIRCLE_HIT_RADIUS_PX = 72;
 
 /**
  * 서휘령 실전 전투 — 3초 암전 대사로 시작해, 콤보 기반 딜링과 두 가지 회피 패턴을 거쳐
@@ -104,6 +104,9 @@ export default function BossBattle({
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
   const [circleTargets, setCircleTargets] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
+  // 원을 맞혔을 때 그 자리에 잠깐 떴다가 사라지는 초록빛 확인 표시 — 게임 로직과는
+  // 무관한 순수 연출용이라 별도 상태로 둔다.
+  const [hitEffects, setHitEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -229,9 +232,17 @@ export default function BossBattle({
    * 자신의 반복 예약이 담당하므로, 여기선 마지막 원까지 다 정리됐는지만 확인한다. */
   const resolveCircle = useCallback(
     (id: number, hit: boolean) => {
-      if (!circleTargetsRef.current.some((c) => c.key === id)) return;
+      const target = circleTargetsRef.current.find((c) => c.key === id);
+      if (!target) return;
       circleTargetsRef.current = circleTargetsRef.current.filter((c) => c.key !== id);
       setCircleTargets(circleTargetsRef.current);
+      if (hit) {
+        setHitEffects((prev) => [...prev, { key: target.key, xFrac: target.xFrac, yFrac: target.yFrac }]);
+        const hitTimer = window.setTimeout(() => {
+          setHitEffects((prev) => prev.filter((h) => h.key !== target.key));
+        }, 380);
+        pendingTimers.current.push(hitTimer);
+      }
       if (!hit) {
         invertMissedRef.current = true;
         triggerFlash("hit");
@@ -790,6 +801,13 @@ export default function BossBattle({
                     top: `${c.yFrac * 100}%`,
                     animationDuration: `${BOSS_INVERT_CIRCLE_WINDOW_MS}ms`,
                   }}
+                />
+              ))}
+              {hitEffects.map((h) => (
+                <div
+                  key={h.key}
+                  className="bb-invert-hit"
+                  style={{ left: `${h.xFrac * 100}%`, top: `${h.yFrac * 100}%` }}
                 />
               ))}
             </button>
