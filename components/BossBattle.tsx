@@ -268,6 +268,8 @@ export default function BossBattle({
    * 자신의 반복 예약이 담당하므로, 여기선 마지막 원까지 다 정리됐는지만 확인한다. */
   const resolveCircle = useCallback(
     (id: number, hit: boolean) => {
+      // 거꾸로 패턴이 아닌 동안 뒤늦게 발동하는 유령 타이머는 절대 처리하지 않는다.
+      if (phaseRef.current !== "invertCircles") return;
       const target = circleTargetsRef.current.find((c) => c.key === id);
       if (!target) return;
       circleTargetsRef.current = circleTargetsRef.current.filter((c) => c.key !== id);
@@ -316,10 +318,15 @@ export default function BossBattle({
       resolveCircle(myId, false);
     }, BOSS_INVERT_CIRCLE_WINDOW_MS);
     pendingTimers.current.push(missTimer);
-    if (Date.now() < invertSeqEndAtRef.current) {
-      const spawnTimer = window.setTimeout(() => spawnCircle(), BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS);
-      pendingTimers.current.push(spawnTimer);
-    }
+    // 다음 원을 띄울지는 "지금(예약 시점)"이 아니라 실제로 타이머가 발동하는 시점에
+    // 다시 확인해야 한다 — 예약 시점에만 확인하면, 시퀀스 종료 시각 직전에 마지막 원이
+    // 뜨면서 예약해둔 다음 스폰이 종료 시각을 한참 지난 뒤(기절 상태에서) 뒤늦게
+    // 발동해 버린다. 그 유령 원은 화면엔 안 보이지만 목숨은 실제로 깎아서, 기절 중
+    // 아무것도 안 눌렀는데 갑자기 데스카운트가 줄거나 죽는 원인이었다.
+    const spawnTimer = window.setTimeout(() => {
+      if (phaseRef.current === "invertCircles" && Date.now() < invertSeqEndAtRef.current) spawnCircle();
+    }, BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS);
+    pendingTimers.current.push(spawnTimer);
   }, [resolveCircle]);
 
   /** 2페이즈 HP 50% — "거꾸로 패턴" 진입. 암전+예고 대사 동안 모든 패턴을 멈췄다가,
