@@ -528,6 +528,11 @@ export default function BossBattle({
 
   const triggerPattern1 = useCallback(() => {
     if (inPattern2Ref.current || inCheckpointRef.current) return;
+    // 패턴1의 반복 주기(intervalMs)가 예고+판정 전체 길이(warnMs+activeMs)보다 짧아서,
+    // 이 가드가 없으면 이전 패턴이 채 안 끝났는데 다음 패턴이 겹쳐 덮어써 버린다 —
+    // 경고 없이 갑자기 위험구역이 바뀌거나, 베기 이펙트가 끝까지 재생되지 못하고
+    // 잘리는 원인이었다.
+    if (p1Ref.current.phase !== "idle") return;
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
     if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
     maybeShowPatternTaunt();
