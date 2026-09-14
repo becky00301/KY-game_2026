@@ -82,8 +82,8 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
       revealKicker: () => "비술이 강화되며, 숨겨진 이야기가 드러났다.",
       unlockLabel: (n) => `${n}번째 이야기 개방`,
       continueLabel: "계속 단련하기",
-      tapHint: (n) => `모두의 염원이 ${n}만큼 모여있습니다.`,
-      contribLine: (n) => `나의 염원 : ${n}`,
+      tapHint: (n) => `모두가 검을 ${n}번 두드렸습니다.`, // 값은 전체 터치 수 (재화 아님)
+      contribLine: (n) => `내가 두드린 횟수 : ${n}번`,
       feverIdle: (pct) => `여명의 빛이 밝을 때까지 ${pct}%`,
       feverActiveText: "여명이 찾아오며, 염원 획득량이 3배가 된다.",
     },
@@ -125,8 +125,8 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
       revealKicker: () => "검술 업그레이드 완료. 비화를 공개합니다.",
       unlockLabel: (n) => `${n}번째 이야기 개방`,
       continueLabel: "계속 단련하기",
-      tapHint: (n) => `모두의 데이터가 ${n}만큼 수집되었습니다.`,
-      contribLine: (n) => `나의 데이터 : ${n}`,
+      tapHint: (n) => `누적 타격 기록 : ${n}회`, // 값은 전체 터치 수 (재화 아님)
+      contribLine: (n) => `나의 타격 기록 : ${n}회`,
       feverIdle: (pct) => `폭주 시스템 가동까지 ${pct}%`,
       feverActiveText: "폭주 시스템 가동. 데이터를 3배 획득합니다.",
     },
