@@ -383,8 +383,10 @@ export default function BossBattle({
     maybeShowPatternTaunt();
     const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
-    const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
-    const activeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
+    const warnMs =
+      stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : invertedRef.current ? BOSS_PHASE2.invertPattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
+    const activeMs =
+      stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : invertedRef.current ? BOSS_PHASE2.invertPattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
     const judgeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1JudgeMs : BOSS_PHASE2.pattern1JudgeMs;
     const orientation = pickOrientation();
     const dangerZones = pickDangerZones(zoneCount, dangerZoneCount);
@@ -549,13 +551,14 @@ export default function BossBattle({
     return () => window.clearTimeout(timer);
   }, [phase, scheduleStage2Pattern2]);
 
-  // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다.
+  // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다(거꾸로 패턴 중엔 다시 늦춰짐).
   useEffect(() => {
     if (phase !== "combat") return;
-    const intervalMs = stage === 1 ? BOSS_BATTLE.pattern1IntervalMs : BOSS_PHASE2.pattern1IntervalMs;
+    const intervalMs =
+      stage === 1 ? BOSS_BATTLE.pattern1IntervalMs : inverted ? BOSS_PHASE2.invertPattern1IntervalMs : BOSS_PHASE2.pattern1IntervalMs;
     const interval = window.setInterval(() => triggerPattern1(), intervalMs);
     return () => window.clearInterval(interval);
-  }, [phase, stage, triggerPattern1]);
+  }, [phase, stage, inverted, triggerPattern1]);
 
   // 콤보 자동 초기화(1.5초 무입력) — 패턴2/체크포인트 진행 중에는 멈춘다.
   useEffect(() => {
@@ -695,7 +698,7 @@ export default function BossBattle({
                   key={p1.id}
                   className={`bb-slash bb-slash--${p1.orientation}`}
                   src={SLASH_SRC_PHASE2[p1.orientation]}
-                  style={{ animationDuration: `${BOSS_PHASE2.pattern1ActiveMs}ms` }}
+                  style={{ animationDuration: `${inverted ? BOSS_PHASE2.invertPattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs}ms` }}
                   alt=""
                 />
               </div>
