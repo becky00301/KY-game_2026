@@ -1867,6 +1867,19 @@ button {
   55% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
 }
+/* 원을 놓쳤을 때 그 자리에 남는 표시 — 화면 전체를 덮는 플래시 대신 국소적으로만
+   보여줘서, 여러 원을 한꺼번에 놓쳐도 이펙트가 우르르 겹치지 않는다. */
+.bb-invert-miss {
+  position: absolute; width: 100px; height: 100px; border-radius: 50%;
+  transform: translate(-50%, -50%); pointer-events: none;
+  border: 4px solid rgba(255, 255, 255, .8); box-shadow: 0 0 18px rgba(120, 120, 120, .5);
+  background: transparent;
+  animation: bbInvertMissFade 380ms ease-out forwards;
+}
+@keyframes bbInvertMissFade {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: .8; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
 .bb-bg {
   position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(#00100f55, #000c), url('/images/boss-battle/battle-bg.webp') center / cover;

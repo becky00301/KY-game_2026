@@ -110,6 +110,8 @@ export default function BossBattle({
   // 원을 맞혔을 때 그 자리에 잠깐 떴다가 사라지는 초록빛 확인 표시 — 게임 로직과는
   // 무관한 순수 연출용이라 별도 상태로 둔다.
   const [hitEffects, setHitEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
+  // 원을 놓쳤을 때 그 자리에 잠깐 남는 표시 — 화면 전체 플래시 대신 국소적으로만 보여준다.
+  const [missEffects, setMissEffects] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -151,6 +153,10 @@ export default function BossBattle({
     const restMs = stageRef.current === 1 ? BOSS_BATTLE.patternRestMs : BOSS_PHASE2.patternRestMs;
     nextPatternAllowedAtRef.current = Date.now() + restMs;
   }, []);
+  // 거꾸로 패턴 기절 종료 후의 여유시간 전용 잠금 — nextPatternAllowedAtRef는 패턴이
+  // 하나 끝날 때마다 grantPatternRest로 계속 짧게 덮어써지므로, 기절 여유시간만큼은
+  // 이 값과 별개로 확실하게 패턴을 막기 위해 따로 둔다.
+  const invertBufferUntilRef = useRef(0);
   const p1Ref = useRef<Pattern1State>(IDLE_PATTERN1);
   const crossedThresholds = useRef<Set<number>>(new Set());
   const crossedCheckpoints = useRef<Set<number>>(new Set());
@@ -228,10 +234,12 @@ export default function BossBattle({
     }
     showBossLine(BOSS_INVERT_STUN_LINE, "success");
     setStunned(true);
-    // 기절 동안(+ 끝난 뒤 여유시간)은 기존 "패턴 휴식" 타이머를 그대로 활용해 모든 패턴을
-    // 막는다. 검의 노란빛은 STUN_MS에 정확히 꺼지지만, 패턴은 그보다 BUFFER_MS만큼
-    // 더 늦게 재개되어 기절이 끝났다는 걸 인지할 여유를 준다.
-    nextPatternAllowedAtRef.current = Date.now() + BOSS_INVERT_STUN_MS + BOSS_INVERT_STUN_BUFFER_MS;
+    // 검의 노란빛은 STUN_MS에 정확히 꺼지지만, 패턴은 그보다 BUFFER_MS만큼 더 늦게
+    // 재개되어 기절이 끝났다는 걸 인지할 여유를 준다. nextPatternAllowedAtRef는 패턴이
+    // 자연 종료될 때마다 짧게 덮어써지니, 이 여유시간은 invertBufferUntilRef로 따로 막는다.
+    const patternsResumeAt = Date.now() + BOSS_INVERT_STUN_MS + BOSS_INVERT_STUN_BUFFER_MS;
+    nextPatternAllowedAtRef.current = patternsResumeAt;
+    invertBufferUntilRef.current = patternsResumeAt;
     const stunOffTimer = window.setTimeout(() => setStunned(false), BOSS_INVERT_STUN_MS);
     pendingTimers.current.push(stunOffTimer);
     lastTapAtRef.current = Date.now();
@@ -256,12 +264,18 @@ export default function BossBattle({
       }
       if (!hit) {
         invertMissedRef.current = true;
-        triggerFlash("hit");
+        // 여러 원이 겹쳐서 뜨는 구조라 한꺼번에 여러 개를 놓칠 수 있다 — 화면 전체를
+        // 덮는 피격 플래시나 대사를 매번 띄우면 우르르 겹쳐 보이므로, 놓친 그 자리에만
+        // 조용히 표시를 남긴다(목숨은 HUD의 데스카운트 아이콘으로 바로 확인된다).
+        setMissEffects((prev) => [...prev, { key: target.key, xFrac: target.xFrac, yFrac: target.yFrac }]);
+        const missTimer = window.setTimeout(() => {
+          setMissEffects((prev) => prev.filter((m) => m.key !== target.key));
+        }, 380);
+        pendingTimers.current.push(missTimer);
         const prev = deathCountRef.current;
         const next = Math.max(0, prev - BOSS_INVERT_CIRCLE_MISS_PENALTY);
         deathCountRef.current = next;
         setDeathCount(next);
-        if (next < prev) showBossLine(BOSS_DEATH_TAUNT_LINES[Math.floor(Math.random() * BOSS_DEATH_TAUNT_LINES.length)]);
         if (next <= 0) {
           endBattle(false);
           return;
@@ -269,7 +283,7 @@ export default function BossBattle({
       }
       if (Date.now() >= invertSeqEndAtRef.current && circleTargetsRef.current.length === 0) finishInvertCircles();
     },
-    [endBattle, triggerFlash, showBossLine, finishInvertCircles]
+    [endBattle, finishInvertCircles]
   );
 
   /** 거꾸로 패턴 — 맵 위 랜덤한 위치에 새 빨간 원을 띄우고, 시퀀스가 끝나기 전까지
@@ -410,6 +424,7 @@ export default function BossBattle({
   const triggerPattern2 = useCallback(() => {
     if (inCheckpointRef.current) return; // 체크포인트 중엔 전체패턴이 끼어들지 않는다.
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
+    if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
     maybeShowPatternTaunt();
     inPattern2Ref.current = true;
     setP2Phase("warn");
@@ -465,6 +480,7 @@ export default function BossBattle({
     (nextHp: number) => {
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
       if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
+      if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
       if (stageRef.current === 1) {
         for (const t of BOSS_BATTLE.pattern2Thresholds) {
           const absolute = t * BOSS_BATTLE.maxHp;
@@ -496,6 +512,7 @@ export default function BossBattle({
   const triggerPattern1 = useCallback(() => {
     if (inPattern2Ref.current || inCheckpointRef.current) return;
     if (Date.now() < nextPatternAllowedAtRef.current) return; // 다른 패턴이 끝난 직후 휴식시간
+    if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
     maybeShowPatternTaunt();
     const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
     const dangerZoneCount = stageRef.current === 1 ? BOSS_BATTLE.dangerZoneCount : BOSS_PHASE2.dangerZoneCount;
@@ -823,6 +840,13 @@ export default function BossBattle({
                   key={h.key}
                   className="bb-invert-hit"
                   style={{ left: `${h.xFrac * 100}%`, top: `${h.yFrac * 100}%` }}
+                />
+              ))}
+              {missEffects.map((m) => (
+                <div
+                  key={m.key}
+                  className="bb-invert-miss"
+                  style={{ left: `${m.xFrac * 100}%`, top: `${m.yFrac * 100}%` }}
                 />
               ))}
             </button>
