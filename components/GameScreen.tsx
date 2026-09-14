@@ -172,6 +172,8 @@ export default function GameScreen({
   const feverActive = isFeverActive(sword);
   const maxStage = theme.stages.length - 1;
   const isMaxStage = stage >= maxStage;
+  // 보스전은 최종 단계 + 별 1개부터. 버튼은 늘 보이되, 잠겨 있으면 흐리게 보여준다.
+  const bossUnlocked = isMaxStage && stars >= 1;
 
   const enterBoss = useCallback(() => {
     const current = swordStateRef.current;
@@ -603,7 +605,7 @@ export default function GameScreen({
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
           <div className="stage-hint">{stageHintText}</div>
-          <button ref={bossEntryRef} className="boss-entry-btn" onClick={enterBoss} disabled={!ready}>
+          <button ref={bossEntryRef} className={`boss-entry-btn ${bossUnlocked ? "" : "locked"}`} onClick={enterBoss} disabled={!ready}>
             <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
           </button>
         </div>
