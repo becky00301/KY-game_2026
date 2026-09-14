@@ -1827,7 +1827,11 @@ button {
 .bb-root {
   position: fixed; inset: 0; z-index: 60; height: 100dvh; overflow: hidden;
   background: #04100e; isolation: isolate;
+  transition: transform .6s ease;
 }
+/* 2페이즈 HP 50~40% "뒤바뀐 현실" — 화면 전체(배경·검·HUD·탭 영역)가 거꾸로 뒤집힌다.
+   판정 좌표는 컴포넌트 쪽에서 같이 뒤집어 보정한다. */
+.bb-inverted { transform: rotate(180deg); }
 .bb-bg {
   position: absolute; inset: 0; z-index: -1;
   background: linear-gradient(#00100f55, #000c), url('/images/boss-battle/battle-bg.webp') center / cover;

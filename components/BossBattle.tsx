@@ -7,6 +7,10 @@ import {
   BOSS_DEATH_TAUNT_LINES,
   BOSS_DEFEAT_EXIT_MS,
   BOSS_DEFEAT_LINE,
+  BOSS_INVERT_END_HP,
+  BOSS_INVERT_LINE,
+  BOSS_INVERT_START_HP,
+  BOSS_INVERT_TRANSITION_MS,
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
@@ -24,7 +28,7 @@ import {
 import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
 import { setBossBgmPhase2 } from "@/lib/bgm";
 
-type Phase = "intro" | "combat" | "finale" | "checkpoint" | "result" | "blackout" | "phase2Intro";
+type Phase = "intro" | "combat" | "finale" | "checkpoint" | "result" | "blackout" | "phase2Intro" | "invertTransition";
 type SubPhase = "idle" | "warn" | "active";
 type Stage = 1 | 2;
 
@@ -81,6 +85,7 @@ export default function BossBattle({
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
+  const [inverted, setInverted] = useState(false);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -99,6 +104,10 @@ export default function BossBattle({
   // 패턴2(전체판정)도 패턴1과 동일하게, active인 전체 구간 중 실제로 맞을 수 있는 짧은
   // 판정 순간만 true — 나머지는 이펙트만 보이는 잔상 구간이다.
   const p2JudgeableRef = useRef(false);
+  // 2페이즈 HP 50~40% 구간 — "뒤바뀐 현실". 화면이 거꾸로 뒤집히고 패턴1 판정이 반전된다.
+  const invertedRef = useRef(false);
+  // 뒤바뀐 현실 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다(되돌아간 뒤에도).
+  const invertCrossedRef = useRef(false);
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
   // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
   const nextPatternAllowedAtRef = useRef(0);
@@ -147,6 +156,30 @@ export default function BossBattle({
   const showSuccessLine = useCallback(() => {
     showBossLine(BOSS_SUCCESS_LINES[Math.floor(Math.random() * BOSS_SUCCESS_LINES.length)], "success");
   }, [showBossLine]);
+
+  /** 2페이즈 HP 50% — "뒤바뀐 현실" 진입. 암전+예고 대사 동안 패턴을 멈췄다가, 화면이
+   * 뒤집힌 채로 전투를 재개한다(판정 반전은 handleTap에서 처리). */
+  const enterInvertTransition = useCallback(() => {
+    clearPendingTimers();
+    inPattern2Ref.current = false;
+    inCheckpointRef.current = false;
+    p2JudgeableRef.current = false;
+    p1Ref.current = IDLE_PATTERN1;
+    setP1(IDLE_PATTERN1);
+    setP2Phase("idle");
+    phaseRef.current = "invertTransition";
+    setPhase("invertTransition");
+    showBossLine(BOSS_INVERT_LINE, "success");
+    const timer = window.setTimeout(() => {
+      invertedRef.current = true;
+      setInverted(true);
+      lastTapAtRef.current = Date.now();
+      grantPatternRest();
+      phaseRef.current = "combat";
+      setPhase("combat");
+    }, BOSS_INVERT_TRANSITION_MS);
+    pendingTimers.current.push(timer);
+  }, [clearPendingTimers, showBossLine, grantPatternRest]);
 
   const endBattle = useCallback(
     (win: boolean, flashKind?: "hit" | "success" | "finale-fail") => {
@@ -309,6 +342,11 @@ export default function BossBattle({
 
   const checkHpThresholds = useCallback(
     (nextHp: number) => {
+      // 뒤바뀐 현실에서 원래대로 되돌아가는 건 다른 패턴 진행 여부와 무관하게 즉시 처리한다.
+      if (stageRef.current === 2 && invertedRef.current && nextHp < BOSS_INVERT_END_HP * BOSS_PHASE2.maxHp) {
+        invertedRef.current = false;
+        setInverted(false);
+      }
       if (inPattern2Ref.current || inCheckpointRef.current) return; // 겹침 방지 규칙 1
       if (Date.now() < nextPatternAllowedAtRef.current) return; // 휴식시간 — 다음 탭에서 다시 확인
       if (stageRef.current === 1) {
@@ -321,6 +359,11 @@ export default function BossBattle({
           }
         }
       } else {
+        if (!invertCrossedRef.current && !invertedRef.current && nextHp < BOSS_INVERT_START_HP * BOSS_PHASE2.maxHp) {
+          invertCrossedRef.current = true;
+          enterInvertTransition();
+          return;
+        }
         for (const t of BOSS_PHASE2.checkpointThresholds) {
           const absolute = t * BOSS_PHASE2.maxHp;
           if (nextHp < absolute && !crossedCheckpoints.current.has(t)) {
@@ -331,7 +374,7 @@ export default function BossBattle({
         }
       }
     },
-    [triggerPattern2, enterCheckpoint]
+    [triggerPattern2, enterCheckpoint, enterInvertTransition]
   );
 
   const triggerPattern1 = useCallback(() => {
@@ -384,8 +427,14 @@ export default function BossBattle({
       e.preventDefault();
       const rect = tapAreaRef.current?.getBoundingClientRect();
       if (!rect || rect.width === 0 || rect.height === 0) return;
-      const xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-      const yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      let xFrac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+      let yFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+      // 뒤바뀐 현실에서는 화면이 180도 뒤집혀 있으니, 보이는 위치와 논리 좌표가 맞도록
+      // 탭 좌표도 같이 뒤집어준다(그래야 눈에 보이는 빨간 구역을 정확히 노려 누를 수 있다).
+      if (invertedRef.current) {
+        xFrac = 1 - xFrac;
+        yFrac = 1 - yFrac;
+      }
 
       const pattern2Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern2DeathPenalty : BOSS_PHASE2.pattern2DeathPenalty;
       const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
@@ -397,7 +446,11 @@ export default function BossBattle({
       if (p1Ref.current.phase === "active" && p1Ref.current.judgeable) {
         const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
         const zone = zoneOf(p1Ref.current.orientation, xFrac, yFrac, zoneCount);
-        if (p1Ref.current.dangerZones.includes(zone)) {
+        const isDangerZone = p1Ref.current.dangerZones.includes(zone);
+        // 뒤바뀐 현실에서는 판정이 반전된다 — 빨간 위험구역을 터치해야 정상 공격(데미지)이
+        // 들어가고, 반대로 아무것도 없는 빈 구역을 터치하면 목숨이 깎인다.
+        const shouldPenalize = invertedRef.current ? !isDangerZone : isDangerZone;
+        if (shouldPenalize) {
           registerPatternHit(pattern1Penalty);
           return;
         }
@@ -474,6 +527,9 @@ export default function BossBattle({
       comboRef.current = 0;
       setCombo(0);
       crossedCheckpoints.current = new Set();
+      invertCrossedRef.current = false;
+      invertedRef.current = false;
+      setInverted(false);
       lastTapAtRef.current = Date.now();
       battleStartRef.current = Date.now();
       setTimeLeftMs(BOSS_PHASE2.timeLimitMs);
@@ -505,9 +561,9 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase]);
 
-  // 제한시간 3분 카운트다운 — 발악/체크포인트 중에도 계속 흐른다.
+  // 제한시간 3분 카운트다운 — 발악/체크포인트/뒤바뀐 현실 전환 중에도 계속 흐른다.
   useEffect(() => {
-    if (phase !== "combat" && phase !== "finale" && phase !== "checkpoint") return;
+    if (phase !== "combat" && phase !== "finale" && phase !== "checkpoint" && phase !== "invertTransition") return;
     const interval = window.setInterval(() => {
       const timeLimitMs = stageRef.current === 1 ? BOSS_BATTLE.timeLimitMs : BOSS_PHASE2.timeLimitMs;
       const left = Math.max(0, timeLimitMs - (Date.now() - battleStartRef.current));
@@ -547,7 +603,12 @@ export default function BossBattle({
     phase === "finale" && stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.checkpointRingDurationMs;
 
   return (
-    <section className="bb-root boss-theme" role="dialog" aria-modal="true" aria-label="서휘령과의 전투">
+    <section
+      className={`bb-root boss-theme ${inverted ? "bb-inverted" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="서휘령과의 전투"
+    >
       <div
         className="bb-bg"
         style={stage === 2 ? { backgroundImage: `linear-gradient(#00100f55, #000c), url('${BOSS_PHASE2_ASSETS.battleBgSrc}')` } : undefined}
@@ -680,6 +741,7 @@ export default function BossBattle({
       )}
 
       {phase === "blackout" && <div className="bb-blackout" />}
+      {phase === "invertTransition" && <div className="bb-blackout" />}
     </section>
   );
 }
