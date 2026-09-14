@@ -55,16 +55,18 @@ export const BOSS_INVERT_START_HP = 0.5;
 export const BOSS_INVERT_TRANSITION_MS = 2600;
 
 /** 거꾸로 패턴 본체 — 화면이 뒤집힌 채로 맵 곳곳에 빨간 원이 반복해서 나타난다.
+ *   - INVERT_CIRCLE_SPAWN_INTERVAL_MS마다 새 원이 새 위치에 뜬다 — 앞의 원이 아직
+ *     안 사라졌어도 그대로 겹쳐서 새로 뜬다(여러 개가 동시에 떠 있을 수 있다).
  *   - 원이 뜨고 나서 INVERT_CIRCLE_WINDOW_MS 안에 터치하지 못하면 그 원은 놓친 것으로
- *     처리되고(목숨 감소), 즉시 다음 원이 새 위치에 뜬다. INVERT_CIRCLE_DURATION_MS
- *     동안 이 과정이 반복된다.
+ *     처리된다(목숨 감소). INVERT_CIRCLE_DURATION_MS 동안 이 과정이 반복된다.
  *   - 이 구간에서 하나라도 놓쳤다면, 다 끝난 뒤 그대로 죽는다(즉시 죽는 게 아니라
- *     원 하나하나는 목숨만 깎고, 10초가 다 지난 시점에 최종적으로 사망 처리된다).
+ *     원 하나하나는 목숨만 깎고, 뜬 원이 전부 정리된 시점에 최종적으로 사망 처리된다).
  *   - 하나도 안 놓치고 전부 맞혔다면, 서휘령이 INVERT_STUN_MS 동안 기절한다 —
  *     이 사이엔 어떤 패턴도 안 뜨는 순수 프리딜 타임이다.
  */
 export const BOSS_INVERT_CIRCLE_DURATION_MS = 10000;
-export const BOSS_INVERT_CIRCLE_WINDOW_MS = 500;
+export const BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS = 900;
+export const BOSS_INVERT_CIRCLE_WINDOW_MS = 1700;
 export const BOSS_INVERT_CIRCLE_MISS_PENALTY = 1;
 export const BOSS_INVERT_STUN_MS = 5000;
 export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";

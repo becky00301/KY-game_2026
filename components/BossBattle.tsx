@@ -9,6 +9,7 @@ import {
   BOSS_DEFEAT_LINE,
   BOSS_INVERT_CIRCLE_DURATION_MS,
   BOSS_INVERT_CIRCLE_MISS_PENALTY,
+  BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS,
   BOSS_INVERT_CIRCLE_WINDOW_MS,
   BOSS_INVERT_LINE,
   BOSS_INVERT_START_HP,
@@ -102,7 +103,7 @@ export default function BossBattle({
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
-  const [circleTarget, setCircleTarget] = useState<{ key: number; xFrac: number; yFrac: number } | null>(null);
+  const [circleTargets, setCircleTargets] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
@@ -125,17 +126,15 @@ export default function BossBattle({
   const invertedRef = useRef(false);
   // 거꾸로 패턴 진입은 한 번뿐 — 이미 지나갔으면 다시 안 뜬다.
   const invertCrossedRef = useRef(false);
-  // 거꾸로 패턴 중 원을 하나라도 놓쳤는지 — 10초가 다 지난 시점에 이걸로 성공/사망을 가른다.
+  // 거꾸로 패턴 중 원을 하나라도 놓쳤는지 — 시퀀스가 다 끝난 시점에 이걸로 성공/사망을 가른다.
   const invertMissedRef = useRef(false);
-  // 지금 떠 있는 원의 정보 — state와 동일하지만 타이머 콜백에서 최신값을 동기적으로 읽기 위해.
-  const circleTargetRef = useRef<{ key: number; xFrac: number; yFrac: number } | null>(null);
+  // 지금 떠 있는 원들의 정보 — 여러 개가 동시에 떠 있을 수 있다. state와 동일하지만
+  // 타이머 콜백에서 최신값을 동기적으로 읽기 위해 ref로도 들고 있는다.
+  const circleTargetsRef = useRef<{ key: number; xFrac: number; yFrac: number }[]>([]);
   const circleIdRef = useRef(0);
-  // 10초 원 시퀀스가 끝나는 시각 — 원 하나가 끝날 때마다 이 시각을 넘었는지 확인해서
-  // 다음 원을 새로 띄울지, 시퀀스를 마무리할지 결정한다.
+  // 새 원을 더 이상 띄우지 않을 시각 — 이 시각 이후로는 spawnCircle이 스스로를 다시
+  // 예약하지 않는다(이미 떠 있는 원들은 각자의 타이머대로 마저 처리된다).
   const invertSeqEndAtRef = useRef(0);
-  // spawnCircle이 resolveCircle을 직접 참조하면 두 콜백이 서로를 의존해 순환 참조가
-  // 생기므로, ref를 거쳐 항상 최신 resolveCircle을 호출한다.
-  const resolveCircleRef = useRef<(hit: boolean) => void>(() => {});
   // 한 패턴이 끝난 직후 다른 패턴이 곧바로 겹쳐 나오지 않도록, 다음 패턴을 시작해도 되는
   // 최소 시각을 기록해둔다(피격/자연 종료/체크포인트 종료 시마다 갱신).
   const nextPatternAllowedAtRef = useRef(0);
@@ -208,26 +207,12 @@ export default function BossBattle({
     [clearPendingTimers, triggerFlash, showSuccessLine]
   );
 
-  /** 거꾸로 패턴 — 맵 위 랜덤한 위치에 새 빨간 원을 띄운다. */
-  const spawnCircle = useCallback(() => {
-    circleIdRef.current += 1;
-    const myId = circleIdRef.current;
-    // 화면 가장자리는 피해서 중앙 쪽 70% 범위 안에서만 뜬다.
-    const target = { key: myId, xFrac: 0.15 + Math.random() * 0.7, yFrac: 0.15 + Math.random() * 0.7 };
-    circleTargetRef.current = target;
-    setCircleTarget(target);
-    const timer = window.setTimeout(() => {
-      if (circleTargetRef.current?.key === myId) resolveCircleRef.current(false);
-    }, BOSS_INVERT_CIRCLE_WINDOW_MS);
-    pendingTimers.current.push(timer);
-  }, []);
-
-  /** 거꾸로 패턴 10초가 끝난 뒤 — 하나라도 놓쳤으면 사망, 전부 맞혔으면 5초 기절(프리딜). */
+  /** 거꾸로 패턴 원 시퀀스가 끝난 뒤 — 하나라도 놓쳤으면 사망, 전부 맞혔으면 5초 기절(프리딜). */
   const finishInvertCircles = useCallback(() => {
     invertedRef.current = false;
     setInverted(false);
-    circleTargetRef.current = null;
-    setCircleTarget(null);
+    circleTargetsRef.current = [];
+    setCircleTargets([]);
     if (invertMissedRef.current) {
       endBattle(false);
       return;
@@ -240,12 +225,13 @@ export default function BossBattle({
     setPhase("combat");
   }, [endBattle, showBossLine]);
 
-  /** 거꾸로 패턴 — 원 하나의 결과(맞혔는지)를 처리하고, 다음 원을 띄우거나 10초 시퀀스를 마무리한다. */
+  /** 거꾸로 패턴 — 원 하나의 결과(맞혔는지)를 처리한다. 새 원을 더 띄우는 건 spawnCircle
+   * 자신의 반복 예약이 담당하므로, 여기선 마지막 원까지 다 정리됐는지만 확인한다. */
   const resolveCircle = useCallback(
-    (hit: boolean) => {
-      if (!circleTargetRef.current) return;
-      circleTargetRef.current = null;
-      setCircleTarget(null);
+    (id: number, hit: boolean) => {
+      if (!circleTargetsRef.current.some((c) => c.key === id)) return;
+      circleTargetsRef.current = circleTargetsRef.current.filter((c) => c.key !== id);
+      setCircleTargets(circleTargetsRef.current);
       if (!hit) {
         invertMissedRef.current = true;
         triggerFlash("hit");
@@ -259,12 +245,29 @@ export default function BossBattle({
           return;
         }
       }
-      if (Date.now() >= invertSeqEndAtRef.current) finishInvertCircles();
-      else spawnCircle();
+      if (Date.now() >= invertSeqEndAtRef.current && circleTargetsRef.current.length === 0) finishInvertCircles();
     },
-    [endBattle, triggerFlash, showBossLine, spawnCircle, finishInvertCircles]
+    [endBattle, triggerFlash, showBossLine, finishInvertCircles]
   );
-  resolveCircleRef.current = resolveCircle;
+
+  /** 거꾸로 패턴 — 맵 위 랜덤한 위치에 새 빨간 원을 띄우고, 시퀀스가 끝나기 전까지
+   * SPAWN_INTERVAL_MS마다 스스로를 다시 예약한다(앞의 원이 남아있어도 겹쳐서 새로 뜬다). */
+  const spawnCircle = useCallback(() => {
+    circleIdRef.current += 1;
+    const myId = circleIdRef.current;
+    // 화면 가장자리는 피해서 중앙 쪽 70% 범위 안에서만 뜬다.
+    const target = { key: myId, xFrac: 0.15 + Math.random() * 0.7, yFrac: 0.15 + Math.random() * 0.7 };
+    circleTargetsRef.current = [...circleTargetsRef.current, target];
+    setCircleTargets(circleTargetsRef.current);
+    const missTimer = window.setTimeout(() => {
+      resolveCircle(myId, false);
+    }, BOSS_INVERT_CIRCLE_WINDOW_MS);
+    pendingTimers.current.push(missTimer);
+    if (Date.now() < invertSeqEndAtRef.current) {
+      const spawnTimer = window.setTimeout(() => spawnCircle(), BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS);
+      pendingTimers.current.push(spawnTimer);
+    }
+  }, [resolveCircle]);
 
   /** 2페이즈 HP 50% — "거꾸로 패턴" 진입. 암전+예고 대사 동안 모든 패턴을 멈췄다가,
    * 화면이 뒤집힌 채로 10초간 빨간 원 시퀀스가 시작된다. */
@@ -283,6 +286,8 @@ export default function BossBattle({
       invertedRef.current = true;
       setInverted(true);
       invertMissedRef.current = false;
+      circleTargetsRef.current = [];
+      setCircleTargets([]);
       invertSeqEndAtRef.current = Date.now() + BOSS_INVERT_CIRCLE_DURATION_MS;
       phaseRef.current = "invertCircles";
       setPhase("invertCircles");
@@ -564,13 +569,13 @@ export default function BossBattle({
     [p2Phase, registerPatternHit, checkHpThresholds, enterFinale]
   );
 
-  /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원의 논리 좌표와 비교한다.
-   * 원 판정 범위 밖을 눌렀다면 그냥 무시(원 자체의 0.5초 타이머가 놓침을 처리한다). */
+  /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원들의 논리 좌표와 비교한다.
+   * 여러 원이 동시에 떠 있을 수 있으므로, 판정 범위 안에서 가장 가까운 원 하나만 맞힌다.
+   * 범위 밖을 눌렀다면 그냥 무시(각 원 자신의 타이머가 놓침을 처리한다). */
   const handleCircleTap = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
       if (phaseRef.current !== "invertCircles") return;
-      const target = circleTargetRef.current;
-      if (!target) return;
+      if (circleTargetsRef.current.length === 0) return;
       e.preventDefault();
       const rect = tapAreaRef.current?.getBoundingClientRect();
       if (!rect || rect.width === 0 || rect.height === 0) return;
@@ -578,9 +583,14 @@ export default function BossBattle({
       const rawYFrac = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
       const xFrac = 1 - rawXFrac;
       const yFrac = 1 - rawYFrac;
-      const dx = (xFrac - target.xFrac) * rect.width;
-      const dy = (yFrac - target.yFrac) * rect.height;
-      if (Math.sqrt(dx * dx + dy * dy) <= CIRCLE_HIT_RADIUS_PX) resolveCircle(true);
+      let closest: { key: number; dist: number } | null = null;
+      for (const target of circleTargetsRef.current) {
+        const dx = (xFrac - target.xFrac) * rect.width;
+        const dy = (yFrac - target.yFrac) * rect.height;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= CIRCLE_HIT_RADIUS_PX && (!closest || dist < closest.dist)) closest = { key: target.key, dist };
+      }
+      if (closest) resolveCircle(closest.key, true);
     },
     [resolveCircle]
   );
@@ -771,13 +781,17 @@ export default function BossBattle({
               onPointerDown={handleCircleTap}
               aria-label="빨간 원 터치"
             >
-              {circleTarget && (
+              {circleTargets.map((c) => (
                 <div
-                  key={circleTarget.key}
+                  key={c.key}
                   className="bb-invert-circle"
-                  style={{ left: `${circleTarget.xFrac * 100}%`, top: `${circleTarget.yFrac * 100}%` }}
+                  style={{
+                    left: `${c.xFrac * 100}%`,
+                    top: `${c.yFrac * 100}%`,
+                    animationDuration: `${BOSS_INVERT_CIRCLE_WINDOW_MS}ms`,
+                  }}
                 />
-              )}
+              ))}
             </button>
           ) : (
             <button
