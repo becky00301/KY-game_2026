@@ -144,17 +144,21 @@ export default function GameScreen({
   const bossEntryClaimed = useRef(false);
   const [debugBossPhase2, setDebugBossPhase2] = useState(false);
   const [debugBossLowHp, setDebugBossLowHp] = useState(false);
+  const [debugBossEpilogue, setDebugBossEpilogue] = useState(false);
 
   // 개발용 지름길 — 실제 진행도(5단계+별1)를 만들지 않고도 ?debugBoss=1 로 바로
   // 전투를 확인할 수 있게 한다. ?debugBoss=2 는 전투 자체를 건너뛰고 발악 성공 후
   // 뜨는 2페이즈 등장 연출로 바로 진입한다. ?debugBoss=3 은 거기에 더해 HP를 10%로
-  // 시작해서 발악(HP 0%)까지 금방 확인할 수 있다. 서버 상태는 전혀 건드리지 않는다.
+  // 시작해서 발악(HP 0%)까지 금방 확인할 수 있다. ?debugBoss=4 는 전투를 건너뛰고
+  // 2페이즈 격파 후일담(대화+엔딩 이미지)부터 바로 확인할 수 있게 한다. 서버 상태는
+  // 전혀 건드리지 않는다.
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("debugBoss");
-    if (v === "1" || v === "2" || v === "3") {
+    if (v === "1" || v === "2" || v === "3" || v === "4") {
       setBossMode("battle");
       setDebugBossPhase2(v === "2" || v === "3");
       setDebugBossLowHp(v === "3");
+      setDebugBossEpilogue(v === "4");
     }
   }, []);
 
@@ -852,6 +856,7 @@ export default function GameScreen({
           onVictoryEpilogueDone={() => claimBossVictory(team)}
           debugStartPhase2={debugBossPhase2}
           debugLowHp={debugBossLowHp}
+          debugStartEpilogue={debugBossEpilogue}
         />
       )}
       {bossMode === "intro" && <BossIntro onDone={() => { setBossMode("map"); setBossUnlockOpen(true); }} />}

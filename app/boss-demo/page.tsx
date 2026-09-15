@@ -21,16 +21,19 @@ export default function BossDemoPage() {
   const [sfxOn, setSfxOn] = useState(true);
   const [debugPhase2, setDebugPhase2] = useState(false);
   const [debugLowHp, setDebugLowHp] = useState(false);
+  const [debugEpilogue, setDebugEpilogue] = useState(false);
 
   // 개발용 지름길 — /boss-demo?debugBoss=2 로 2페이즈 등장 연출부터 바로 확인.
   // ?debugBoss=3 은 거기에 더해 HP를 10%로 시작해서 발악(HP 0%)까지 금방 확인할 수 있다.
+  // ?debugBoss=4 는 전투를 건너뛰고 2페이즈 격파 후일담(대화+엔딩 이미지)부터 바로 확인.
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("debugBoss");
-    if (v === "2" || v === "3") {
+    if (v === "2" || v === "3" || v === "4") {
       unlockAudio();
       startBossBgm();
-      setDebugPhase2(true);
+      setDebugPhase2(v === "2" || v === "3");
       setDebugLowHp(v === "3");
+      setDebugEpilogue(v === "4");
       setMode("battle");
     }
   }, []);
@@ -60,6 +63,7 @@ export default function BossDemoPage() {
         <BossBattle
           debugStartPhase2={debugPhase2}
           debugLowHp={debugLowHp}
+          debugStartEpilogue={debugEpilogue}
           onExit={() => {
             stopBossBgm();
             setMode("map");

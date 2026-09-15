@@ -122,6 +122,7 @@ export default function BossBattle({
   onVictoryEpilogueDone,
   debugStartPhase2 = false,
   debugLowHp = false,
+  debugStartEpilogue = false,
 }: {
   onExit: () => void;
   /** 2페이즈(진짜 격파) 후일담 대화가 끝나는 순간(엔딩 이미지로 넘어가는 시점) 한 번
@@ -132,9 +133,14 @@ export default function BossBattle({
   /** 개발용 — 2페이즈 진입 시 HP를 10%로 시작해서 발악(HP 0%)까지 금방 도달하게 한다.
    * 거꾸로 패턴/레이저는 이미 지나간 것으로 치고 건너뛴다(발악 자체를 테스트하는 용도). */
   debugLowHp?: boolean;
+  /** 개발용 — 전투를 완전히 건너뛰고 2페이즈 격파 후일담(대화+엔딩 이미지)부터 바로
+   * 보여준다. debugStartPhase2/debugLowHp보다 우선한다. */
+  debugStartEpilogue?: boolean;
 }) {
-  const [phase, setPhase] = useState<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
-  const [stage, setStage] = useState<Stage>(1);
+  const [phase, setPhase] = useState<Phase>(
+    debugStartEpilogue ? "epilogue" : debugStartPhase2 ? "phase2Intro" : "intro"
+  );
+  const [stage, setStage] = useState<Stage>(debugStartEpilogue ? 2 : 1);
   const [hp, setHp] = useState<number>(BOSS_BATTLE.maxHp);
   const [combo, setCombo] = useState(0);
   const [deathCount, setDeathCount] = useState<number>(BOSS_BATTLE.maxDeathCount);
@@ -175,8 +181,10 @@ export default function BossBattle({
   const epilogueLineRef = useRef(0);
   const epilogueDoneRef = useRef(false);
 
-  const phaseRef = useRef<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
-  const stageRef = useRef<Stage>(1);
+  const phaseRef = useRef<Phase>(
+    debugStartEpilogue ? "epilogue" : debugStartPhase2 ? "phase2Intro" : "intro"
+  );
+  const stageRef = useRef<Stage>(debugStartEpilogue ? 2 : 1);
   const hpRef = useRef<number>(BOSS_BATTLE.maxHp);
   const comboRef = useRef(0);
   const deathCountRef = useRef<number>(BOSS_BATTLE.maxDeathCount);
@@ -230,7 +238,9 @@ export default function BossBattle({
   const flashId = useRef(0);
   const bossLineId = useRef(0);
   const slashId = useRef(0);
-  const wonRef = useRef(false);
+  // debugStartEpilogue로 바로 진입한 경우, 후일담 끝의 blackout이 패배 처리로
+  // 새지 않도록 "이미 이긴 상태"로 맞춰둔다.
+  const wonRef = useRef(debugStartEpilogue);
   const tapAreaRef = useRef<HTMLButtonElement>(null);
   const pendingTimers = useRef<number[]>([]);
 
@@ -899,6 +909,12 @@ export default function BossBattle({
     epilogueLineRef.current = next;
     setEpilogueLine(next);
   }, [finishEpilogueDialogue]);
+
+  // debugStartEpilogue로 바로 진입한 경우 — 정상 승리 흐름의 stopBossBgm 호출을
+  // 건너뛰므로, 여기서 한 번만 대신 정지시킨다.
+  useEffect(() => {
+    if (debugStartEpilogue) stopBossBgm(false);
+  }, [debugStartEpilogue]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
