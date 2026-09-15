@@ -99,6 +99,13 @@ const FLUSH_INTERVAL_MS = 1_000;
 /** 내가 이 칼에 보탠 터치 수 (자랑용, 이 기기에만 저장) */
 const CONTRIB_KEY = "kyg.contrib";
 
+/** "염원의 힘" → "염원의 힘이", "데이터베이스" → "데이터베이스가" */
+function withSubjectParticle(word: string) {
+  const last = word.charCodeAt(word.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return `${word}이(가)`;
+  return (last - 0xac00) % 28 === 0 ? `${word}가` : `${word}이`;
+}
+
 export default function GameScreen({
   team,
   onChangeTeam,
@@ -156,6 +163,15 @@ export default function GameScreen({
   const tapWindow = useRef<number[]>([]);
   const pendingTaps = useRef(0);
   const pendingSince = useRef(Date.now());
+  /** 아직 서버로 안 보낸 터치로 화면에 먼저 더해 둔 획득량 */
+  const pendingGain = useRef(0);
+  /** 서버로 보냈지만 응답을 아직 못 받은 터치 수·획득량 */
+  const inFlightTaps = useRef(0);
+  const inFlightGain = useRef(0);
+  /** 진행 중인 전송 — 동시에 두 번 보내지 않도록 */
+  const flushing = useRef<Promise<void> | null>(null);
+  /** 스킬 구매 요청 중 — 연타로 같은 구매가 여러 번 나가지 않도록 */
+  const buying = useRef(false);
   const floaterId = useRef(0);
   const tapEffectId = useRef(0);
   const pipFloaterId = useRef(0);
@@ -165,6 +181,61 @@ export default function GameScreen({
   const prevFeverUntil = useRef(0);
   const swordStateRef = useRef(sword);
   swordStateRef.current = sword;
+
+  /**
+   * 서버 값을 기준으로 삼고, 아직 서버에 반영되지 않은 내 터치 몫만 위에 얹는다.
+   * 예전에는 "누적치가 큰 쪽"을 남겼는데, 화면 쪽 크리티컬·연타 보너스가 서버와 다르게
+   * 굴러가면 화면이 서버보다 계속 앞서서 서버 값을 영영 안 받았다. 그러면 화면엔 스킬을
+   * 살 수 있어 보여도 서버에선 재화가 부족해 구매가 조용히 실패했다.
+   */
+  const acceptServer = useCallback((state: SwordState) => {
+    const extraGain = pendingGain.current + inFlightGain.current;
+    const extraTaps = pendingTaps.current + inFlightTaps.current;
+    setSword(
+      extraGain > 0 || extraTaps > 0
+        ? {
+            ...state,
+            energy: state.energy + extraGain,
+            lifetime: state.lifetime + extraGain,
+            taps: state.taps + extraTaps,
+          }
+        : state
+    );
+  }, []);
+
+  /** 밀린 터치를 지금 서버로 보낸다. 이미 보내는 중이면 그게 끝날 때까지 기다린 뒤 이어서 보낸다. */
+  const flushNow = useCallback(async () => {
+    while (flushing.current) await flushing.current;
+    const taps = pendingTaps.current;
+    if (taps <= 0) return;
+    const gain = pendingGain.current;
+    const elapsed = (Date.now() - pendingSince.current) / 1000;
+    pendingTaps.current = 0;
+    pendingGain.current = 0;
+    pendingSince.current = Date.now();
+    inFlightTaps.current += taps;
+    inFlightGain.current += gain;
+
+    const run = (async () => {
+      try {
+        const state = await sendTaps(team, taps, elapsed, clientId());
+        inFlightTaps.current -= taps;
+        inFlightGain.current -= gain;
+        acceptServer(state);
+        setError(null);
+      } catch (e) {
+        inFlightTaps.current -= taps;
+        inFlightGain.current -= gain;
+        setError((e as Error).message);
+      }
+    })();
+    flushing.current = run;
+    try {
+      await run;
+    } finally {
+      if (flushing.current === run) flushing.current = null;
+    }
+  }, [team, acceptServer]);
 
   const theme = TEAMS[team];
   const stage = stageOf(sword.lifetime);
@@ -289,8 +360,7 @@ export default function GameScreen({
 
     const unsubscribe = subscribeSword(team, (state) => {
       if (!alive) return;
-      // 내 낙관적 예측이 서버보다 앞서 있을 수 있으니 누적치가 큰 쪽을 남긴다.
-      setSword((prev) => (state.lifetime >= prev.lifetime ? state : prev));
+      acceptServer(state);
       setError(null);
     });
 
@@ -310,22 +380,11 @@ export default function GameScreen({
 
   // 밀린 터치를 서버로 보낸다
   useEffect(() => {
-    const timer = window.setInterval(async () => {
-      const taps = pendingTaps.current;
-      if (taps <= 0) return;
-      const elapsed = (Date.now() - pendingSince.current) / 1000;
-      pendingTaps.current = 0;
-      pendingSince.current = Date.now();
-      try {
-        const state = await sendTaps(team, taps, elapsed, clientId());
-        setSword((prev) => (state.lifetime >= prev.lifetime ? state : prev));
-        setError(null);
-      } catch (e) {
-        setError((e as Error).message);
-      }
+    const timer = window.setInterval(() => {
+      void flushNow();
     }, FLUSH_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [team]);
+  }, [flushNow]);
 
   // 자동 응원을 화면에서도 흐르게 보여준다 (서버 값과는 다음 동기화에서 맞춰진다)
   useEffect(() => {
@@ -429,6 +488,7 @@ export default function GameScreen({
       const units = critical ? CRITICAL_MULTIPLIER : 1;
       const gain =
         tapPower(current) * units * rateBonus(tapWindow.current.length, 1) * (feverNow ? FEVER_MULTIPLIER : 1);
+      pendingGain.current += gain;
       setSword((prev) => ({
         ...prev,
         energy: prev.energy + gain,
@@ -509,16 +569,30 @@ export default function GameScreen({
 
   const buy = useCallback(
     async (id: string) => {
+      if (buying.current) return;
+      buying.current = true;
       try {
+        // 화면에 먼저 더해 둔 터치 몫까지 서버에 넣은 뒤에 산다.
+        await flushNow();
         const outcome = await buyUpgrade(team, id);
-        setSword(outcome.state);
-        if (outcome.ok && navigator.vibrate) navigator.vibrate(15);
+        acceptServer(outcome.state);
         setError(null);
+        if (outcome.ok) {
+          if (navigator.vibrate) navigator.vibrate(15);
+        } else {
+          setNotice(
+            outcome.reason === "insufficient"
+              ? `${withSubjectParticle(theme.spirit)} 부족합니다.`
+              : "지금은 구매할 수 없습니다. 잠시 후 다시 시도해주세요."
+          );
+        }
       } catch (e) {
         setError((e as Error).message);
+      } finally {
+        buying.current = false;
       }
     },
-    [team]
+    [team, flushNow, acceptServer, theme.spirit]
   );
 
   const stageName = theme.stages[Math.min(stage, theme.stages.length - 1)];
