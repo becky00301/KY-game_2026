@@ -62,25 +62,26 @@ create table if not exists public.tap_budget (
 
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second, critical_chance, critical_multiplier)
-values (1, array[0, 8000, 250000, 8000000, 250000000]::numeric[], 1.85, 30, 0.05, 10)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
+values (1, array[0, 2400, 75000, 2400000, 75000000]::numeric[], 1.85, 30, 0.05, 10, 100)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
   max_taps_per_second = excluded.max_taps_per_second,
   critical_chance = excluded.critical_chance,
-  critical_multiplier = excluded.critical_multiplier;
+  critical_multiplier = excluded.critical_multiplier,
+  fever_max = excluded.fever_max;
 
 insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) values
-  ('wrist',  'tap',       350, 1.14,    1, 1),
-  ('stick',  'tap',      7000, 1.15,    8, 2),
-  ('glove',  'tap',    100000, 1.16,   55, 3),
-  ('beast',  'tap',   1500000, 1.17,  400, 4),
-  ('fresh',  'auto',      900, 1.14,    3, 1),
-  ('dept',   'auto',    12000, 1.15,   25, 2),
-  ('band',   'auto',   150000, 1.15,  180, 3),
-  ('senior', 'auto',  2000000, 1.16, 1300, 4),
-  ('choir',  'auto', 25000000, 1.17, 9000, 5)
+  ('wrist',  'tap',      105, 1.14,    1, 1),
+  ('stick',  'tap',     2100, 1.15,    8, 2),
+  ('glove',  'tap',    30000, 1.16,   55, 3),
+  ('beast',  'tap',   450000, 1.17,  400, 4),
+  ('fresh',  'auto',     270, 1.14,    3, 1),
+  ('dept',   'auto',    3600, 1.15,   25, 2),
+  ('band',   'auto',   45000, 1.15,  180, 3),
+  ('senior', 'auto',  600000, 1.16, 1300, 4),
+  ('choir',  'auto', 7500000, 1.17, 9000, 5)
 on conflict (id) do update set
   kind = excluded.kind,
   base_cost = excluded.base_cost,

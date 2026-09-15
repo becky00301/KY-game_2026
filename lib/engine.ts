@@ -27,14 +27,12 @@ export interface SwordState {
 // ---------- 튜닝 수치 ----------
 
 /**
- * 누적 기운 기준 진화 임계값. 학교 전체가 함께 올리므로 개인용보다 훨씬 크다.
- *
- * 최소 5명이 하루 10분씩만 참여해도 3일 안에 보스전(5단계+별1, STAR_MULTIPLIERS 참고)에
- * 닿도록 시뮬레이션으로 맞춘 값이다 — 초당 2회의 느린 연타를 가정해도 여유 있게 도달하고,
- * 초당 3회 이상이면 훨씬 빨리 뚫린다. 5단계까지는 강화 구매가 자주 일어나도록 촘촘하게
- * 잡았고, 그 이후(별 등급)부터 진짜 그라인딩 구간이 시작된다.
+ * 누적 기운 기준 진화 임계값. 홍보 없이 하루 10명, 5분씩만 참여해도 10시간 안에
+ * 보스전(5단계+별1, STAR_MULTIPLIERS 참고)에 닿고, 엔딩(별5)까지도 이틀 안에 보이도록
+ * 시뮬레이션으로 다시 맞춘 값이다(초당 2회 연타 기준). 강화 비용(UPGRADE_NUMBERS의
+ * baseCost)도 같은 비율로 같이 낮춰뒀다 — 여기 수치를 또 바꾸면 그쪽도 같이 맞춰야 한다.
  */
-export const STAGE_THRESHOLDS = [0, 8_000, 250_000, 8_000_000, 250_000_000];
+export const STAGE_THRESHOLDS = [0, 2_400, 75_000, 2_400_000, 75_000_000];
 
 export const STAGE_GROWTH = 1.85;
 
@@ -52,8 +50,8 @@ export const MAX_TAPS_PER_SECOND = 30;
 /** 자동 응원을 소급 정산해 주는 최대 시간(초) */
 export const MAX_ACCRUAL_SECONDS = 120;
 
-/** 응원 열기 */
-export const FEVER_MAX = 3_000; // 팀 전체가 함께 채운다
+/** 응원 열기 — 팀 전체가 함께 채우지만, 혼자 초당 2회로 눌러도 1분 안에 채울 수 있는 양. */
+export const FEVER_MAX = 100;
 export const FEVER_DURATION_MS = 10_000;
 export const FEVER_MULTIPLIER = 3;
 
@@ -92,15 +90,15 @@ export interface UpgradeNumbers {
 
 /** 강화 수치. 이름·아이콘은 lib/upgrades.ts에 따로 있다. STAGE_THRESHOLDS와 같은 시뮬레이션으로 맞췄다. */
 export const UPGRADE_NUMBERS: UpgradeNumbers[] = [
-  { id: "wrist", kind: "tap", baseCost: 350, growth: 1.14, power: 1 },
-  { id: "stick", kind: "tap", baseCost: 7_000, growth: 1.15, power: 8 },
-  { id: "glove", kind: "tap", baseCost: 100_000, growth: 1.16, power: 55 },
-  { id: "beast", kind: "tap", baseCost: 1_500_000, growth: 1.17, power: 400 },
-  { id: "fresh", kind: "auto", baseCost: 900, growth: 1.14, power: 3 },
-  { id: "dept", kind: "auto", baseCost: 12_000, growth: 1.15, power: 25 },
-  { id: "band", kind: "auto", baseCost: 150_000, growth: 1.15, power: 180 },
-  { id: "senior", kind: "auto", baseCost: 2_000_000, growth: 1.16, power: 1_300 },
-  { id: "choir", kind: "auto", baseCost: 25_000_000, growth: 1.17, power: 9_000 },
+  { id: "wrist", kind: "tap", baseCost: 105, growth: 1.14, power: 1 },
+  { id: "stick", kind: "tap", baseCost: 2_100, growth: 1.15, power: 8 },
+  { id: "glove", kind: "tap", baseCost: 30_000, growth: 1.16, power: 55 },
+  { id: "beast", kind: "tap", baseCost: 450_000, growth: 1.17, power: 400 },
+  { id: "fresh", kind: "auto", baseCost: 270, growth: 1.14, power: 3 },
+  { id: "dept", kind: "auto", baseCost: 3_600, growth: 1.15, power: 25 },
+  { id: "band", kind: "auto", baseCost: 45_000, growth: 1.15, power: 180 },
+  { id: "senior", kind: "auto", baseCost: 600_000, growth: 1.16, power: 1_300 },
+  { id: "choir", kind: "auto", baseCost: 7_500_000, growth: 1.17, power: 9_000 },
 ];
 
 const BY_ID = new Map(UPGRADE_NUMBERS.map((u) => [u.id, u]));
@@ -123,11 +121,11 @@ export function stageMultiplier(stage: number) {
 export const MAX_STARS = 5;
 
 /**
- * 별 등급별로 직전 등급 대비 몇 배가 더 필요한지. 별 1개(보스전 입장)는 4배로 기존과
- * 같지만, 그 다음부터는 배수 자체가 급격히 커져서 "보스전 이후 난이도 급상승"을 만든다.
- * 별1: last*4, 별2: last*4*12, 별3: 그 위에 *40, 별4: *150, 별5: *600.
+ * 별 등급별로 직전 등급 대비 몇 배가 더 필요한지. 하루 10명·5분씩만 참여해도 별5(엔딩)까지
+ * 이틀 안에 닿도록 낮춘 값이다. 별1: last*4, 별2: *2, 별3: *2, 별4: *2, 별5: *2
+ * (누적 last*48).
  */
-export const STAR_MULTIPLIERS = [4, 12, 40, 150, 600];
+export const STAR_MULTIPLIERS = [4, 2, 2, 2, 2];
 
 /** 별 랭크(1~5)의 누적 절대 임계값 목록. index 0 = 별1 임계값. */
 function starThresholds(last: number): number[] {
