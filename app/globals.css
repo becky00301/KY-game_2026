@@ -2098,6 +2098,19 @@ button {
 .bb-flash { position: absolute; inset: 0; z-index: 6; pointer-events: none; animation: bbFlashOut .35s ease forwards; }
 .bb-flash--hit { background: #dc2626; }
 .bb-flash--success-white { background: #fff; animation: bbFlashOut 250ms ease forwards; }
+.bb-flash--parry-white { background: #fff; animation: bbFlashOut 90ms ease forwards; }
+.bb-flash--parry {
+  /* 2페이즈 발악은 박자가 0.4~0.8초라, success처럼 화면을 오래 덮으면 다음 박자를
+     가려버린다 — 짧게 팍 터지고 빠지도록 훨씬 빠른 팝/페이드를 쓴다. */
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 0 30px rgba(255, 225, 140, .9));
+  animation: bbParryPop 260ms ease-out forwards;
+}
+@keyframes bbParryPop {
+  0% { opacity: 0; transform: scale(.75); }
+  25% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
 .bb-flash--success {
   /* object-fit:contain이라 원래도 잘리진 않지만, 화면 중앙에 놓이면 위아래로 뜬
      여백 때문에 인물이 붕 떠 보였다. object-position을 하단으로 내려서 화면
@@ -2179,6 +2192,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .bb-boss-sword, .bb-full-warning--warn, .bb-skill-icon { animation: none; }
   .bb-slash, .bb-flash--finale-fail, .bb-flash--success { animation: bbSlashFade 650ms ease-out forwards; }
+  .bb-flash--parry { animation: bbSlashFade 260ms ease-out forwards; }
 }
 @keyframes bbSlashFade { from { opacity: 1; } to { opacity: 0; } }
 

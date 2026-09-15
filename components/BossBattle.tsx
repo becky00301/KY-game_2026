@@ -126,7 +126,7 @@ export default function BossBattle({
   const [timeLeftMs, setTimeLeftMs] = useState(BOSS_BATTLE.timeLimitMs);
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
-  const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" } | null>(null);
+  const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" | "parry" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
   // 거꾸로 패턴 성공 후 서휘령이 기절해 있는 동안 검이 노란빛으로 빛난다.
@@ -238,10 +238,13 @@ export default function BossBattle({
   // 실제 서로 다른 패턴에 두 번 맞는 최소 간격(휴식시간+예고시간)보다 훨씬 짧은 700ms
   // 안에 같은 kind가 다시 들어오면 무시한다. 정상적인 연속 피격은 이보다 항상 더
   // 길게 벌어지므로 절대 걸러지지 않는다.
-  const lastFlashAtRef = useRef<Partial<Record<"hit" | "success" | "finale-fail", number>>>({});
-  const triggerFlash = useCallback((kind: "hit" | "success" | "finale-fail") => {
+  const lastFlashAtRef = useRef<Partial<Record<"hit" | "success" | "finale-fail" | "parry", number>>>({});
+  const triggerFlash = useCallback((kind: "hit" | "success" | "finale-fail" | "parry") => {
     const now = Date.now();
-    if (now - (lastFlashAtRef.current[kind] ?? 0) < 700) return;
+    // parry(발악 중간 패링)는 박자 자체가 0.4~0.8초라 700ms 디바운스를 그대로 쓰면
+    // 다음 성공이 씹혀 보일 수 있어 훨씬 짧게 잡는다.
+    const debounceMs = kind === "parry" ? 150 : 700;
+    if (now - (lastFlashAtRef.current[kind] ?? 0) < debounceMs) return;
     lastFlashAtRef.current[kind] = now;
     flashId.current += 1;
     const myId = flashId.current;
@@ -249,7 +252,8 @@ export default function BossBattle({
     // flash는 여태 트리거된 뒤로 계속 true로 남아있어서, 그다음 렌더에서 같은 자리에
     // 같은 key로 다시 그려지는 걸 온전히 key 비교에만 맡기고 있었다 — 애니메이션이 다
     // 끝나는 시점에 명시적으로 null로 되돌려서 그 자리 자체가 사라지게 한다.
-    const durationMs = kind === "success" ? 2000 : kind === "finale-fail" ? 1300 : 350;
+    // parry는 다음 박자(최소 400ms)를 가리지 않도록 짧게 끝낸다.
+    const durationMs = kind === "success" ? 2000 : kind === "finale-fail" ? 1300 : kind === "parry" ? 260 : 350;
     const clearTimer = window.setTimeout(() => {
       setFlash((cur) => (cur && cur.key === myId ? null : cur));
     }, durationMs);
@@ -831,11 +835,12 @@ export default function BossBattle({
       endBattle(true);
       return;
     }
-    // 4번째까지는 서휘령 이펙트(성공 이미지)를 띄우지 않는다 — 마지막 5번째 성공에서만
-    // endBattle(true)가 트리거하는 success 이펙트가 뜬다.
+    // 1~4번째 성공은 전용 parry 이펙트로 번쩍여 보여준다 — 마지막 5번째만
+    // endBattle(true)가 트리거하는(서휘령 격파) success 이펙트를 쓴다.
+    triggerFlash("parry");
     clearPendingTimers();
     startFinaleBeat();
-  }, [endBattle, clearPendingTimers, startFinaleBeat]);
+  }, [endBattle, triggerFlash, clearPendingTimers, startFinaleBeat]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
@@ -1135,6 +1140,12 @@ export default function BossBattle({
 
       {flash && flash.kind === "finale-fail" && (
         <img key={flash.key} className="bb-flash bb-flash--finale-fail" src="/images/boss-battle/finale-fail-sweep.png" alt="" />
+      )}
+      {flash && flash.kind === "parry" && (
+        <Fragment key={flash.key}>
+          <div className="bb-flash bb-flash--parry-white" />
+          <img className="bb-flash bb-flash--parry" src="/images/boss-battle/skill-parry.png" alt="" />
+        </Fragment>
       )}
       {flash && flash.kind === "success" && (
         <Fragment key={flash.key}>
