@@ -2187,8 +2187,8 @@ button {
 @keyframes bbBlackoutIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* 2페이즈 격파 후일담 — .boss-intro와 동일한 방식(fixed, 검은 배경)으로 bb-root 위를
-   완전히 덮는다. 대화 UI는 .boss-dialogue-advance/.tutorial-*/.boss-portrait를,
-   마지막 엔딩 이미지는 .boss-reveal-image-wrap/.boss-reveal-image를 그대로 재사용한다. */
+   완전히 덮는다. 대화 UI는 boss-dialogue-advance, tutorial 계열, boss-portrait를,
+   마지막 엔딩 이미지는 boss-reveal-image-wrap, boss-reveal-image를 그대로 재사용한다. */
 .bb-epilogue { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; }
 
 @keyframes bbSwordFloat { 0%, 100% { transform: translate(var(--sword-x), -50%) translateY(-14px); } 50% { transform: translate(var(--sword-x), -50%) translateY(14px); } }
