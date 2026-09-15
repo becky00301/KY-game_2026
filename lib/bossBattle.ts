@@ -45,6 +45,12 @@ export const BOSS_DEFEAT_LINE = "한심한 녀석. 다시는 이곳에 발을 �
 /** 패배 후 대사를 읽을 시간을 주고 나서 입장맵으로 돌아가기까지의 시간. */
 export const BOSS_DEFEAT_EXIT_MS = 2600;
 
+/** HP가 0이 되는 순간 뜨는 예고 대사(노란빛) — 발악(리듬게임)이 곧바로 시작되지 않고,
+ *  이 대사를 읽을 여유를 준 뒤에 시작된다. */
+export const BOSS_FINALE_READY_LINE = "지금입니다! 마지막 힘을 모아주세요!";
+/** 위 예고 대사가 뜨는 암전 동안 — 이 시간이 지나야 발악(링 판정)이 실제로 시작된다. */
+export const BOSS_FINALE_TRANSITION_MS = 2200;
+
 /** 2페이즈 HP 50%에서 뜨는 "거꾸로 패턴" 예고 대사(노란빛). */
 export const BOSS_INVERT_LINE = "주의하세요. 서휘령이 모든걸 뒤바꿀거에요. 현실도, 당신의 감각마저도!";
 

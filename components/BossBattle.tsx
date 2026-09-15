@@ -7,6 +7,8 @@ import {
   BOSS_DEATH_TAUNT_LINES,
   BOSS_DEFEAT_EXIT_MS,
   BOSS_DEFEAT_LINE,
+  BOSS_FINALE_READY_LINE,
+  BOSS_FINALE_TRANSITION_MS,
   BOSS_INVERT_CIRCLE_DURATION_MS,
   BOSS_INVERT_CIRCLE_MISS_PENALTY,
   BOSS_INVERT_CIRCLE_SPAWN_INTERVAL_MS,
@@ -48,6 +50,7 @@ import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 type Phase =
   | "intro"
   | "combat"
+  | "finaleTransition"
   | "finale"
   | "result"
   | "blackout"
@@ -513,6 +516,9 @@ export default function BossBattle({
     pendingTimers.current.push(timer);
   }, [endBattle]);
 
+  // HP가 0이 되는 순간 바로 발악(링 판정)을 시작하면 너무 갑작스러워서, 예고 대사를
+  // 읽을 여유(BOSS_FINALE_TRANSITION_MS)를 준 뒤에 실제 발악이 시작되게 한다 —
+  // 거꾸로 패턴 진입(enterInvertTransition)과 같은 암전+예고 구조.
   const enterFinale = useCallback(() => {
     clearPendingTimers();
     inPattern2Ref.current = false;
@@ -521,12 +527,18 @@ export default function BossBattle({
     setP2Phase("idle");
     laserBeamsRef.current = [];
     setLaserBeams([]);
-    finaleHitsRef.current = 0;
-    setFinaleHits(0);
-    phaseRef.current = "finale";
-    setPhase("finale");
-    startFinaleBeat();
-  }, [clearPendingTimers, startFinaleBeat]);
+    phaseRef.current = "finaleTransition";
+    setPhase("finaleTransition");
+    showBossLine(BOSS_FINALE_READY_LINE, "success");
+    const timer = window.setTimeout(() => {
+      finaleHitsRef.current = 0;
+      setFinaleHits(0);
+      phaseRef.current = "finale";
+      setPhase("finale");
+      startFinaleBeat();
+    }, BOSS_FINALE_TRANSITION_MS);
+    pendingTimers.current.push(timer);
+  }, [clearPendingTimers, showBossLine, startFinaleBeat]);
 
   const registerPatternHit = useCallback(
     (penalty: number) => {
@@ -907,6 +919,7 @@ export default function BossBattle({
   useEffect(() => {
     if (
       phase !== "combat" &&
+      phase !== "finaleTransition" &&
       phase !== "finale" &&
       phase !== "invertTransition" &&
       phase !== "invertCircles"
@@ -1163,6 +1176,7 @@ export default function BossBattle({
 
       {phase === "blackout" && <div className="bb-blackout" />}
       {phase === "invertTransition" && <div className="bb-blackout" />}
+      {phase === "finaleTransition" && <div className="bb-blackout" />}
     </section>
   );
 }
