@@ -85,8 +85,11 @@ export const BOSS_LASER_START_LINE = "온 힘을 다해, 너를 처단하리라!
 /** 한 볼레이에 동시에 뜨는 레이저 가닥 수 (최소~최대 중 무작위). */
 export const BOSS_LASER_COUNT_MIN = 5;
 export const BOSS_LASER_COUNT_MAX = 6;
-export const BOSS_LASER_INTERVAL_MIN_MS = 1600;
-export const BOSS_LASER_INTERVAL_MAX_MS = 2800;
+// warnMs(전조)보다는 항상 길게 잡아서 볼레이가 최소한 한 번은 실제로 active(위험)
+// 상태까지는 도달하게 한다 — 그래도 다음 볼레이가 곧바로 겹쳐 들어와 끊임없이
+// 몰아치는 느낌을 준다.
+export const BOSS_LASER_INTERVAL_MIN_MS = 650;
+export const BOSS_LASER_INTERVAL_MAX_MS = 1000;
 export const BOSS_LASER_WARN_MS = 500;
 export const BOSS_LASER_ACTIVE_MS = 500;
 export const BOSS_LASER_DEATH_PENALTY = 1;
