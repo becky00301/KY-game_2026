@@ -1229,7 +1229,7 @@ export default function BossBattle({
             {epilogueCurrent.speaker !== "narrator" && (
               <img
                 className="boss-portrait"
-                src={BOSS_EPILOGUE_PORTRAITS[epilogueCurrent.speaker]}
+                src={BOSS_EPILOGUE_PORTRAITS[epilogueCurrent.speaker as "hwiryeong" | "yeohan"]}
                 alt={epilogueCurrent.name}
               />
             )}
