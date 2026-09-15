@@ -830,10 +830,11 @@ export default function BossBattle({
       endBattle(true);
       return;
     }
-    triggerFlash("success");
+    // 4번째까지는 서휘령 이펙트(성공 이미지)를 띄우지 않는다 — 마지막 5번째 성공에서만
+    // endBattle(true)가 트리거하는 success 이펙트가 뜬다.
     clearPendingTimers();
     startFinaleBeat();
-  }, [endBattle, triggerFlash, clearPendingTimers, startFinaleBeat]);
+  }, [endBattle, clearPendingTimers, startFinaleBeat]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {

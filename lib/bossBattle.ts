@@ -184,8 +184,8 @@ export const BOSS_PHASE2 = {
   // 그 즉시 실패. 매 박자마다 링이 줄어드는 속도(duration)를 무작위로 다시 뽑아서
   // 제각각 다르게 느껴지게 하고, 판정창은 그 속도에 비례한 비율로 유지해 난이도를
   // 맞춘다. 위치도 매 박자 무작위로 옮겨서(finaleRingOffset) 화면 이곳저곳에 뜬다.
-  finaleRingDurationMinMs: 1300,
-  finaleRingDurationMaxMs: 3000,
+  finaleRingDurationMinMs: 400,
+  finaleRingDurationMaxMs: 800,
   finaleWindowRatio: 0.64,
   finaleHitsRequired: 5,
   timeLimitMs: 3 * 60 * 1000,
