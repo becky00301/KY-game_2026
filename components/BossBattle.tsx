@@ -64,10 +64,21 @@ interface Pattern1State {
    * 이펙트만 보여주는 잔상 구간이라 안전하다. */
   judgeable: boolean;
   orientation: Orientation;
+  /** 피격존 — judgeable인 순간에 여길 누르면 맞는다. */
   dangerZones: number[];
+  /** 반드시 눌러야 하는 존(노란빛) — active인 동안 이 중 아무 곳이나 한 번은 눌러야
+   * 한다. 못 누른 채로 active가 끝나면 맞는다. */
+  mustHitZones: number[];
 }
 
-const IDLE_PATTERN1: Pattern1State = { id: 0, phase: "idle", judgeable: false, orientation: "vertical", dangerZones: [] };
+const IDLE_PATTERN1: Pattern1State = {
+  id: 0,
+  phase: "idle",
+  judgeable: false,
+  orientation: "vertical",
+  dangerZones: [],
+  mustHitZones: [],
+};
 
 /** 판정 구간(active)에 뜨는 검격 이펙트 — 방향별 전용 일러스트. */
 const SLASH_SRC: Record<Orientation, string> = {
@@ -171,6 +182,9 @@ export default function BossBattle({
   // 이 값과 별개로 확실하게 패턴을 막기 위해 따로 둔다.
   const invertBufferUntilRef = useRef(0);
   const p1Ref = useRef<Pattern1State>(IDLE_PATTERN1);
+  // 지금 패턴1의 "반드시 눌러야 하는 존"을 active 동안 한 번이라도 눌렀는지. 새 패턴1이
+  // 시작될 때마다 false로 초기화된다.
+  const p1MustHitSatisfiedRef = useRef(false);
   const crossedThresholds = useRef<Set<number>>(new Set());
   const flashId = useRef(0);
   const bossLineId = useRef(0);
@@ -598,11 +612,15 @@ export default function BossBattle({
     const warnMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1WarnMs : BOSS_PHASE2.pattern1WarnMs;
     const activeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1ActiveMs : BOSS_PHASE2.pattern1ActiveMs;
     const judgeMs = stageRef.current === 1 ? BOSS_BATTLE.pattern1JudgeMs : BOSS_PHASE2.pattern1JudgeMs;
+    const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
     const orientation = pickOrientation();
     const dangerZones = pickDangerZones(zoneCount, dangerZoneCount);
+    // 피격존이 아닌 나머지 전부가 "반드시 눌러야 하는 존"이다.
+    const mustHitZones = Array.from({ length: zoneCount }, (_, z) => z).filter((z) => !dangerZones.includes(z));
     slashId.current += 1;
     const myId = slashId.current;
-    const warnState: Pattern1State = { id: myId, phase: "warn", judgeable: false, orientation, dangerZones };
+    p1MustHitSatisfiedRef.current = false;
+    const warnState: Pattern1State = { id: myId, phase: "warn", judgeable: false, orientation, dangerZones, mustHitZones };
     p1Ref.current = warnState;
     setP1(warnState);
 
@@ -624,6 +642,12 @@ export default function BossBattle({
       }, judgeMs);
       pendingTimers.current.push(judgeTimer);
       const activeTimer = window.setTimeout(() => {
+        if (p1Ref.current.id !== myId) return;
+        // 반드시 눌러야 하는 존을 active 동안 한 번도 못 눌렀다면 그대로 피격된다.
+        if (!p1MustHitSatisfiedRef.current) {
+          registerPatternHit(pattern1Penalty);
+          return;
+        }
         p1Ref.current = IDLE_PATTERN1;
         setP1(IDLE_PATTERN1);
         grantPatternRest();
@@ -631,7 +655,7 @@ export default function BossBattle({
       pendingTimers.current.push(activeTimer);
     }, warnMs);
     pendingTimers.current.push(warnTimer);
-  }, [grantPatternRest, maybeShowPatternTaunt]);
+  }, [grantPatternRest, maybeShowPatternTaunt, registerPatternHit]);
 
   const handleTap = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -667,12 +691,17 @@ export default function BossBattle({
         registerPatternHit(pattern2Penalty);
         return;
       }
-      if (p1Ref.current.phase === "active" && p1Ref.current.judgeable) {
+      if (p1Ref.current.phase === "active") {
         const zoneCount = stageRef.current === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
         const zone = zoneOf(p1Ref.current.orientation, xFrac, yFrac, zoneCount);
-        if (p1Ref.current.dangerZones.includes(zone)) {
+        if (p1Ref.current.judgeable && p1Ref.current.dangerZones.includes(zone)) {
           registerPatternHit(pattern1Penalty);
           return;
+        }
+        // 반드시 눌러야 하는 존은 judgeable 여부와 상관없이 active인 동안 아무 때나
+        // 한 번만 맞히면 된다.
+        if (p1Ref.current.mustHitZones.includes(zone)) {
+          p1MustHitSatisfiedRef.current = true;
         }
       }
 
@@ -957,7 +986,11 @@ export default function BossBattle({
                       data-orient={p1.orientation}
                       data-zone={z}
                       className={`bb-zone ${
-                        p1.dangerZones.includes(z) ? `bb-zone--danger bb-zone--${p1.phase}` : ""
+                        p1.dangerZones.includes(z)
+                          ? `bb-zone--danger bb-zone--${p1.phase}`
+                          : p1.mustHitZones.includes(z)
+                            ? `bb-zone--musthit bb-zone--${p1.phase}`
+                            : ""
                       }`}
                       style={p1.orientation === "diagonal" ? { clipPath: diagonalZoneClipPath(z, zoneCount) } : undefined}
                     />

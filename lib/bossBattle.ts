@@ -102,13 +102,15 @@ export const BOSS_BATTLE = {
   maxDamageMultiplier: 3,
   maxDeathCount: 5,
   zoneCount: 3,
+  // 3분할 중 2곳은 피격존, 나머지 1곳은 "반드시 눌러야 하는 존"(노란빛)이다 — active 동안
+  // 그 존을 못 누르면 맞는다.
   dangerZoneCount: 2,
   /** 패턴 하나하나의 시전 주기 자체는 살짝 느긋해졌지만(휘몰아치는 느낌은
    * intervalMs/patternRestMs 쪽에서 만든다), 새 패턴이 튀어나오는 간격은 훨씬 짧아서
    * 이전 패턴의 잔상이 채 사라지기도 전에 다음 패턴이 겹쳐 들어온다. */
   pattern1IntervalMs: 1100,
-  // 전조(warn) 시간을 짧게 줄여서, 빨갛게 변한 뒤 거의 바로 반응해야 피할 수 있게 했다.
-  pattern1WarnMs: 380,
+  // 반드시 눌러야 하는 존이 생긴 만큼, 전조(warn) 시간을 살짝 다시 늘렸다.
+  pattern1WarnMs: 500,
   pattern1ActiveMs: 1100,
   /** 판정(위험구역이 실제로 맞는지 체크하는)이 열려있는 시간 — activeMs 전체가 아니라
    * 이 짧은 순간에만 맞는다. 나머지는 이펙트만 보여주는 잔상 구간이라 눌러도 안전하다. */
@@ -156,11 +158,13 @@ export const BOSS_PHASE2 = {
   comboDecayMs: 1500,
   maxDamageMultiplier: 3,
   zoneCount: 5,
-  dangerZoneCount: 4,
-  // 기본패턴(가로/세로/대각선 베기) 속도 추가로 살짝 더 증가.
+  // 5분할 중 3곳은 피격존, 나머지 2곳은 "반드시 눌러야 하는 존"(노란빛)이다 — active 동안
+  // 그 중 아무 곳이나 한 번은 못 누르면 맞는다.
+  dangerZoneCount: 3,
+  // 기본패턴(가로/세로/대각선 베기) 속도는 추가로 빨라졌었지만, 반드시 눌러야 하는 존이
+  // 생긴 만큼 전조(warn) 시간은 살짝 다시 늘렸다.
   pattern1IntervalMs: 600,
-  // 전조(warn) 시간을 짧게 줄여서, 빨갛게 변한 뒤 거의 바로 반응해야 피할 수 있게 했다.
-  pattern1WarnMs: 260,
+  pattern1WarnMs: 340,
   pattern1ActiveMs: 620,
   pattern1JudgeMs: 220,
   pattern1DeathPenalty: 1,

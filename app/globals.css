@@ -1979,6 +1979,14 @@ button {
 .bb-zones--diagonal .bb-zone { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* 전조 시간이 짧아진 만큼, 위험구역이 더 뚜렷하게 빨갛게 보이도록 진하게 했다. */
 .bb-zone--danger.bb-zone--warn { background: rgba(220, 38, 38, .5); }
+/* 반드시 눌러야 하는 존 — 노란빛. warn 때부터 보이고, active 동안(눌러서 만족시킬 수
+   있는 내내) 계속 눈에 띄게 유지된다. */
+.bb-zone--musthit.bb-zone--warn { background: rgba(255, 200, 40, .5); }
+.bb-zone--musthit.bb-zone--active { background: rgba(255, 200, 40, .38); animation: bbMustHitPulse 500ms ease-in-out infinite; }
+@keyframes bbMustHitPulse {
+  0%, 100% { background-color: rgba(255, 200, 40, .3); }
+  50% { background-color: rgba(255, 200, 40, .55); }
+}
 
 .bb-slash {
   position: absolute; inset: 0; margin: auto; z-index: 2;
