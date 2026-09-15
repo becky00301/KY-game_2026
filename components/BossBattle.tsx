@@ -133,6 +133,9 @@ export default function BossBattle({
   const [stunned, setStunned] = useState(false);
   // 2페이즈 발악(리듬게임) — 지금까지 연속으로 성공한 패링 횟수.
   const [finaleHits, setFinaleHits] = useState(0);
+  // 2페이즈 발악 — 매 박자 링이 화면에서 뜨는 위치를 중앙 기준 오프셋(px)으로 무작위
+  // 이동시킨다. null이면(1페이즈, 혹은 아직 안 정해졌으면) 기본 중앙 위치 그대로.
+  const [finaleRingOffset, setFinaleRingOffset] = useState<{ dx: number; dy: number } | null>(null);
   const [circleTargets, setCircleTargets] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
   // 원을 맞혔을 때 그 자리에 잠깐 떴다가 사라지는 초록빛 확인 표시 — 게임 로직과는
   // 무관한 순수 연출용이라 별도 상태로 둔다.
@@ -159,6 +162,11 @@ export default function BossBattle({
   // 2페이즈 발악(리듬게임) — 지금까지 연속으로 성공한 패링 횟수(state와 동일, 타이머
   // 콜백에서 동기적으로 읽기 위한 ref).
   const finaleHitsRef = useRef(0);
+  // 지금 박자의 링 지속시간/판정창(ms) — 2페이즈는 매 박자 무작위로 다시 뽑는다.
+  // handleFinaleSkill이 렌더 시점과 무관하게 항상 "이번 박자에 실제로 쓰인" 값을
+  // 읽도록 ref로 들고 있는다.
+  const finaleBeatDurationRef = useRef(0);
+  const finaleBeatWindowRef = useRef(0);
   // 발악 스킬 버튼 — 한 번 쓰면 즉시 잠가서, 결과 연출이 나오는 동안 연타해도 중복으로
   // 처리되지 않게 한다.
   const skillLockRef = useRef(false);
@@ -475,12 +483,25 @@ export default function BossBattle({
 
   /** 발악 링 판정 한 판을 (다시) 시작한다 — 스킬 버튼 잠금을 풀고, 시작 시각을 찍고,
    * 이 판을 놓쳤을 때의 자동 실패 타이머를 건다. 2페이즈는 이걸 여러 번 반복 호출해서
-   * 리듬게임처럼 이어간다. */
+   * 리듬게임처럼 이어가는데, 매 박자 링 속도와 화면 위치를 무작위로 다시 뽑아서
+   * 제각각 다르게 느껴지게 한다(1페이즈는 항상 고정된 사양·위치 그대로). */
   const startFinaleBeat = useCallback(() => {
     skillLockRef.current = false;
     finaleStartRef.current = Date.now();
-    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
-    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.finaleWindowMs;
+    let durationMs: number;
+    let windowMs: number;
+    if (stageRef.current === 1) {
+      durationMs = BOSS_BATTLE.finaleRingDurationMs;
+      windowMs = BOSS_BATTLE.finaleWindowMs;
+      setFinaleRingOffset(null);
+    } else {
+      durationMs =
+        BOSS_PHASE2.finaleRingDurationMinMs + Math.random() * (BOSS_PHASE2.finaleRingDurationMaxMs - BOSS_PHASE2.finaleRingDurationMinMs);
+      windowMs = durationMs * BOSS_PHASE2.finaleWindowRatio;
+      setFinaleRingOffset({ dx: (Math.random() - 0.5) * 140, dy: (Math.random() - 0.5) * 180 });
+    }
+    finaleBeatDurationRef.current = durationMs;
+    finaleBeatWindowRef.current = windowMs;
     const { end } = timingWindow(durationMs, windowMs);
     const timer = window.setTimeout(() => {
       if (phaseRef.current === "finale") endBattle(false, "finale-fail");
@@ -788,9 +809,9 @@ export default function BossBattle({
     if (phaseRef.current !== "finale" || skillLockRef.current) return;
     skillLockRef.current = true;
     const elapsed = Date.now() - finaleStartRef.current;
-    const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
-    const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.finaleWindowMs;
-    const { start, end } = timingWindow(durationMs, windowMs);
+    // startFinaleBeat에서 이번 박자에 실제로 뽑아둔 값을 그대로 쓴다(2페이즈는 매
+    // 박자 무작위라, 여기서 다시 계산하면 다른 값이 나와버린다).
+    const { start, end } = timingWindow(finaleBeatDurationRef.current, finaleBeatWindowRef.current);
     const success = elapsed >= start && elapsed <= end;
     if (!success) {
       endBattle(false, "finale-fail");
@@ -917,11 +938,6 @@ export default function BossBattle({
   const showCombat = phase === "combat" || phase === "finale" || phase === "invertCircles";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
-  // 발악 링의 애니메이션 시간을 실제 유효 시간창 계산에 쓰는 durationMs와 맞춘다 — 안
-  // 그러면 링이 실제 판정보다 먼저 다 좁혀져서 타이밍이 안 맞아 보인다. 2페이즈 발악은
-  // 1페이즈 발악과 완전히 같은 사양이라 별도 처리가 필요 없다.
-  const ringDurationMs = stage === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
-
   return (
     <section
       className={`bb-root boss-theme ${inverted ? "bb-inverted" : ""}`}
@@ -1093,11 +1109,22 @@ export default function BossBattle({
               {finaleHits} / {BOSS_PHASE2.finaleHitsRequired}
             </p>
           )}
-          <div className="bb-finale-rings">
+          <div
+            className="bb-finale-rings"
+            style={
+              finaleRingOffset
+                ? { transform: `translate(${finaleRingOffset.dx}px, ${finaleRingOffset.dy}px)` }
+                : undefined
+            }
+          >
             <div className="bb-finale-ring-target" />
             {/* 2페이즈는 이 판정을 여러 번 반복하므로, key를 박자 번호로 줘서 매 박자마다
                 줄어드는 애니메이션이 처음부터 다시 재생되게 한다. */}
-            <div key={finaleHits} className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
+            <div
+              key={finaleHits}
+              className="bb-finale-ring-shrink"
+              style={{ animationDuration: `${finaleBeatDurationRef.current}ms` }}
+            />
           </div>
           <button className="bb-skill-btn" onClick={handleFinaleSkill} aria-label="특수 스킬 사용">
             <img className="bb-skill-icon" src="/images/boss-battle/skill-bind.png" alt="" />

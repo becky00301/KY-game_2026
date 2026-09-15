@@ -179,11 +179,14 @@ export const BOSS_PHASE2 = {
   pattern2ActiveMs: 580,
   pattern2JudgeMs: 220,
   pattern2DeathPenalty: 3,
-  // 중간 체크포인트(75%) 없이, HP 0%때 발악만 뜬다. 링 한 판정의 사양(2.2초/1.4초
-  // 판정창)은 1페이즈 발악과 같지만, 2페이즈는 리듬게임처럼 이걸 연속으로
-  // finaleHitsRequired번 성공해야 진짜 격파된다 — 하나라도 놓치면 그 즉시 실패.
-  finaleRingDurationMs: 2200,
-  finaleWindowMs: 1400,
+  // 중간 체크포인트(75%) 없이, HP 0%때 발악만 뜬다. 2페이즈는 리듬게임처럼 이 링
+  // 판정을 연속으로 finaleHitsRequired번 성공해야 진짜 격파된다 — 하나라도 놓치면
+  // 그 즉시 실패. 매 박자마다 링이 줄어드는 속도(duration)를 무작위로 다시 뽑아서
+  // 제각각 다르게 느껴지게 하고, 판정창은 그 속도에 비례한 비율로 유지해 난이도를
+  // 맞춘다. 위치도 매 박자 무작위로 옮겨서(finaleRingOffset) 화면 이곳저곳에 뜬다.
+  finaleRingDurationMinMs: 1300,
+  finaleRingDurationMaxMs: 3000,
+  finaleWindowRatio: 0.64,
   finaleHitsRequired: 5,
   timeLimitMs: 3 * 60 * 1000,
   patternRestMs: 180,
