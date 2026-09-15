@@ -589,8 +589,9 @@ export default function GameScreen({
         </div>
 
         <div className="energy">
-          <span className="energy-value">{formatNumber(sword.energy)}</span>
-          <span className="energy-label">{theme.spirit}</span>
+          {/* 점수 = 지금까지 모인 누적치. 강화를 사도 줄지 않고, 단계 진행도 이 값으로 정해진다. */}
+          <span className="energy-value">{formatNumber(sword.lifetime)}</span>
+          <span className="energy-label">{theme.copy.scoreLabel ?? "점수"}</span>
         </div>
         <div className="energy-rate">
           초당 {formatRate(perSec * (feverActive ? FEVER_MULTIPLIER : 1))} · 터치당{" "}
@@ -697,7 +698,12 @@ export default function GameScreen({
         </div>
 
         <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
-          {theme.copy.upgradeBtnLabel ?? "함께 강화하기"}
+          <span className="upgrade-btn-label">{theme.copy.upgradeBtnLabel ?? "함께 강화하기"}</span>
+          {/* 재화 = 강화(스킬)를 사면 줄어드는 값. 점수와 헷갈리지 않게 구매 버튼 옆에 따로 둔다. */}
+          <span className="currency-chip">
+            <span className="currency-chip-name">보유 {theme.spirit}</span>
+            <span className="currency-chip-value">{formatNumber(sword.energy)}</span>
+          </span>
         </button>
       </footer>
       </div>
@@ -743,7 +749,7 @@ export default function GameScreen({
           <PipView
             theme={theme}
             team={team}
-            energy={sword.energy}
+            score={sword.lifetime}
             stage={stage}
             floaters={pipFloaters}
             onTap={handlePipTap}

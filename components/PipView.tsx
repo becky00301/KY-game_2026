@@ -17,7 +17,7 @@ export interface PipFloater {
 export default function PipView({
   theme,
   team,
-  energy,
+  score,
   stage,
   floaters,
   onTap,
@@ -25,7 +25,8 @@ export default function PipView({
 }: {
   theme: TeamTheme;
   team: TeamId;
-  energy: number;
+  /** 누적 점수 — 게임 화면 위 큰 숫자와 같은 값 */
+  score: number;
   stage: number;
   floaters: PipFloater[];
   onTap: () => void;
@@ -48,7 +49,7 @@ export default function PipView({
     >
       <header className="pip-header">
         <span className="pip-team">{theme.copy.badgeLabel ?? `${theme.short} 공동 칼`}</span>
-        <span className="pip-energy">{formatNumber(energy)}</span>
+        <span className="pip-energy">{formatNumber(score)}</span>
       </header>
 
       <button

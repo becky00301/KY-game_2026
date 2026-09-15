@@ -11,6 +11,7 @@ export type TeamId = "ku" | "yu";
  */
 export interface TeamCopy {
   badgeLabel?: string; // 상단 배지 텍스트 ("OO 공동 칼" 대체)
+  scoreLabel?: string; // 상단 큰 숫자(누적 점수) 옆 이름. 재화 이름(spirit)과 구분한다
   galleryTitle?: string; // 도감 시트 제목
   gallerySheetNote?: string; // 도감 시트 안내문
   upgradeSheetLabel?: string; // 강화 시트 상단 라벨
@@ -69,6 +70,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     ],
     copy: {
       badgeLabel: "노아의 검",
+      scoreLabel: "염원 점수",
       galleryTitle: "진홍과 여명의 이야기",
       gallerySheetNote: "염원이 모일수록, 검법에 담겨진 이야기가 공개됩니다.",
       upgradeSheetLabel: "진홍 여명 검법의 비술",
@@ -112,6 +114,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     ],
     copy: {
       badgeLabel: "연의 검",
+      scoreLabel: "데이터 점수",
       galleryTitle: "천청과 비상의 이야기",
       gallerySheetNote: "검이 업그레이드 될 수록, 검법에 담겨진 이야기가 공개됩니다.",
       upgradeSheetLabel: "천청 비상 검법 모듈 시스템",
