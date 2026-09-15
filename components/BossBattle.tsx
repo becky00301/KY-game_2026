@@ -109,10 +109,14 @@ const CIRCLE_HIT_RADIUS_PX = 72;
 export default function BossBattle({
   onExit,
   debugStartPhase2 = false,
+  debugLowHp = false,
 }: {
   onExit: () => void;
   /** 개발용 — 전투를 건너뛰고 바로 2페이즈 등장 연출부터 보여준다(연출 후 자동으로 2페이즈 전투 진입). */
   debugStartPhase2?: boolean;
+  /** 개발용 — 2페이즈 진입 시 HP를 10%로 시작해서 발악(HP 0%)까지 금방 도달하게 한다.
+   * 거꾸로 패턴/레이저는 이미 지나간 것으로 치고 건너뛴다(발악 자체를 테스트하는 용도). */
+  debugLowHp?: boolean;
 }) {
   const [phase, setPhase] = useState<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
   const [stage, setStage] = useState<Stage>(1);
@@ -828,11 +832,15 @@ export default function BossBattle({
     const timer = window.setTimeout(() => {
       stageRef.current = 2;
       setStage(2);
-      hpRef.current = BOSS_PHASE2.maxHp;
-      setHp(BOSS_PHASE2.maxHp);
+      const startHp = debugLowHp ? BOSS_PHASE2.maxHp * 0.1 : BOSS_PHASE2.maxHp;
+      hpRef.current = startHp;
+      setHp(startHp);
       comboRef.current = 0;
       setCombo(0);
-      invertCrossedRef.current = false;
+      // debugLowHp로 HP 10%부터 시작하면 거꾸로 패턴(50%)·레이저(25%) 임계값을 이미
+      // 지난 것으로 쳐서, 발악(HP 0%)까지 방해 없이 곧장 갈 수 있게 한다.
+      invertCrossedRef.current = debugLowHp;
+      laserModeRef.current = debugLowHp;
       invertedRef.current = false;
       invertMissedRef.current = false;
       setInverted(false);
@@ -844,7 +852,7 @@ export default function BossBattle({
       scheduleStage2Pattern2();
     }, 3000);
     return () => window.clearTimeout(timer);
-  }, [phase, scheduleStage2Pattern2]);
+  }, [phase, scheduleStage2Pattern2, debugLowHp]);
 
   // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다.
   useEffect(() => {
