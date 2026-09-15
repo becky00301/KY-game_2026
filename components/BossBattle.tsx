@@ -516,9 +516,10 @@ export default function BossBattle({
     pendingTimers.current.push(timer);
   }, [endBattle]);
 
-  // HP가 0이 되는 순간 바로 발악(링 판정)을 시작하면 너무 갑작스러워서, 예고 대사를
-  // 읽을 여유(BOSS_FINALE_TRANSITION_MS)를 준 뒤에 실제 발악이 시작되게 한다 —
-  // 거꾸로 패턴 진입(enterInvertTransition)과 같은 암전+예고 구조.
+  // 2페이즈(진짜 격파, 리듬게임)만 HP가 0이 되는 순간 바로 시작하면 너무 갑작스러워서,
+  // 예고 대사를 읽을 여유(BOSS_FINALE_TRANSITION_MS)를 준 뒤에 실제 발악이 시작되게
+  // 한다 — 거꾸로 패턴 진입(enterInvertTransition)과 같은 암전+예고 구조. 1페이즈
+  // (단발성 링 판정 한 번)는 굳이 암전으로 끊을 이유가 없어 원래대로 바로 시작한다.
   const enterFinale = useCallback(() => {
     clearPendingTimers();
     inPattern2Ref.current = false;
@@ -527,12 +528,18 @@ export default function BossBattle({
     setP2Phase("idle");
     laserBeamsRef.current = [];
     setLaserBeams([]);
+    finaleHitsRef.current = 0;
+    setFinaleHits(0);
+    if (stageRef.current === 1) {
+      phaseRef.current = "finale";
+      setPhase("finale");
+      startFinaleBeat();
+      return;
+    }
     phaseRef.current = "finaleTransition";
     setPhase("finaleTransition");
     showBossLine(BOSS_FINALE_READY_LINE, "success");
     const timer = window.setTimeout(() => {
-      finaleHitsRef.current = 0;
-      setFinaleHits(0);
       phaseRef.current = "finale";
       setPhase("finale");
       startFinaleBeat();
