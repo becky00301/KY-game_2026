@@ -36,7 +36,10 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose }: 
 
         <header className="sheet-head">
           <div>
-            <p className="sheet-energy">{formatNumber(sword.energy)}</p>
+            <p className="sheet-energy">
+              {formatNumber(sword.energy)}
+              <span className="sheet-energy-unit">{theme.spirit}</span>
+            </p>
             <p className="sheet-energy-label">
               {theme.copy.upgradeSheetLabel ?? `${theme.short} 공동 ${theme.spirit}`}
             </p>

@@ -4,8 +4,14 @@
     {
       "name": "kyg-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3400"
+      ],
+      "port": 3400
     }
   ]
 }

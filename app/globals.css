@@ -670,6 +670,45 @@ button {
   box-shadow: 0 14px 30px -16px var(--primary);
 }
 
+/* 강화 버튼 — 왼쪽은 버튼 이름, 오른쪽은 보유 재화 */
+.upgrade-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 8px 0 20px;
+}
+
+.upgrade-btn-label {
+  white-space: nowrap;
+}
+
+.currency-chip {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 12px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  line-height: 1.15;
+}
+
+.currency-chip-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.currency-chip-value {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .upgrade-btn:active {
   transform: scale(0.985);
 }
@@ -777,6 +816,14 @@ button {
   font-size: 28px;
   font-weight: 900;
   letter-spacing: -0.02em;
+}
+
+.sheet-energy-unit {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  letter-spacing: 0;
 }
 
 .sheet-energy-label {
