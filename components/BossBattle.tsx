@@ -43,7 +43,7 @@ import {
 } from "@/lib/bossBattle";
 import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
 import { setBossBgmPhase2 } from "@/lib/bgm";
-import { playHit } from "@/lib/sfx";
+import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 
 type Phase =
   | "intro"
@@ -673,6 +673,7 @@ export default function BossBattle({
       const activeState: Pattern1State = { ...warnState, phase: "active", judgeable: true };
       p1Ref.current = activeState;
       setP1(activeState);
+      playBossPattern1AttackSound();
       // 판정은 active 시작 시점의 짧은 순간만 — 나머지 잔상 구간은 이펙트만 보이고 안전하다.
       const judgeTimer = window.setTimeout(() => {
         if (p1Ref.current.id !== myId) return;

@@ -120,3 +120,8 @@ export function playCardRevealSound() {
 export function playFeverStartSound() {
   playFile("/audio/misc/fever-start-sound.mp3");
 }
+
+/** 서휘령 전투 — 1·2페이즈 공통, 기본패턴(가로/세로/대각선 베기)이 실제로 발동하는 순간의 사운드. */
+export function playBossPattern1AttackSound() {
+  playFile("/audio/boss-battle/pattern1-attack.wav");
+}
