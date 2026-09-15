@@ -1105,7 +1105,6 @@ export default function BossBattle({
 
       {phase === "finale" && (
         <div className="bb-finale-layer">
-          <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
           {stage === 2 && (
             <p className="bb-finale-hits">
               {finaleHits} / {BOSS_PHASE2.finaleHitsRequired}

@@ -73,7 +73,7 @@ export const BOSS_INVERT_CIRCLE_MISS_PENALTY = 1;
 export const BOSS_INVERT_STUN_MS = 5000;
 /** 기절이 풀린 뒤에도 이만큼은 패턴이 나오지 않는다 — 기절 종료를 인지할 여유를 준다. */
 export const BOSS_INVERT_STUN_BUFFER_MS = 500;
-export const BOSS_INVERT_STUN_LINE = "서휘령이 기절했다! 지금이 기회다!";
+export const BOSS_INVERT_STUN_LINE = "서휘령의 공격을 막아냈어요! 지금이 기회입니다!";
 
 /** 2페이즈 HP 25% 이하 — 맵을 가로지르는 얇은 레이저 여러 가닥이 한 번에(볼레이) 무작위
  *  위치·방향으로 자주 발사된다. 패턴1/패턴2와 겹침 방지 없이 독립적으로 판정되며(그래서
