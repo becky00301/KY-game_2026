@@ -122,22 +122,24 @@ export function BossCardUnlock({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function BossGallery({ unlocked, onClose }: { unlocked: boolean; onClose: () => void }) {
+export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { unlocked: boolean; victoryUnlocked?: boolean; onClose: () => void }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const open = BOSS_CARDS.find((card) => card.id === openId);
+  const unlockedCount = (unlocked ? 1 : 0) + (victoryUnlocked ? 1 : 0);
   return (
     <div className="sheet-backdrop boss-theme" onClick={onClose}>
       <section className="sheet gallery sheet--boss" role="dialog" aria-modal="true" aria-label="몰락한 검귀의 이야기" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" />
         <header className="sheet-head">
-          <div><p className="sheet-energy">{unlocked ? 1 : 0} / {BOSS_CARDS.length}</p><p className="sheet-energy-label">몰락한 검귀의 이야기</p></div>
+          <div><p className="sheet-energy">{unlockedCount} / {BOSS_CARDS.length}</p><p className="sheet-energy-label">몰락한 검귀의 이야기</p></div>
           <button className="icon-btn" onClick={onClose} aria-label="닫기" autoFocus>✕</button>
         </header>
         <p className="sheet-note">서휘령을 격파하세요. 그에게 숨겨진 이야기가 공개됩니다.</p>
         <ul className="gallery-grid">
           {BOSS_CARDS.map((card) => {
-            const locked = card.id !== "intro" || !unlocked;
-            return <li key={card.id}><button className={`gallery-item ${locked ? "locked" : ""}`} disabled={locked} onClick={() => setOpenId(card.id)} aria-label={locked ? "아직 열리지 않은 카드" : "서휘령 첫 번째 이야기 확대"}>
+            const locked = card.id === "intro" ? !unlocked : card.id === "victory" ? !victoryUnlocked : true;
+            const openLabel = card.id === "victory" ? "서휘령 격파 이야기 확대" : "서휘령 첫 번째 이야기 확대";
+            return <li key={card.id}><button className={`gallery-item ${locked ? "locked" : ""}`} disabled={locked} onClick={() => setOpenId(card.id)} aria-label={locked ? "아직 열리지 않은 카드" : openLabel}>
               <BossCardPlaceholder locked={locked} /><span className="gallery-name">{card.title}</span>
             </button></li>;
           })}

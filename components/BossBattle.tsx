@@ -43,8 +43,14 @@ import {
   timingWindow,
   zoneOf,
 } from "@/lib/bossBattle";
-import { BOSS_PHASE2_ASSETS } from "@/lib/boss";
-import { setBossBgmPhase2 } from "@/lib/bgm";
+import {
+  BOSS_EPILOGUE_ENDING_IMAGE_MS,
+  BOSS_EPILOGUE_ENDING_IMAGE_SRC,
+  BOSS_EPILOGUE_LINES,
+  BOSS_EPILOGUE_PORTRAITS,
+  BOSS_PHASE2_ASSETS,
+} from "@/lib/boss";
+import { setBossBgmPhase2, stopBossBgm } from "@/lib/bgm";
 import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 
 type Phase =
@@ -56,7 +62,9 @@ type Phase =
   | "blackout"
   | "phase2Intro"
   | "invertTransition"
-  | "invertCircles";
+  | "invertCircles"
+  | "epilogue"
+  | "epilogueImage";
 type SubPhase = "idle" | "warn" | "active";
 type Stage = 1 | 2;
 
@@ -111,10 +119,14 @@ const CIRCLE_HIT_RADIUS_PX = 72;
  */
 export default function BossBattle({
   onExit,
+  onVictoryEpilogueDone,
   debugStartPhase2 = false,
   debugLowHp = false,
 }: {
   onExit: () => void;
+  /** 2페이즈(진짜 격파) 후일담 대화가 끝나는 순간(엔딩 이미지로 넘어가는 시점) 한 번
+   * 호출된다 — 호출부(GameScreen 등)에서 팀별 서휘령 도감 "victory" 카드를 해금하는 데 쓴다. */
+  onVictoryEpilogueDone?: () => void;
   /** 개발용 — 전투를 건너뛰고 바로 2페이즈 등장 연출부터 보여준다(연출 후 자동으로 2페이즈 전투 진입). */
   debugStartPhase2?: boolean;
   /** 개발용 — 2페이즈 진입 시 HP를 10%로 시작해서 발악(HP 0%)까지 금방 도달하게 한다.
@@ -153,6 +165,15 @@ export default function BossBattle({
 
   const onExitRef = useRef(onExit);
   onExitRef.current = onExit;
+  const onVictoryEpilogueDoneRef = useRef(onVictoryEpilogueDone);
+  onVictoryEpilogueDoneRef.current = onVictoryEpilogueDone;
+
+  // 2페이즈 격파 후일담 — 지금 보여주고 있는 대사 인덱스, 그리고 후일담을 이미 한 번
+  // 끝냈는지(엔딩 이미지까지 봤는지) 여부. 후자는 blackout이 다시 한 번 더(엔딩 이미지
+  // 다음) 일어날 때, 그게 후일담 시작이 아니라 진짜 종료임을 구분하는 데 쓴다.
+  const [epilogueLine, setEpilogueLine] = useState(0);
+  const epilogueLineRef = useRef(0);
+  const epilogueDoneRef = useRef(false);
 
   const phaseRef = useRef<Phase>(debugStartPhase2 ? "phase2Intro" : "intro");
   const stageRef = useRef<Stage>(1);
@@ -861,6 +882,24 @@ export default function BossBattle({
     startFinaleBeat();
   }, [endBattle, triggerFlash, clearPendingTimers, startFinaleBeat]);
 
+  // 2페이즈 격파 후일담 — 대사를 다 읽었거나 건너뛰면 엔딩 이미지 단계로 넘어간다.
+  // 이 시점에 호출부(GameScreen 등)로 "후일담을 봤다"를 알려서 도감을 해금시킨다.
+  const finishEpilogueDialogue = useCallback(() => {
+    phaseRef.current = "epilogueImage";
+    setPhase("epilogueImage");
+    onVictoryEpilogueDoneRef.current?.();
+  }, []);
+
+  const advanceEpilogue = useCallback(() => {
+    const next = epilogueLineRef.current + 1;
+    if (next >= BOSS_EPILOGUE_LINES.length) {
+      finishEpilogueDialogue();
+      return;
+    }
+    epilogueLineRef.current = next;
+    setEpilogueLine(next);
+  }, [finishEpilogueDialogue]);
+
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
     if (phase !== "intro") return;
@@ -941,8 +980,9 @@ export default function BossBattle({
     return () => window.clearInterval(interval);
   }, [phase, endBattle]);
 
-  // 화면이 다 어두워지면: 1페이즈 발악 성공은 2페이즈 등장으로, 2페이즈 발악 성공은 진짜
-  // 승리라 그대로 입장맵으로, 그 외(실패/시간초과/죽음)는 전부 입장맵으로 돌아간다.
+  // 화면이 다 어두워지면: 1페이즈 발악 성공은 2페이즈 등장으로, 2페이즈 발악 성공(첫
+  // blackout)은 후일담 대화로, 후일담을 다 본 뒤의 blackout은 그대로 입장맵으로,
+  // 그 외(실패/시간초과/죽음)는 전부 입장맵으로 돌아간다.
   useEffect(() => {
     if (phase !== "blackout") return;
     if (wonRef.current && stageRef.current === 1) {
@@ -952,11 +992,33 @@ export default function BossBattle({
       }, 650);
       return () => window.clearTimeout(t);
     }
+    if (wonRef.current && stageRef.current === 2 && !epilogueDoneRef.current) {
+      const t = window.setTimeout(() => {
+        stopBossBgm(false); // 후일담 동안은 조용히 — 메인 게임 브금도 되돌리지 않는다.
+        epilogueLineRef.current = 0;
+        setEpilogueLine(0);
+        phaseRef.current = "epilogue";
+        setPhase("epilogue");
+      }, 650);
+      return () => window.clearTimeout(t);
+    }
     if (!wonRef.current) showBossLine(BOSS_DEFEAT_LINE);
     const exitMs = wonRef.current ? 650 : BOSS_DEFEAT_EXIT_MS;
     const t = window.setTimeout(() => onExitRef.current(), exitMs);
     return () => window.clearTimeout(t);
   }, [phase, showBossLine]);
+
+  // 후일담 엔딩 이미지 — 4초 보여준 뒤 다시 암전하고(위 블록에서 이번엔 epilogueDoneRef가
+  // true이므로 곧바로 입장맵으로) 나간다.
+  useEffect(() => {
+    if (phase !== "epilogueImage") return;
+    const t = window.setTimeout(() => {
+      epilogueDoneRef.current = true;
+      phaseRef.current = "blackout";
+      setPhase("blackout");
+    }, BOSS_EPILOGUE_ENDING_IMAGE_MS);
+    return () => window.clearTimeout(t);
+  }, [phase]);
 
   // 언마운트 시 남아있는 타이머 정리.
   useEffect(() => () => clearPendingTimers(), [clearPendingTimers]);
@@ -965,6 +1027,7 @@ export default function BossBattle({
   const showCombat = phase === "combat" || phase === "finale" || phase === "invertCircles";
   const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
+  const epilogueCurrent = BOSS_EPILOGUE_LINES[Math.min(epilogueLine, BOSS_EPILOGUE_LINES.length - 1)];
   return (
     <section
       className={`bb-root boss-theme ${inverted ? "bb-inverted" : ""}`}
@@ -1156,6 +1219,34 @@ export default function BossBattle({
           <button className="bb-skill-btn" onClick={handleFinaleSkill} aria-label="특수 스킬 사용">
             <img className="bb-skill-icon" src="/images/boss-battle/skill-bind.png" alt="" />
           </button>
+        </div>
+      )}
+
+      {phase === "epilogue" && (
+        <div className="bb-epilogue">
+          <button className="tutorial-skip boss-skip" onClick={finishEpilogueDialogue}>건너뛰기</button>
+          <button className="boss-dialogue-advance" onClick={advanceEpilogue} aria-label="다음 대사">
+            {epilogueCurrent.speaker !== "narrator" && (
+              <img
+                className="boss-portrait"
+                src={BOSS_EPILOGUE_PORTRAITS[epilogueCurrent.speaker]}
+                alt={epilogueCurrent.name}
+              />
+            )}
+            <div className="tutorial-dialogue" aria-live="polite">
+              <p className="tutorial-name">{epilogueCurrent.name}</p>
+              <p className="tutorial-line">{epilogueCurrent.text}</p>
+              <p className="tutorial-next-hint">탭하여 계속</p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {phase === "epilogueImage" && (
+        <div className="bb-epilogue">
+          <div className="boss-reveal-image-wrap">
+            <img className="boss-reveal-image" src={BOSS_EPILOGUE_ENDING_IMAGE_SRC} alt="" />
+          </div>
         </div>
       )}
 

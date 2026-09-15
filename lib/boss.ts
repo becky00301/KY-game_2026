@@ -21,6 +21,19 @@ export function crossedBossThreshold(previousStars: number, stars: number, atMax
   return atMaxStage && previousStars < 1 && stars >= 1;
 }
 
+/** 2페이즈(진짜 격파) 후일담을 이미 봤는지 — 서휘령 도감의 "victory" 카드 해금 여부. */
+export function hasSeenBossVictory(team: TeamId): boolean {
+  if (typeof window === "undefined") return false;
+  try { return window.localStorage.getItem(`bossVictorySeen:${team}`) === "1"; }
+  catch { return false; }
+}
+
+export function claimBossVictory(team: TeamId): boolean {
+  if (hasSeenBossVictory(team)) return false;
+  try { window.localStorage.setItem(`bossVictorySeen:${team}`, "1"); } catch { /* session fallback */ }
+  return true;
+}
+
 export const BOSS_INTRO = {
   bgmSrc: "/audio/boss-intro-bgm.mp3",
   portraitSrc: "/images/boss/boss-portrait.webp",
@@ -47,5 +60,43 @@ export const BOSS_PHASE2_ASSETS = {
 // Add future story cards here; defeat/unlock conditions can be introduced with combat.
 export const BOSS_CARDS = [
   { id: "intro", title: "???", caption: "이야기는 아직 준비 중입니다." },
-  { id: "victory", title: "???", caption: "이야기는 아직 준비 중입니다." },
+  { id: "victory", title: "완벽한 패배", caption: "서휘령은 마지막 순간, 누이 서여한의 진심을 전해받고 눈을 감았다." },
 ] as const;
+
+/** 2페이즈(진짜 격파) 후 재생되는 후일담 대화. speaker에 따라 초상화가 바뀌거나
+ *  (narrator는 초상화 없음) 사라진다. */
+export type BossEpilogueSpeaker = "hwiryeong" | "yeohan" | "narrator";
+export interface BossEpilogueLine {
+  speaker: BossEpilogueSpeaker;
+  name: string;
+  text: string;
+}
+
+export const BOSS_EPILOGUE_PORTRAITS: Record<"hwiryeong" | "yeohan", string> = {
+  hwiryeong: "/images/boss-battle/hwiryeong-wounded.png",
+  yeohan: "/images/boss-battle/seo-yeohan.png",
+};
+
+/** 후일담 마지막 — 화면이 암전된 뒤 4초간 꽉 차게 뜨는 엔딩 일러스트. */
+export const BOSS_EPILOGUE_ENDING_IMAGE_SRC = "/images/boss-battle/ending-two-swords.png";
+export const BOSS_EPILOGUE_ENDING_IMAGE_MS = 4000;
+
+export const BOSS_EPILOGUE_LINES: BossEpilogueLine[] = [
+  { speaker: "hwiryeong", name: "서휘령", text: "....." },
+  { speaker: "hwiryeong", name: "서휘령", text: "내가... 내가 졌다. 완벽한 패배야." },
+  { speaker: "hwiryeong", name: "서휘령", text: "정말..훌륭한 검술이구나." },
+  { speaker: "hwiryeong", name: "서휘령", text: "누님..저는.." },
+  { speaker: "yeohan", name: "서여한", text: "... 여행자님, 휘령이에게, 이 말을 전해주시겠어요?" },
+  { speaker: "yeohan", name: "서여한", text: "'뭇별의 너머에서, 우린 반드시 만나게 될 거라고..'" },
+  { speaker: "narrator", name: "나", text: "(말을 전한다)" },
+  { speaker: "hwiryeong", name: "서휘령", text: "..너..너가 어떻게 그걸.." },
+  { speaker: "hwiryeong", name: "서휘령", text: "...그래. 맞아.. 어렴풋이 느끼고 있었어. 누님의 힘을.." },
+  { speaker: "hwiryeong", name: "서휘령", text: "외면하고 있었다. 이미 너무 많은 목숨을 베어버렸으니까.." },
+  { speaker: "hwiryeong", name: "서휘령", text: "그래..정작.. 용서받지 못한 검은, 바로 나였구나." },
+  { speaker: "hwiryeong", name: "서휘령", text: "..." },
+  { speaker: "narrator", name: "나", text: "(서휘령은 완전히 숨을 거둔 것 같다.)" },
+  { speaker: "yeohan", name: "서여한", text: "감사합니다. 여행자님. 드디어.. 모두가 고통의 굴레에서 벗어날 수 있을 거에요." },
+  { speaker: "yeohan", name: "서여한", text: "당신은.. 제가 본 그 어떤 검사보다 강하답니다. 부디.. 당신의 여정에 뭇별이 함께하기를." },
+  { speaker: "yeohan", name: "서여한", text: "... 휘령이의 영혼은 더럽혀졌기에, 다시는 만날 수 없겠지만.." },
+  { speaker: "yeohan", name: "서여한", text: "마지막 인사정도는.. 해주고싶네요." },
+];

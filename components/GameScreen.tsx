@@ -6,7 +6,7 @@ import Sword from "./Sword";
 import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
 import BossBattle from "./BossBattle";
-import { claimBossIntro, crossedBossThreshold, hasSeenBossIntro } from "@/lib/boss";
+import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
@@ -847,11 +847,22 @@ export default function GameScreen({
         onEnter={() => setBossMode("battle")}
       />}
       {bossMode === "battle" && (
-        <BossBattle onExit={() => setBossMode("map")} debugStartPhase2={debugBossPhase2} debugLowHp={debugBossLowHp} />
+        <BossBattle
+          onExit={() => setBossMode("map")}
+          onVictoryEpilogueDone={() => claimBossVictory(team)}
+          debugStartPhase2={debugBossPhase2}
+          debugLowHp={debugBossLowHp}
+        />
       )}
       {bossMode === "intro" && <BossIntro onDone={() => { setBossMode("map"); setBossUnlockOpen(true); }} />}
       {bossUnlockOpen && <BossCardUnlock onClose={() => setBossUnlockOpen(false)} />}
-      {bossGalleryOpen && <BossGallery unlocked={hasSeenBossIntro(team)} onClose={() => setBossGalleryOpen(false)} />}
+      {bossGalleryOpen && (
+        <BossGallery
+          unlocked={hasSeenBossIntro(team)}
+          victoryUnlocked={hasSeenBossVictory(team)}
+          onClose={() => setBossGalleryOpen(false)}
+        />
+      )}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
 
       {error && (
