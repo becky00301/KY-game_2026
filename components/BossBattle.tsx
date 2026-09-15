@@ -127,6 +127,8 @@ export default function BossBattle({
   const [inverted, setInverted] = useState(false);
   // 거꾸로 패턴 성공 후 서휘령이 기절해 있는 동안 검이 노란빛으로 빛난다.
   const [stunned, setStunned] = useState(false);
+  // 2페이즈 발악(리듬게임) — 지금까지 연속으로 성공한 패링 횟수.
+  const [finaleHits, setFinaleHits] = useState(0);
   const [circleTargets, setCircleTargets] = useState<{ key: number; xFrac: number; yFrac: number }[]>([]);
   // 원을 맞혔을 때 그 자리에 잠깐 떴다가 사라지는 초록빛 확인 표시 — 게임 로직과는
   // 무관한 순수 연출용이라 별도 상태로 둔다.
@@ -150,6 +152,9 @@ export default function BossBattle({
   const lastTapAtRef = useRef(0);
   const battleStartRef = useRef(0);
   const finaleStartRef = useRef(0);
+  // 2페이즈 발악(리듬게임) — 지금까지 연속으로 성공한 패링 횟수(state와 동일, 타이머
+  // 콜백에서 동기적으로 읽기 위한 ref).
+  const finaleHitsRef = useRef(0);
   // 발악 스킬 버튼 — 한 번 쓰면 즉시 잠가서, 결과 연출이 나오는 동안 연타해도 중복으로
   // 처리되지 않게 한다.
   const skillLockRef = useRef(false);
@@ -464,16 +469,10 @@ export default function BossBattle({
     pendingTimers.current.push(timer);
   }, [clearPendingTimers, showBossLine, spawnCircle]);
 
-  const enterFinale = useCallback(() => {
-    clearPendingTimers();
-    inPattern2Ref.current = false;
-    p1Ref.current = IDLE_PATTERN1;
-    setP1(IDLE_PATTERN1);
-    setP2Phase("idle");
-    laserBeamsRef.current = [];
-    setLaserBeams([]);
-    phaseRef.current = "finale";
-    setPhase("finale");
+  /** 발악 링 판정 한 판을 (다시) 시작한다 — 스킬 버튼 잠금을 풀고, 시작 시각을 찍고,
+   * 이 판을 놓쳤을 때의 자동 실패 타이머를 건다. 2페이즈는 이걸 여러 번 반복 호출해서
+   * 리듬게임처럼 이어간다. */
+  const startFinaleBeat = useCallback(() => {
     skillLockRef.current = false;
     finaleStartRef.current = Date.now();
     const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
@@ -483,7 +482,22 @@ export default function BossBattle({
       if (phaseRef.current === "finale") endBattle(false, "finale-fail");
     }, end + 60);
     pendingTimers.current.push(timer);
-  }, [clearPendingTimers, endBattle]);
+  }, [endBattle]);
+
+  const enterFinale = useCallback(() => {
+    clearPendingTimers();
+    inPattern2Ref.current = false;
+    p1Ref.current = IDLE_PATTERN1;
+    setP1(IDLE_PATTERN1);
+    setP2Phase("idle");
+    laserBeamsRef.current = [];
+    setLaserBeams([]);
+    finaleHitsRef.current = 0;
+    setFinaleHits(0);
+    phaseRef.current = "finale";
+    setPhase("finale");
+    startFinaleBeat();
+  }, [clearPendingTimers, startFinaleBeat]);
 
   const registerPatternHit = useCallback(
     (penalty: number) => {
@@ -773,9 +787,28 @@ export default function BossBattle({
     const durationMs = stageRef.current === 1 ? BOSS_BATTLE.finaleRingDurationMs : BOSS_PHASE2.finaleRingDurationMs;
     const windowMs = stageRef.current === 1 ? BOSS_BATTLE.finaleWindowMs : BOSS_PHASE2.finaleWindowMs;
     const { start, end } = timingWindow(durationMs, windowMs);
-    if (elapsed >= start && elapsed <= end) endBattle(true);
-    else endBattle(false, "finale-fail");
-  }, [endBattle]);
+    const success = elapsed >= start && elapsed <= end;
+    if (!success) {
+      endBattle(false, "finale-fail");
+      return;
+    }
+    if (stageRef.current === 1) {
+      endBattle(true);
+      return;
+    }
+    // 2페이즈 — 리듬게임: 검격에 맞춰 연속으로 finaleHitsRequired번 패링해야 진짜 격파다.
+    // 하나라도 놓치면(위의 !success 분기) 그 즉시 실패한다.
+    const nextHits = finaleHitsRef.current + 1;
+    finaleHitsRef.current = nextHits;
+    setFinaleHits(nextHits);
+    if (nextHits >= BOSS_PHASE2.finaleHitsRequired) {
+      endBattle(true);
+      return;
+    }
+    triggerFlash("success");
+    clearPendingTimers();
+    startFinaleBeat();
+  }, [endBattle, triggerFlash, clearPendingTimers, startFinaleBeat]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {
@@ -1047,9 +1080,16 @@ export default function BossBattle({
       {phase === "finale" && (
         <div className="bb-finale-layer">
           <p className="bb-finale-line">지금이다 — 정확한 순간에 맞춰라</p>
+          {stage === 2 && (
+            <p className="bb-finale-hits">
+              {finaleHits} / {BOSS_PHASE2.finaleHitsRequired}
+            </p>
+          )}
           <div className="bb-finale-rings">
             <div className="bb-finale-ring-target" />
-            <div className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
+            {/* 2페이즈는 이 판정을 여러 번 반복하므로, key를 박자 번호로 줘서 매 박자마다
+                줄어드는 애니메이션이 처음부터 다시 재생되게 한다. */}
+            <div key={finaleHits} className="bb-finale-ring-shrink" style={{ animationDuration: `${ringDurationMs}ms` }} />
           </div>
           <button className="bb-skill-btn" onClick={handleFinaleSkill} aria-label="특수 스킬 사용">
             <img className="bb-skill-icon" src="/images/boss-battle/skill-bind.png" alt="" />
