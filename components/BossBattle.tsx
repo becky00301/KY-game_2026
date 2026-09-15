@@ -977,7 +977,8 @@ export default function BossBattle({
       />
 
       {phase === "intro" && (
-        <div className="bb-intro">
+        <div className="bb-intro bb-intro-splash">
+          <img className="bb-intro-image" src="/images/boss-battle/phase1-intro-splash.png" alt="" />
           <p className="bb-intro-line">{BOSS_BATTLE_INTRO_LINE}</p>
         </div>
       )}
