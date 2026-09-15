@@ -61,7 +61,13 @@ function nextPoolSlot(): PoolSlot | null {
   return slot;
 }
 
-function playFile(src: string) {
+/**
+ * 칼 타격음 최대 볼륨 배율. 설정에서 터치 사운드를 100%로 둬도 이 비율까지만 커진다.
+ * 연타하면 같은 소리가 겹쳐 크게 들려서, 카드 해금음·피버 시작음보다 조금 낮춘다.
+ */
+const HIT_VOLUME_SCALE = 0.7;
+
+function playFile(src: string, volumeScale = 1) {
   if (!enabled || typeof window === "undefined") return;
   const slot = nextPoolSlot();
   if (!slot) return;
@@ -72,8 +78,9 @@ function playFile(src: string) {
   } catch {
     /* 아직 메타데이터를 못 읽었으면 무시해도 된다 — 어차피 새 src라 0부터 재생된다 */
   }
-  if (gain) gain.gain.value = getEffectiveTapVolume();
-  else el.volume = getEffectiveTapVolume();
+  const volume = getEffectiveTapVolume() * volumeScale;
+  if (gain) gain.gain.value = volume;
+  else el.volume = volume;
   resumeAudioContext();
   el.play().catch(() => {});
 }
@@ -101,7 +108,7 @@ function pickTapSound(team: TeamId, stage: number): string {
 
 /** 칼 두드리는 소리. */
 export function playHit(team: TeamId, stage: number) {
-  playFile(pickTapSound(team, stage));
+  playFile(pickTapSound(team, stage), HIT_VOLUME_SCALE);
 }
 
 /** 도감 카드(진화/후일담) 해금 팝업 사운드. */
