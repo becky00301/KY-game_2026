@@ -29,7 +29,9 @@ export default function Sword({ stage, theme, fever, scale = 1 }: Props) {
   }
 
   return (
-    <div className="sword-box" style={{ transform: `scale(${scale})`, transformOrigin: "50% 62%" }}>
+    // 배율은 transform이 아니라 실제 크기로 반영한다 — transform은 자리를 차지하지 않아서
+    // 커진 칼이 아래 "두드린 횟수" 글씨를 덮었다. 크기 계산은 globals.css의 .sword-box.
+    <div className="sword-box" style={{ "--sword-scale": scale } as React.CSSProperties}>
       <img
         src={src}
         alt=""

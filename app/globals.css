@@ -460,6 +460,10 @@ button {
 .sword-hit {
   position: relative;
   width: min(74vw, 300px);
+  /* 최종 단계 칼(.sword-box)이 이 폭보다 넓어져도 가운데에 오도록 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   touch-action: manipulation;
   transition: transform 0.09s ease;
 }
@@ -480,12 +484,13 @@ button {
 .sword-box {
   position: relative;
   z-index: 1;
-  width: min(74vw, 300px);
   /*
-   * 위 점수판(~210px)과 아래 강화 버튼(~140px)을 뺀 만큼만 쓴다. 예전엔 52dvh 고정이라
-   * 모바일 크롬처럼 화면이 짧으면 전체가 화면보다 길어져 맨 위 점수가 잘려 보였다.
+   * 단계 배율(--sword-scale)만큼 키우되, 위 점수판(~210px)과 아래 글씨·강화 버튼(~190px)을
+   * 뺀 남는 높이를 넘지 않는다. 그래서 최종 단계에서도 칼이 글씨를 덮거나 화면을 밀어내지 않는다.
    */
-  height: clamp(200px, calc(100dvh - 425px), min(52dvh, 420px));
+  --sword-base: min(52dvh, 420px);
+  width: min(calc(min(74vw, 300px) * var(--sword-scale, 1)), 92vw);
+  height: max(180px, min(calc(var(--sword-base) * var(--sword-scale, 1)), calc(100dvh - 415px)));
   display: flex;
   align-items: center;
   justify-content: center;
