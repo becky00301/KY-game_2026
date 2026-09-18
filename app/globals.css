@@ -1417,31 +1417,108 @@ button {
   padding: 4px;
 }
 
-/*
- * 세로가 짧은 폰에서도 그림·제목·이야기가 한 화면에 들어오도록 — 그림 높이를 화면 높이에
- * 맞춰 줄이고, 그래도 넘치면 카드 안에서 스크롤한다.
- */
-.gallery-zoom .reveal-frame {
-  max-height: calc(100dvh - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-}
-
-.gallery-zoom .card-art,
+/* 진화 팝업 — 세로가 짧은 폰에서도 그림·이야기·버튼이 한 화면에 들어오도록 그림 높이를 맞춘다 */
 .reveal-card .card-art {
   width: min(100%, calc(44dvh * 3 / 4));
   margin-inline: auto;
 }
 
-.gallery-zoom .card-art.card-art-grand,
 .reveal-card .card-art.card-art-grand {
   width: min(100%, 44dvh);
 }
 
-.gallery-zoom .reveal-lore,
 .reveal-card .reveal-lore {
   max-height: 26dvh;
+}
+
+/* 도감 확대 보기 — 앞면 일러스트, 누르면 뒤집혀 이야기 */
+.gallery-zoom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.flip-card {
+  /* 화면 너비와 높이 중 더 빡빡한 쪽에 맞춘다 (3:4 비율) */
+  width: min(84vw, 340px, calc((100dvh - 120px) * 3 / 4));
+  aspect-ratio: 3 / 4;
+  perspective: 1400px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flip-card--grand {
+  width: min(92vw, 420px, calc(100dvh - 120px));
+  aspect-ratio: 1 / 1;
+}
+
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+
+.flip-card.flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.gallery-zoom .flip-front {
+  display: flex;
+  width: auto;
+  padding: 6px;
+}
+
+.flip-front .card-art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px 16px;
+  text-align: center;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--primary) 30%, #0a050c) 0%, #0a050c 72%);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 30px 70px -28px var(--glow);
+}
+
+.flip-back .reveal-title {
+  margin-top: 0;
+}
+
+/* 이야기 박스가 남는 높이를 다 쓰고, 넘치면 그 안에서만 스크롤 */
+.flip-back .reveal-lore {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.flip-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition: none;
+  }
 }
 
 /* ---------------- 피버 캐릭터 팝업 ---------------- */
