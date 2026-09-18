@@ -1502,6 +1502,11 @@ button {
   margin-top: 0;
 }
 
+/* 이야기 본문 없이 제목·설명만 있는 카드(보스 도감)는 가운데에 */
+.flip-back:not(:has(.reveal-lore)) {
+  justify-content: center;
+}
+
 /* 이야기 박스가 남는 높이를 다 쓰고, 넘치면 그 안에서만 스크롤 */
 .flip-back .reveal-lore {
   flex: 1 1 auto;

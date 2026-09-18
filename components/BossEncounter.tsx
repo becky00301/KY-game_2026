@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BOSS_CARDS, BOSS_INTRO } from "@/lib/boss";
 import { playCardRevealSound } from "@/lib/sfx";
 import VolumeButton from "./VolumeButton";
@@ -123,7 +124,13 @@ export function BossCardUnlock({ onClose }: { onClose: () => void }) {
 }
 
 export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { unlocked: boolean; victoryUnlocked?: boolean; onClose: () => void }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenIdState] = useState<string | null>(null);
+  /** 확대한 카드가 뒤집혀 이야기 면이 보이는 중인지 — 새로 열 때마다 앞면부터 */
+  const [flipped, setFlipped] = useState(false);
+  const setOpenId = (id: string | null) => {
+    setOpenIdState(id);
+    setFlipped(false);
+  };
   const open = BOSS_CARDS.find((card) => card.id === openId);
   const unlockedCount = (unlocked ? 1 : 0) + (victoryUnlocked ? 1 : 0);
   return (
@@ -144,13 +151,33 @@ export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { un
             </button></li>;
           })}
         </ul>
-        {open && <div className="gallery-zoom" onClick={() => setOpenId(null)}>
-          <section className="reveal-card reveal-card--boss" onClick={(e) => e.stopPropagation()}>
-            <div className="reveal-frame"><BossCardPlaceholder /></div>
-            <h2 className="reveal-title">{open.title}</h2><p className="reveal-caption">{open.caption}</p>
-            <button className="reveal-close" onClick={() => setOpenId(null)} autoFocus>닫기</button>
-          </section>
-        </div>}
+        {/* 칼 도감과 같은 뒤집는 카드. 시트의 transform에 갇히지 않도록 body로 빼서 띄운다. */}
+        {open && createPortal(
+          <div className="gallery-zoom boss-theme" onClick={() => setOpenId(null)}>
+            <div
+              className={`flip-card ${flipped ? "flipped" : ""}`}
+              role="button"
+              tabIndex={0}
+              autoFocus
+              aria-label={flipped ? "그림 다시 보기" : "카드 뒤집어 이야기 보기"}
+              onClick={(e) => { e.stopPropagation(); setFlipped((f) => !f); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFlipped((f) => !f); }
+                if (e.key === "Escape") setOpenId(null);
+              }}
+            >
+              <div className="flip-inner">
+                <div className="flip-face flip-front reveal-frame" aria-hidden={flipped}><BossCardPlaceholder /></div>
+                <div className="flip-face flip-back" aria-hidden={!flipped}>
+                  <h3 className="reveal-title">{open.title}</h3>
+                  <p className="reveal-caption">{open.caption}</p>
+                </div>
+              </div>
+            </div>
+            <p className="flip-hint">{flipped ? "카드를 누르면 그림으로 · 바깥을 누르면 닫기" : "카드를 누르면 이야기가 보여요"}</p>
+          </div>,
+          document.body
+        )}
       </section>
     </div>
   );
