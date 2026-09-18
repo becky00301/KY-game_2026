@@ -2149,8 +2149,13 @@ button {
    있는(투명 배경) 원형 구도라 phase2-image처럼 cover로 화면을 꽉 채우면 가장자리가
    잘려서, 전체 구도가 다 보이도록 contain으로 최대한 크게 띄운다. */
 .bb-intro-image {
-  position: absolute; inset: 0; z-index: 0;
-  width: 100%; height: 100%; object-fit: contain;
+  /* 그림 크기에 딱 맞춘 정사각형 상자로 가운데에 둔다 — 아래 마스크가 그림 가장자리에 정확히 맞도록 */
+  position: absolute; inset: 0; margin: auto; z-index: 0;
+  width: min(100%, 100dvh); height: auto; aspect-ratio: 1 / 1; object-fit: contain;
+  /* 원본 파일 자체가 아래쪽이 일자로 잘려 있어서(맨 아랫줄까지 그림이 참), 잘린 선이
+     보이지 않도록 아래 가장자리를 검은 배경 속으로 서서히 사라지게 한다. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent 97%);
   animation: fadeIn .8s ease;
 }
 .bb-intro-splash .bb-intro-line { position: relative; z-index: 1; }
