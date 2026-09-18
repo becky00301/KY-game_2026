@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import CardArt from "./CardArt";
 import { CardInfo, isCardLocked } from "@/lib/cards";
 import { TeamTheme } from "@/lib/game";
@@ -68,7 +69,11 @@ export default function CardGallery({
           })}
         </ul>
 
-        {open && (
+        {/*
+          확대 보기는 body로 빼서 띄운다. 도감 시트 안에 두면 시트의 transform 때문에
+          position: fixed가 화면이 아니라 시트 기준이 되어, 시트 높이만큼만 보이고 잘렸다.
+        */}
+        {open && createPortal(
           <div className="gallery-zoom" onClick={() => setOpen(null)}>
             <div
               className={`reveal-frame ${openGrand ? "reveal-frame--grand" : ""}`}
@@ -80,7 +85,8 @@ export default function CardGallery({
               {open.lore && <p className="reveal-lore">{open.lore}</p>}
               {open.artist && <p className="reveal-artist">그림 {open.artist}</p>}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </section>
     </div>

@@ -1417,6 +1417,33 @@ button {
   padding: 4px;
 }
 
+/*
+ * 세로가 짧은 폰에서도 그림·제목·이야기가 한 화면에 들어오도록 — 그림 높이를 화면 높이에
+ * 맞춰 줄이고, 그래도 넘치면 카드 안에서 스크롤한다.
+ */
+.gallery-zoom .reveal-frame {
+  max-height: calc(100dvh - 56px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.gallery-zoom .card-art,
+.reveal-card .card-art {
+  width: min(100%, calc(44dvh * 3 / 4));
+  margin-inline: auto;
+}
+
+.gallery-zoom .card-art.card-art-grand,
+.reveal-card .card-art.card-art-grand {
+  width: min(100%, 44dvh);
+}
+
+.gallery-zoom .reveal-lore,
+.reveal-card .reveal-lore {
+  max-height: 26dvh;
+}
+
 /* ---------------- 피버 캐릭터 팝업 ---------------- */
 
 .fever-pop {
