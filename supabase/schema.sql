@@ -73,7 +73,7 @@ alter table public.tap_budget add column if not exists refilled_at timestamptz n
 -- ---------- 초기값 ----------
 
 insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
-values (1, array[0, 2400, 75000, 2400000, 75000000]::numeric[], 1.85, 90, 30, 0.05, 10, 100)
+values (1, array[0, 2400, 75000, 2400000, 75000000]::numeric[], 1.85, 90, 30, 0.05, 10, 150)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,

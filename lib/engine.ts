@@ -55,8 +55,8 @@ export const MAX_TAPS_PER_SECOND = 30;
 /** 자동 응원을 소급 정산해 주는 최대 시간(초) */
 export const MAX_ACCRUAL_SECONDS = 120;
 
-/** 응원 열기 — 팀 전체가 함께 채우지만, 혼자 초당 2회로 눌러도 1분 안에 채울 수 있는 양. */
-export const FEVER_MAX = 100;
+/** 응원 열기 — 팀 전체가 함께 채우지만, 혼자 초당 2회로 눌러도 1분 15초면 채울 수 있는 양. */
+export const FEVER_MAX = 150;
 export const FEVER_DURATION_MS = 10_000;
 export const FEVER_MULTIPLIER = 3;
 
