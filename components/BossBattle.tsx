@@ -1165,7 +1165,7 @@ export default function BossBattle({
                       data-zone={z}
                       className={`bb-zone ${
                         p1.dangerZones.includes(z)
-                          ? `bb-zone--danger bb-zone--${p1.phase}${p1.judgeable ? " bb-zone--judge" : ""}`
+                          ? `bb-zone--danger bb-zone--${p1.phase}`
                           : p1.mustHitZones.includes(z)
                             ? `bb-zone--musthit bb-zone--${p1.phase}${p1MustHitDone ? " bb-zone--done" : ""}`
                             : ""

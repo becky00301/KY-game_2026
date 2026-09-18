@@ -2227,25 +2227,27 @@ button {
 .bb-zones--diagonal .bb-zone { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* 전조 시간이 짧아진 만큼, 위험구역이 더 뚜렷하게 빨갛게 보이도록 진하게 했다. */
 /*
- * 빨간색 = 지금 누르면 하트가 깎인다. 예전엔 예고(warn) 동안 진한 빨강을 보여주고 정작
- * 판정은 빨강이 사라진 뒤 짧은 순간에 해서, "빨간 곳을 눌렀는데 안 깎이고 / 안 눌렀는데
- * 깎이는" 것처럼 느껴졌다.
- *   - 예고: 빗금 + 점선 테두리 (아직 안전, 곧 공격)
- *   - 판정 순간(judge): 꽉 찬 진한 빨강 (지금 누르면 깎임)
+ * 예고(warn) 동안만 약점(노랑)과 공격 올 곳(빨강)을 함께 보여주고, 공격이 시작되면 둘 다
+ * 동시에 사라진다. 플레이어는 위치를 기억해 뒀다가 색이 사라진 뒤에 약점을 눌러야 한다.
+ *   - 예고 때 누르는 건 판정에 안 들어간다(노랑을 눌러도 인정 안 됨, 빨강을 눌러도 안전).
+ *   - 색이 사라진 직후 0.22초 동안 빨강이던 곳을 누르면 하트가 깎인다.
+ *   - 색이 사라진 뒤 공격이 끝나기 전에 노랑이던 곳을 한 번 누르면 성공 — 그 자리가 잠깐 빛난다.
  */
 .bb-zone--danger.bb-zone--warn {
-  background: repeating-linear-gradient(-45deg, rgba(220, 38, 38, .32) 0 10px, rgba(220, 38, 38, .08) 10px 20px);
+  background: repeating-linear-gradient(-45deg, rgba(220, 38, 38, .42) 0 10px, rgba(220, 38, 38, .14) 10px 20px);
   outline: 2px dashed rgba(255, 90, 90, .85);
   outline-offset: -2px;
 }
-.bb-zone--danger.bb-zone--judge { background: rgba(230, 30, 30, .62); outline: 2px solid rgba(255, 120, 120, .95); outline-offset: -2px; }
-/* 반드시 눌러야 하는 존 — 노란빛. 위험구역과 똑같이 전조(warn) 때만 옅게 보여주고,
-   active(공격 판정) 동안은 안 보이게 한다 — 전조 때 위치를 기억해뒀다가 눌러야 한다. */
-/* 노란 존은 공격이 끝날 때까지 한 번은 눌러야 한다 — 예전엔 공격 중에 안 보여서, 못 누르고
-   맞으면 "빨간 곳을 안 눌렀는데 깎인" 것처럼 보였다. 이제 누를 때까지 계속 보인다. */
-.bb-zone--musthit.bb-zone--warn,
-.bb-zone--musthit.bb-zone--active { background: rgba(255, 200, 40, .2); outline: 2px solid rgba(255, 210, 70, .7); outline-offset: -2px; }
-.bb-zone--musthit.bb-zone--done { background: rgba(255, 200, 40, .06); outline-color: rgba(255, 210, 70, .2); }
+.bb-zone--musthit.bb-zone--warn {
+  background: rgba(255, 200, 40, .3);
+  outline: 2px solid rgba(255, 214, 80, .9);
+  outline-offset: -2px;
+}
+.bb-zone--musthit.bb-zone--done { animation: bbWeakPointHit .45s ease-out forwards; }
+@keyframes bbWeakPointHit {
+  from { background: rgba(255, 214, 80, .5); }
+  to { background: rgba(255, 214, 80, 0); }
+}
 
 .bb-slash {
   position: absolute; inset: 0; margin: auto; z-index: 2;
