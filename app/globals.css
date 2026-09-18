@@ -332,7 +332,8 @@ button {
 }
 
 .energy {
-  margin-top: 18px;
+  /* 모바일 크롬처럼 주소창·하단바가 화면을 많이 먹는 브라우저에선 위쪽을 조금 줄인다 */
+  margin-top: clamp(8px, 2.2dvh, 18px);
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -340,7 +341,7 @@ button {
 }
 
 .energy-value {
-  font-size: 42px;
+  font-size: clamp(32px, 5dvh, 42px);
   font-weight: 900;
   letter-spacing: -0.03em;
   text-shadow: 0 0 24px color-mix(in srgb, var(--glow) 55%, transparent);
@@ -359,7 +360,7 @@ button {
 }
 
 .stage-bar {
-  margin-top: 16px;
+  margin-top: clamp(8px, 2dvh, 16px);
 }
 
 .stage-bar-head {
@@ -480,7 +481,11 @@ button {
   position: relative;
   z-index: 1;
   width: min(74vw, 300px);
-  height: min(52dvh, 420px);
+  /*
+   * 위 점수판(~210px)과 아래 강화 버튼(~140px)을 뺀 만큼만 쓴다. 예전엔 52dvh 고정이라
+   * 모바일 크롬처럼 화면이 짧으면 전체가 화면보다 길어져 맨 위 점수가 잘려 보였다.
+   */
+  height: clamp(200px, calc(100dvh - 425px), min(52dvh, 420px));
   display: flex;
   align-items: center;
   justify-content: center;
