@@ -1977,7 +1977,9 @@ button {
 .boss-intro { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; }
 .boss-dialogue-advance { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; color: inherit; text-align: left; }
 .boss-dialogue-advance .tutorial-dialogue { align-self: stretch; z-index: 2; max-height: 44dvh; overflow-y: auto; }
-.boss-portrait { position: absolute; left: 50%; top: 2dvh; transform: translateX(-50%); max-height: 88dvh; max-width: 94%; object-fit: contain; animation: fadeIn .3s ease; }
+/* 대사창(아래 ~130px) 위에 남는 공간의 한가운데에 세운다. 예전엔 위에 붙어 있어서 세로로 긴
+   폰에선 그림 아래로 빈 공간이 크게 남았다. */
+.boss-portrait { position: absolute; left: 50%; top: calc((100dvh - 130px - env(safe-area-inset-bottom)) / 2); transform: translate(-50%, -50%); max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); max-width: 94%; object-fit: contain; animation: fadeIn .3s ease; }
 .boss-skip { top: calc(14px + env(safe-area-inset-top)); left: 16px; right: auto; z-index: 5; }
 .boss-reveal-image-wrap { position: absolute; inset: 0; overflow: hidden; }
 .boss-reveal-image { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 100%; width: auto; max-width: none; }
