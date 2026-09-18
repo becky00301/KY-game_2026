@@ -22,6 +22,8 @@ export interface SwordState {
   feverGauge: number; // 팀 공동 응원 열기 게이지
   feverUntil: number; // 응원 열기 종료 시각 (ms epoch, 0이면 비활성)
   updatedAt: number; // 마지막 정산 시각 (ms epoch)
+  /** 서버에서 상태가 바뀔 때마다 1씩 오른다 — 늦게 도착한 옛 상태를 걸러내는 데 쓴다. */
+  version?: number;
 }
 
 // ---------- 튜닝 수치 ----------
@@ -43,8 +45,11 @@ export const SWORD_STAGE_SCALE = [1.0, 1.06, 1.12, 1.19, 1.27];
 export const AURA_SIZE = [0, 112, 138, 164, 190, 216];
 export const AURA_PEAK = [0, 0.15, 0.21, 0.28, 0.35, 0.42];
 
-/** 한 번의 전송으로 인정하는 최대 터치 수 */
-export const MAX_TAPS_PER_FLUSH = 40;
+/**
+ * 한 번에 몰아서 인정받을 수 있는 최대 터치 수(토큰 통의 크기). 길게 보면 초당
+ * MAX_TAPS_PER_SECOND를 넘지 못하지만, 전송이 몇 초 밀렸다가 한꺼번에 가도 버려지지 않는다.
+ */
+export const MAX_TAPS_PER_FLUSH = 90;
 /** 한 기기가 초당 인정받는 최대 터치 수 */
 export const MAX_TAPS_PER_SECOND = 30;
 /** 자동 응원을 소급 정산해 주는 최대 시간(초) */

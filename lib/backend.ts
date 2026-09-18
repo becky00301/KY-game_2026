@@ -52,6 +52,7 @@ function normalize(row: Record<string, unknown>): SwordState {
     feverGauge: num(row.fever_gauge ?? row.feverGauge),
     feverUntil: time(row.fever_until ?? row.feverUntil),
     updatedAt: time(row.updated_at ?? row.updatedAt) || Date.now(),
+    version: num(row.version),
   };
 }
 
