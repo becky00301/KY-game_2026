@@ -8,29 +8,12 @@
  * 화면 코드는 어느 쪽인지 신경 쓰지 않는다.
  */
 
-import { RealtimeChannel, SupabaseClient, createClient } from "@supabase/supabase-js";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { SwordState } from "./engine";
 import { TeamId } from "./game";
+import { backendMode, isMisconfigured, supabase } from "./supabaseClient";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-export const backendMode: "supabase" | "local" =
-  SUPABASE_URL && SUPABASE_KEY ? "supabase" : "local";
-
-/**
- * 개발용 로컬 백엔드는 프로세스 메모리에 상태를 둔다. 서버리스에 올리면
- * 인스턴스마다 칼이 달라져 "모두가 하나의 칼"이 조용히 깨진다.
- * 그래서 프로덕션 빌드에서 자격증명이 없으면 게임을 시작하지 않는다.
- */
-export const isMisconfigured =
-  backendMode === "local" && process.env.NODE_ENV === "production";
-
-let client: SupabaseClient | null = null;
-function supabase(): SupabaseClient {
-  if (!client) client = createClient(SUPABASE_URL!, SUPABASE_KEY!);
-  return client;
-}
+export { backendMode, isMisconfigured };
 
 /** 서버가 돌려주는 칼 상태를 클라이언트 형태로 정규화한다. */
 function normalize(row: Record<string, unknown>): SwordState {

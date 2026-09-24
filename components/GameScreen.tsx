@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import SwordFx from "./SwordFx";
-import { BossIntro, BossMap, BossCardUnlock, BossGallery } from "./BossEncounter";
+import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
 import BossBattle from "./BossBattle";
 import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
@@ -145,6 +145,11 @@ export default function GameScreen({
   const [debugBossPhase2, setDebugBossPhase2] = useState(false);
   const [debugBossLowHp, setDebugBossLowHp] = useState(false);
   const [debugBossEpilogue, setDebugBossEpilogue] = useState(false);
+  // 랭킹모드 — null이면 방금 "입장하기"로 들어간 일반 모드. 닉네임 입력 시트를 통해
+  // 값이 채워지면 그 닉네임으로 BossBattle에 전달되어, 2페이즈 격파 시 순위표에 기록된다.
+  const [bossRankingNickname, setBossRankingNickname] = useState<string | null>(null);
+  const [bossRankingEntryOpen, setBossRankingEntryOpen] = useState(false);
+  const [bossRankingBoardOpen, setBossRankingBoardOpen] = useState(false);
 
   // 개발용 지름길 — 실제 진행도(5단계+별1)를 만들지 않고도 ?debugBoss=1 로 바로
   // 전투를 확인할 수 있게 한다. ?debugBoss=2 는 전투 자체를 건너뛰고 발악 성공 후
@@ -848,12 +853,15 @@ export default function GameScreen({
         onSettings={() => setSettingsOpen(true)}
         soundOn={sfxOn && isSfxEnabled()}
         onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
-        onEnter={() => setBossMode("battle")}
+        onEnter={() => { setBossRankingNickname(null); setBossMode("battle"); }}
+        onEnterRanking={() => setBossRankingEntryOpen(true)}
+        onOpenRanking={() => setBossRankingBoardOpen(true)}
       />}
       {bossMode === "battle" && (
         <BossBattle
           onExit={() => setBossMode("map")}
           onVictoryEpilogueDone={() => claimBossVictory(team)}
+          rankingNickname={bossRankingNickname}
           debugStartPhase2={debugBossPhase2}
           debugLowHp={debugBossLowHp}
           debugStartEpilogue={debugBossEpilogue}
@@ -868,6 +876,17 @@ export default function GameScreen({
           onClose={() => setBossGalleryOpen(false)}
         />
       )}
+      {bossRankingEntryOpen && (
+        <BossRankingEntry
+          onSubmit={(nickname) => {
+            setBossRankingNickname(nickname);
+            setBossRankingEntryOpen(false);
+            setBossMode("battle");
+          }}
+          onClose={() => setBossRankingEntryOpen(false)}
+        />
+      )}
+      {bossRankingBoardOpen && <BossRankingBoard onClose={() => setBossRankingBoardOpen(false)} />}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
 
       {error && (

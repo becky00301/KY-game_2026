@@ -1855,6 +1855,41 @@ button {
 .boss-map-actions button { min-height: 48px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 .boss-map-exit-btn-bottom { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
 .boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
+/* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기 위에 한 줄 더 얹은 작은 버튼 한 쌍.
+   왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이 서로 위아래로
+   짝을 이루도록 boss-map-actions 자체를 세로 flex로 바꾸고, 그 안에 가로 행을 둘 둔다. */
+.boss-map-actions--grid { flex-direction: column; gap: 8px; }
+.boss-map-actions-row { display: flex; gap: 12px; }
+.boss-map-actions-row--small button { min-height: 34px; padding: 7px 14px; border-radius: 8px; font-size: 13px; }
+.boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd344; background: #0007; color: #bfe9e0; font-weight: 700; }
+.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a766; background: #0e2b27; color: #d8fff6; font-weight: 700; }
+
+/* 랭킹모드 닉네임 입력 시트 */
+.boss-ranking-input {
+  width: 100%; box-sizing: border-box; margin: 4px 0 8px; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid #a0dfd344; background: #0007;
+  color: #e5fff8; font-size: 16px;
+}
+.boss-ranking-input::placeholder { color: #7fada5; }
+.boss-ranking-error { margin: -2px 0 10px; color: #ff9c9c; font-size: 13px; }
+.boss-ranking-submit { width: 100%; }
+
+/* 랭킹 순위표 시트 */
+.boss-ranking-loading, .boss-ranking-empty, .boss-ranking-mine-empty {
+  color: var(--ink-dim); font-size: 13px; padding: 6px 2px;
+}
+.boss-ranking-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.boss-ranking-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px; border-radius: 10px; background: #ffffff0a;
+}
+.boss-ranking-rank {
+  flex: 0 0 26px; text-align: center; font-weight: 900; font-size: 14px; color: var(--accent);
+}
+.boss-ranking-name { flex: 1; font-size: 14px; color: #e5fff8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boss-ranking-mine { border-top: 1px solid #ffffff1a; padding-top: 10px; }
+.boss-ranking-mine-label { margin: 0 0 6px; font-size: 12px; color: var(--ink-dim); }
+.boss-ranking-row--mine { border: 1px solid #67b0a766; background: #0e2b27; }
 .boss-intro { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; }
 .boss-dialogue-advance { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; color: inherit; text-align: left; }
 .boss-dialogue-advance .tutorial-dialogue { align-self: stretch; z-index: 2; max-height: 44dvh; overflow-y: auto; }

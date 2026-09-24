@@ -51,6 +51,7 @@ import {
   BOSS_PHASE2_ASSETS,
 } from "@/lib/boss";
 import { setBossBgmPhase2, stopBossBgm } from "@/lib/bgm";
+import { submitBossClear } from "@/lib/bossRanking";
 import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 
 type Phase =
@@ -120,6 +121,7 @@ const CIRCLE_HIT_RADIUS_PX = 72;
 export default function BossBattle({
   onExit,
   onVictoryEpilogueDone,
+  rankingNickname = null,
   debugStartPhase2 = false,
   debugLowHp = false,
   debugStartEpilogue = false,
@@ -128,6 +130,10 @@ export default function BossBattle({
   /** 2페이즈(진짜 격파) 후일담 대화가 끝나는 순간(엔딩 이미지로 넘어가는 시점) 한 번
    * 호출된다 — 호출부(GameScreen 등)에서 팀별 서휘령 도감 "victory" 카드를 해금하는 데 쓴다. */
   onVictoryEpilogueDone?: () => void;
+  /** 랭킹모드로 입장한 경우의 닉네임 — null이면 일반 모드(순위 기록 없음). 2페이즈를
+   * 실제로 격파하는 순간 이 닉네임으로 순위표에 한 번 기록된다. 그 외 로직/패턴은
+   * 일반 모드와 완전히 동일하다. */
+  rankingNickname?: string | null;
   /** 개발용 — 전투를 건너뛰고 바로 2페이즈 등장 연출부터 보여준다(연출 후 자동으로 2페이즈 전투 진입). */
   debugStartPhase2?: boolean;
   /** 개발용 — 2페이즈 진입 시 HP를 10%로 시작해서 발악(HP 0%)까지 금방 도달하게 한다.
@@ -173,6 +179,8 @@ export default function BossBattle({
   onExitRef.current = onExit;
   const onVictoryEpilogueDoneRef = useRef(onVictoryEpilogueDone);
   onVictoryEpilogueDoneRef.current = onVictoryEpilogueDone;
+  const rankingNicknameRef = useRef(rankingNickname);
+  rankingNicknameRef.current = rankingNickname;
 
   // 2페이즈 격파 후일담 — 지금 보여주고 있는 대사 인덱스, 그리고 후일담을 이미 한 번
   // 끝냈는지(엔딩 이미지까지 봤는지) 여부. 후자는 blackout이 다시 한 번 더(엔딩 이미지
@@ -324,6 +332,11 @@ export default function BossBattle({
       wonRef.current = win;
       phaseRef.current = "result";
       setPhase("result");
+      // 랭킹모드 — 2페이즈를 실제로 격파한 순간 한 번만 순위표에 기록한다. 실패해도
+      // (경합으로 닉네임이 이미 쓰였거나 네트워크 오류) 전투 결과 자체에는 영향 없다.
+      if (win && stageRef.current === 2 && rankingNicknameRef.current) {
+        void submitBossClear(rankingNicknameRef.current).catch(() => {});
+      }
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);
       if (kind === "success") showSuccessLine();

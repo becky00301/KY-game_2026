@@ -365,3 +365,93 @@ begin
   end if;
 end
 $$;
+
+-- ---------- 서휘령 보스전 "랭킹모드" 순위표 ----------
+--
+-- 서휘령(2페이즈) 격파 순서를 기록한다. 별도 계정 시스템이 없어 닉네임 자체가
+-- 식별자다 — 대소문자 구분 없이 전역에서 유일해야 한다(lower(nickname) 유니크
+-- 인덱스). 순위는 cleared_at 오름차순(= 클리어한 순서) 그대로다. 클라이언트는
+-- 테이블에 직접 접근하지 않고 아래 security definer 함수로만 읽고 쓴다.
+
+create table if not exists public.boss_rankings (
+  id         bigint generated always as identity primary key,
+  nickname   text        not null check (char_length(trim(nickname)) between 1 and 14),
+  cleared_at timestamptz not null default now()
+);
+
+create unique index if not exists boss_rankings_nickname_lower_idx
+  on public.boss_rankings (lower(nickname));
+
+create or replace function public.boss_ranking_row_json(p_id bigint)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'nickname', r.nickname,
+    'rank', (select count(*) + 1 from public.boss_rankings o where o.cleared_at < r.cleared_at),
+    'cleared_at', (extract(epoch from r.cleared_at) * 1000)::bigint
+  )
+  from public.boss_rankings r
+  where r.id = p_id;
+$$;
+
+-- 닉네임이 아직 아무도 안 쓰고 있는지(대소문자 무시).
+create or replace function public.boss_ranking_check(p_nickname text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(char_length(trim(p_nickname)), 0) between 1 and 14
+     and not exists (
+       select 1 from public.boss_rankings where lower(nickname) = lower(trim(p_nickname))
+     );
+$$;
+
+-- 격파 순간 한 번 호출 — 이미 등록된(경합 포함) 닉네임이면 ok:false, reason:'taken'.
+create or replace function public.boss_ranking_submit(p_nickname text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_id       bigint;
+begin
+  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  insert into public.boss_rankings (nickname)
+  values (v_nickname)
+  on conflict (lower(nickname)) do nothing
+  returning id into v_id;
+
+  if v_id is null then
+    return jsonb_build_object('ok', false, 'reason', 'taken');
+  end if;
+
+  return jsonb_build_object('ok', true) || public.boss_ranking_row_json(v_id);
+end;
+$$;
+
+create or replace function public.boss_ranking_top(p_limit int default 10)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row), '[]'::jsonb) from (
+    select jsonb_build_object(
+      'nickname', nickname,
+      'rank', row_number() over (order by cleared_at asc),
+      'cleared_at', (extract(epoch from cleared_at) * 1000)::bigint
+    ) as row
+    from public.boss_rankings
+    order by cleared_at asc
+    limit greatest(1, least(coalesce(p_limit, 10), 50))
+  ) t;
+$$;
+
+create or replace function public.boss_ranking_mine(p_nickname text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.boss_ranking_row_json(id)
+  from public.boss_rankings
+  where lower(nickname) = lower(trim(p_nickname))
+  limit 1;
+$$;
+
+-- 직접 테이블 접근은 막는다(select 정책 없음) — 전부 위 함수로만 읽고 쓴다.
+alter table public.boss_rankings enable row level security;
+
+grant execute on function public.boss_ranking_check(text)  to anon, authenticated;
+grant execute on function public.boss_ranking_submit(text) to anon, authenticated;
+grant execute on function public.boss_ranking_top(int)      to anon, authenticated;
+grant execute on function public.boss_ranking_mine(text)    to anon, authenticated;

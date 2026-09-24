@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BOSS_CARDS, BOSS_INTRO } from "@/lib/boss";
+import {
+  RankingEntry,
+  checkNicknameAvailable,
+  fetchRankings,
+  isNicknameFormatValid,
+  loadSavedNickname,
+  saveNickname,
+} from "@/lib/bossRanking";
 import { playCardRevealSound } from "@/lib/sfx";
 import VolumeButton from "./VolumeButton";
 
@@ -57,13 +65,26 @@ export function BossIntro({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function BossMap({ onExit, onGallery, onSettings, soundOn, onToggleSound, onEnter }: {
+export function BossMap({
+  onExit,
+  onGallery,
+  onSettings,
+  soundOn,
+  onToggleSound,
+  onEnter,
+  onEnterRanking,
+  onOpenRanking,
+}: {
   onExit: () => void;
   onGallery: () => void;
   onSettings: () => void;
   soundOn: boolean;
   onToggleSound: () => void;
   onEnter: () => void;
+  /** 랭킹모드로 입장(닉네임 입력부터) — 일반 입장(onEnter)과 완전히 같은 전투로 이어진다. */
+  onEnterRanking: () => void;
+  /** 순위표(1~10등 + 내 순위) 열기. */
+  onOpenRanking: () => void;
 }) {
   return (
     <section className="boss-map-screen boss-theme" aria-label="서휘령 입장맵">
@@ -90,11 +111,163 @@ export function BossMap({ onExit, onGallery, onSettings, soundOn, onToggleSound,
         <p className="boss-map-subtitle">몰락한 검귀, 서휘령의 검이 요동치고 있다.<br />그를 제압할 방법이 있을 것 같은데..</p>
         <div className="boss-map-sword-wrap"><img className="boss-map-sword" src="/images/boss/boss-map-sword.webp" alt="서휘령의 검" /></div>
       </div>
-      <div className="boss-map-actions">
-        <button className="boss-map-exit-btn-bottom" onClick={onExit}>나가기</button>
-        <button className="boss-map-enter-btn" onClick={onEnter}>입장하기</button>
+      <div className="boss-map-actions boss-map-actions--grid">
+        <div className="boss-map-actions-row boss-map-actions-row--small">
+          <button className="boss-map-ranking-btn" onClick={onOpenRanking}>랭킹</button>
+          <button className="boss-map-ranking-enter-btn" onClick={onEnterRanking}>랭킹모드 도전</button>
+        </div>
+        <div className="boss-map-actions-row">
+          <button className="boss-map-exit-btn-bottom" onClick={onExit}>나가기</button>
+          <button className="boss-map-enter-btn" onClick={onEnter}>입장하기</button>
+        </div>
       </div>
     </section>
+  );
+}
+
+/** 랭킹모드 입장 — 닉네임을 입력받는다(전역에서 대소문자 구분 없이 유일해야 함).
+ *  성공하면 onSubmit(nickname)이 곧바로 일반 모드와 완전히 같은 전투로 이어진다. */
+export function BossRankingEntry({
+  onSubmit,
+  onClose,
+}: {
+  onSubmit: (nickname: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(() => loadSavedNickname());
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const submit = async () => {
+    if (checking) return;
+    const trimmed = value.trim();
+    if (!isNicknameFormatValid(trimmed)) {
+      setError("닉네임을 1~14자로 입력해주세요.");
+      return;
+    }
+    setChecking(true);
+    setError("");
+    try {
+      const available = await checkNicknameAvailable(trimmed);
+      if (!available) {
+        setError("이미 사용 중인 닉네임이에요.");
+        return;
+      }
+      saveNickname(trimmed);
+      onSubmit(trimmed);
+    } catch {
+      setError("확인 중 문제가 발생했어요. 다시 시도해주세요.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <div className="sheet-backdrop boss-theme" onClick={onClose}>
+      <section
+        className="sheet boss-ranking-entry"
+        role="dialog"
+        aria-modal="true"
+        aria-label="랭킹모드 닉네임 입력"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-grip" />
+        <header className="sheet-head">
+          <p className="sheet-energy-label">랭킹모드 입장</p>
+          <button className="icon-btn" onClick={onClose} aria-label="닫기">✕</button>
+        </header>
+        <p className="sheet-note">
+          닉네임은 다른 사람과 겹칠 수 없어요. 서휘령을 완전히 격파하면 클리어한 순서 그대로 랭킹에 기록됩니다.
+        </p>
+        <input
+          className="boss-ranking-input"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void submit();
+          }}
+          maxLength={14}
+          placeholder="닉네임을 입력하세요"
+          aria-label="닉네임"
+          autoFocus
+        />
+        {error && <p className="boss-ranking-error">{error}</p>}
+        <button className="boss-map-enter-btn boss-ranking-submit" onClick={submit} disabled={checking}>
+          {checking ? "확인 중.." : "입장하기"}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+/** 순위표 — 1~10등, 그리고 맨 아래 "내 순위"(이 기기가 마지막으로 쓴 닉네임 기준). */
+export function BossRankingBoard({ onClose }: { onClose: () => void }) {
+  const [top, setTop] = useState<RankingEntry[] | null>(null);
+  const [mine, setMine] = useState<RankingEntry | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetchRankings(loadSavedNickname() || undefined)
+      .then((result) => {
+        if (!alive) return;
+        setTop(result.top);
+        setMine(result.mine);
+      })
+      .catch(() => {
+        if (alive) setLoadFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <div className="sheet-backdrop boss-theme" onClick={onClose}>
+      <section
+        className="sheet boss-ranking-board"
+        role="dialog"
+        aria-modal="true"
+        aria-label="서휘령 격파 랭킹"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-grip" />
+        <header className="sheet-head">
+          <p className="sheet-energy-label">서휘령 격파 랭킹</p>
+          <button className="icon-btn" onClick={onClose} aria-label="닫기" autoFocus>✕</button>
+        </header>
+        <p className="sheet-note">서휘령을 클리어한 순서 그대로 기록됩니다.</p>
+
+        {loadFailed && <p className="boss-ranking-error">순위를 불러오지 못했어요.</p>}
+        {!loadFailed && !top && <p className="boss-ranking-loading">불러오는 중..</p>}
+        {top && (
+          <ol className="boss-ranking-list">
+            {top.length === 0 && <li className="boss-ranking-empty">아직 아무도 클리어하지 못했어요.</li>}
+            {top.map((entry) => (
+              <li key={entry.rank} className="boss-ranking-row">
+                <span className="boss-ranking-rank">{entry.rank}</span>
+                <span className="boss-ranking-name">{entry.nickname}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <div className="boss-ranking-mine">
+          <p className="boss-ranking-mine-label">내 순위</p>
+          {mine ? (
+            <div className="boss-ranking-row boss-ranking-row--mine">
+              <span className="boss-ranking-rank">{mine.rank}</span>
+              <span className="boss-ranking-name">{mine.nickname}</span>
+            </div>
+          ) : (
+            <p className="boss-ranking-mine-empty">아직 랭킹에 등록되지 않았어요.</p>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 

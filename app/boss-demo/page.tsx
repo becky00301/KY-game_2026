@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import BossBattle from "@/components/BossBattle";
-import { BossGallery, BossMap } from "@/components/BossEncounter";
+import { BossGallery, BossMap, BossRankingEntry, BossRankingBoard } from "@/components/BossEncounter";
 import SettingsSheet from "@/components/SettingsSheet";
 import { startBossBgm, stopBossBgm } from "@/lib/bgm";
 import { isSfxEnabled, setSfxEnabled, unlockAudio } from "@/lib/sfx";
@@ -22,6 +22,9 @@ export default function BossDemoPage() {
   const [debugPhase2, setDebugPhase2] = useState(false);
   const [debugLowHp, setDebugLowHp] = useState(false);
   const [debugEpilogue, setDebugEpilogue] = useState(false);
+  const [rankingNickname, setRankingNickname] = useState<string | null>(null);
+  const [rankingEntryOpen, setRankingEntryOpen] = useState(false);
+  const [rankingBoardOpen, setRankingBoardOpen] = useState(false);
 
   // 개발용 지름길 — /boss-demo?debugBoss=2 로 2페이즈 등장 연출부터 바로 확인.
   // ?debugBoss=3 은 거기에 더해 HP를 10%로 시작해서 발악(HP 0%)까지 금방 확인할 수 있다.
@@ -54,8 +57,11 @@ export default function BossDemoPage() {
           onEnter={() => {
             unlockAudio();
             startBossBgm();
+            setRankingNickname(null);
             setMode("battle");
           }}
+          onEnterRanking={() => setRankingEntryOpen(true)}
+          onOpenRanking={() => setRankingBoardOpen(true)}
         />
       )}
 
@@ -64,6 +70,7 @@ export default function BossDemoPage() {
           debugStartPhase2={debugPhase2}
           debugLowHp={debugLowHp}
           debugStartEpilogue={debugEpilogue}
+          rankingNickname={rankingNickname}
           onExit={() => {
             stopBossBgm();
             setMode("map");
@@ -87,6 +94,19 @@ export default function BossDemoPage() {
       )}
 
       {galleryOpen && <BossGallery unlocked={false} onClose={() => setGalleryOpen(false)} />}
+      {rankingEntryOpen && (
+        <BossRankingEntry
+          onSubmit={(nickname) => {
+            unlockAudio();
+            startBossBgm();
+            setRankingNickname(nickname);
+            setRankingEntryOpen(false);
+            setMode("battle");
+          }}
+          onClose={() => setRankingEntryOpen(false)}
+        />
+      )}
+      {rankingBoardOpen && <BossRankingBoard onClose={() => setRankingBoardOpen(false)} />}
       {settingsOpen && (
         <SettingsSheet
           boss
