@@ -2071,14 +2071,15 @@ button {
   .boss-guide-demo--vanish .bb-zone, .boss-guide-tap { animation: none; }
 }
 .boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
-/* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기 위에 한 줄 더 얹은 작은 버튼 한 쌍.
-   왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이 서로 위아래로
-   짝을 이루도록 boss-map-actions 자체를 세로 flex로 바꾸고, 그 안에 가로 행을 둘 둔다. */
-.boss-map-actions--grid { flex-direction: column; gap: 8px; }
+/* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기와 거의 같은 크기로, 그 위에 한 줄 더
+   얹은 버튼 한 쌍. 왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이
+   서로 위아래로 짝을 이루도록 boss-map-actions 자체를 세로 flex로 바꾸고, 그 안에
+   가로 행을 둘 둔다. */
+.boss-map-actions--grid { flex-direction: column; gap: 12px; }
 .boss-map-actions-row { display: flex; gap: 12px; }
-.boss-map-actions-row--small button { min-height: 34px; padding: 7px 14px; border-radius: 8px; font-size: 13px; }
-.boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd344; background: #0007; color: #bfe9e0; font-weight: 700; }
-.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a766; background: #0e2b27; color: #d8fff6; font-weight: 700; }
+.boss-map-actions-row--small button { min-height: 46px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
+.boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd355; background: #0009; color: #d2dfdc; font-weight: 700; }
+.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #14453f, #0a201d); color: #e5fff8; font-weight: 800; }
 
 /* 랭킹모드 닉네임 입력 시트 */
 .boss-ranking-input {
