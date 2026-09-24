@@ -201,6 +201,12 @@ export const BOSS_PHASE2 = {
   hitRestMs: 650,
 } as const;
 
+/** 랭킹모드 전용 — 패턴/로직은 일반 모드와 완전히 같지만, 체력을 1·2페이즈 공통으로
+ *  40% 늘리고(BOSS_BATTLE.maxHp/BOSS_PHASE2.maxHp에 곱한다), 늘어난 체력에 맞춰
+ *  2페이즈 제한시간도 3분에서 6분으로 늘렸다. 1페이즈 제한시간은 그대로다. */
+export const BOSS_RANKING_HP_MULTIPLIER = 1.4;
+export const BOSS_RANKING_PHASE2_TIME_LIMIT_MS = 6 * 60 * 1000;
+
 export type Orientation = "vertical" | "horizontal" | "diagonal";
 
 /** 탭 좌표(각 축 0~1로 정규화)를 zoneCount분할 구역 중 하나(0~zoneCount-1)로 매핑한다. */

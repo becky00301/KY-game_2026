@@ -32,6 +32,8 @@ import {
   BOSS_LINE_DISPLAY_MS,
   BOSS_PATTERN_TAUNT_LINES,
   BOSS_PHASE2,
+  BOSS_RANKING_HP_MULTIPLIER,
+  BOSS_RANKING_PHASE2_TIME_LIMIT_MS,
   BOSS_SUCCESS_LINES,
   PHASE2_INTRO_LINE,
   Orientation,
@@ -143,11 +145,18 @@ export default function BossBattle({
    * 보여준다. debugStartPhase2/debugLowHp보다 우선한다. */
   debugStartEpilogue?: boolean;
 }) {
+  // 랭킹모드는 일반 모드와 패턴/로직은 완전히 같지만, 체력을 40% 늘리고(1·2페이즈 공통)
+  // 그만큼 2페이즈 제한시간도 3분→6분으로 늘린다. 이 세 값 외에는 전부 일반 모드와 동일.
+  const isRankingMode = Boolean(rankingNickname);
+  const maxHp1 = isRankingMode ? Math.round(BOSS_BATTLE.maxHp * BOSS_RANKING_HP_MULTIPLIER) : BOSS_BATTLE.maxHp;
+  const maxHp2 = isRankingMode ? Math.round(BOSS_PHASE2.maxHp * BOSS_RANKING_HP_MULTIPLIER) : BOSS_PHASE2.maxHp;
+  const timeLimit2 = isRankingMode ? BOSS_RANKING_PHASE2_TIME_LIMIT_MS : BOSS_PHASE2.timeLimitMs;
+
   const [phase, setPhase] = useState<Phase>(
     debugStartEpilogue ? "epilogue" : debugStartPhase2 ? "phase2Intro" : "intro"
   );
   const [stage, setStage] = useState<Stage>(debugStartEpilogue ? 2 : 1);
-  const [hp, setHp] = useState<number>(BOSS_BATTLE.maxHp);
+  const [hp, setHp] = useState<number>(maxHp1);
   const [combo, setCombo] = useState(0);
   const [deathCount, setDeathCount] = useState<number>(BOSS_BATTLE.maxDeathCount);
   const [timeLeftMs, setTimeLeftMs] = useState(BOSS_BATTLE.timeLimitMs);
@@ -200,7 +209,7 @@ export default function BossBattle({
     debugStartEpilogue ? "epilogue" : debugStartPhase2 ? "phase2Intro" : "intro"
   );
   const stageRef = useRef<Stage>(debugStartEpilogue ? 2 : 1);
-  const hpRef = useRef<number>(BOSS_BATTLE.maxHp);
+  const hpRef = useRef<number>(maxHp1);
   const comboRef = useRef(0);
   const deathCountRef = useRef<number>(BOSS_BATTLE.maxDeathCount);
   const lastTapAtRef = useRef(0);
@@ -689,7 +698,7 @@ export default function BossBattle({
     (nextHp: number) => {
       // 레이저 시작 여부는 다른 패턴의 겹침 방지 규칙과 완전히 무관하다 — 무엇이
       // 진행 중이든 HP 25% 아래로 내려가는 순간 바로 시작된다.
-      if (stageRef.current === 2 && !laserModeRef.current && nextHp < BOSS_LASER_START_HP * BOSS_PHASE2.maxHp) {
+      if (stageRef.current === 2 && !laserModeRef.current && nextHp < BOSS_LASER_START_HP * maxHp2) {
         laserModeRef.current = true;
         showBossLine(BOSS_LASER_START_LINE);
         scheduleLaser();
@@ -699,7 +708,7 @@ export default function BossBattle({
       if (Date.now() < invertBufferUntilRef.current) return; // 거꾸로 패턴 기절 직후 여유시간
       if (stageRef.current === 1) {
         for (const t of BOSS_BATTLE.pattern2Thresholds) {
-          const absolute = t * BOSS_BATTLE.maxHp;
+          const absolute = t * maxHp1;
           if (nextHp < absolute && !crossedThresholds.current.has(t)) {
             crossedThresholds.current.add(t);
             triggerPattern2();
@@ -707,14 +716,14 @@ export default function BossBattle({
           }
         }
       } else {
-        if (!invertCrossedRef.current && !invertedRef.current && nextHp < BOSS_INVERT_START_HP * BOSS_PHASE2.maxHp) {
+        if (!invertCrossedRef.current && !invertedRef.current && nextHp < BOSS_INVERT_START_HP * maxHp2) {
           invertCrossedRef.current = true;
           enterInvertTransition();
           return;
         }
       }
     },
-    [triggerPattern2, enterInvertTransition, scheduleLaser, showBossLine]
+    [triggerPattern2, enterInvertTransition, scheduleLaser, showBossLine, maxHp1, maxHp2]
   );
 
   const triggerPattern1 = useCallback(() => {
@@ -981,7 +990,7 @@ export default function BossBattle({
     const timer = window.setTimeout(() => {
       stageRef.current = 2;
       setStage(2);
-      const startHp = debugLowHp ? BOSS_PHASE2.maxHp * 0.1 : BOSS_PHASE2.maxHp;
+      const startHp = debugLowHp ? maxHp2 * 0.1 : maxHp2;
       hpRef.current = startHp;
       setHp(startHp);
       comboRef.current = 0;
@@ -995,13 +1004,13 @@ export default function BossBattle({
       setInverted(false);
       lastTapAtRef.current = Date.now();
       battleStartRef.current = Date.now();
-      setTimeLeftMs(BOSS_PHASE2.timeLimitMs);
+      setTimeLeftMs(timeLimit2);
       phaseRef.current = "combat";
       setPhase("combat");
       scheduleStage2Pattern2();
     }, 3000);
     return () => window.clearTimeout(timer);
-  }, [phase, scheduleStage2Pattern2, debugLowHp]);
+  }, [phase, scheduleStage2Pattern2, debugLowHp, maxHp2, timeLimit2]);
 
   // 패턴1 반복 스케줄러 — 2페이즈는 더 빠른 주기로 돈다.
   useEffect(() => {
@@ -1035,13 +1044,13 @@ export default function BossBattle({
     )
       return;
     const interval = window.setInterval(() => {
-      const timeLimitMs = stageRef.current === 1 ? BOSS_BATTLE.timeLimitMs : BOSS_PHASE2.timeLimitMs;
+      const timeLimitMs = stageRef.current === 1 ? BOSS_BATTLE.timeLimitMs : timeLimit2;
       const left = Math.max(0, timeLimitMs - (Date.now() - battleStartRef.current));
       setTimeLeftMs(left);
       if (left <= 0) endBattle(false);
     }, 500);
     return () => window.clearInterval(interval);
-  }, [phase, endBattle]);
+  }, [phase, endBattle, timeLimit2]);
 
   // 화면이 다 어두워지면: 1페이즈 발악 성공은 2페이즈 등장으로, 2페이즈 발악 성공(첫
   // blackout)은 후일담 대화로, 후일담을 다 본 뒤의 blackout은 그대로 입장맵으로,
@@ -1088,7 +1097,7 @@ export default function BossBattle({
   useEffect(() => () => clearLaserTimers(), [clearLaserTimers]);
 
   const showCombat = phase === "combat" || phase === "finale" || phase === "invertCircles";
-  const maxHp = stage === 1 ? BOSS_BATTLE.maxHp : BOSS_PHASE2.maxHp;
+  const maxHp = stage === 1 ? maxHp1 : maxHp2;
   const zoneCount = stage === 1 ? BOSS_BATTLE.zoneCount : BOSS_PHASE2.zoneCount;
   const epilogueCurrent = BOSS_EPILOGUE_LINES[Math.min(epilogueLine, BOSS_EPILOGUE_LINES.length - 1)];
   return (
