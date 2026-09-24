@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import BossBattle from "@/components/BossBattle";
-import { BossGallery, BossMap, BossRankingEntry, BossRankingBoard } from "@/components/BossEncounter";
+import { BossGallery, BossGuide, BossMap, BossRankingEntry, BossRankingBoard } from "@/components/BossEncounter";
 import SettingsSheet from "@/components/SettingsSheet";
 import { startBossBgm, stopBossBgm } from "@/lib/bgm";
 import { isSfxEnabled, setSfxEnabled, unlockAudio } from "@/lib/sfx";
@@ -25,6 +25,17 @@ export default function BossDemoPage() {
   const [rankingNickname, setRankingNickname] = useState<string | null>(null);
   const [rankingEntryOpen, setRankingEntryOpen] = useState(false);
   const [rankingBoardOpen, setRankingBoardOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  // 이 데모는 아무것도 서버에 저장하지 않으므로("승패는 저장되지 않아"), 랭킹모드
+  // 잠금 해제도 페이지를 새로고침하면 초기화되는 세션 한정 상태로만 둔다.
+  const [hasClearedNormal, setHasClearedNormal] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(""), 3200);
+    return () => window.clearTimeout(t);
+  }, [notice]);
 
   // 개발용 지름길 — /boss-demo?debugBoss=2 로 2페이즈 등장 연출부터 바로 확인.
   // ?debugBoss=3 은 거기에 더해 HP를 10%로 시작해서 발악(HP 0%)까지 금방 확인할 수 있다.
@@ -60,10 +71,19 @@ export default function BossDemoPage() {
             setRankingNickname(null);
             setMode("battle");
           }}
-          onEnterRanking={() => setRankingEntryOpen(true)}
+          onEnterRanking={() => {
+            if (!hasClearedNormal) {
+              setNotice("일반 모드를 먼저 클리어해야 랭킹모드에 도전할 수 있어요.");
+              return;
+            }
+            setRankingEntryOpen(true);
+          }}
           onOpenRanking={() => setRankingBoardOpen(true)}
+          onGuide={() => setGuideOpen(true)}
+          rankingLocked={!hasClearedNormal}
         />
       )}
+      {guideOpen && <BossGuide onDone={() => setGuideOpen(false)} />}
 
       {mode === "battle" && (
         <BossBattle
@@ -71,6 +91,9 @@ export default function BossDemoPage() {
           debugLowHp={debugLowHp}
           debugStartEpilogue={debugEpilogue}
           rankingNickname={rankingNickname}
+          onVictoryEpilogueDone={() => {
+            if (!rankingNickname) setHasClearedNormal(true);
+          }}
           onExit={() => {
             stopBossBgm();
             setMode("map");
@@ -107,6 +130,7 @@ export default function BossDemoPage() {
         />
       )}
       {rankingBoardOpen && <BossRankingBoard onClose={() => setRankingBoardOpen(false)} />}
+      {notice && <div className="toast boss-notice" role="status">{notice}</div>}
       {settingsOpen && (
         <SettingsSheet
           boss
