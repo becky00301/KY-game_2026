@@ -407,6 +407,18 @@ create table if not exists public.boss_rankings (
 create unique index if not exists boss_rankings_nickname_lower_idx
   on public.boss_rankings (lower(nickname));
 
+-- 로그인이 없는 만큼, "격파 신고"를 직접 호출해서 가짜 기록을 남기는 걸 막기 위한
+-- 최소한의 장치. 전투 시작 시 서버가 1회용 토큰을 발급해 시각을 찍어 두고,
+-- 격파 등록 시 그 토큰 + 최소 경과시간(아래 boss_ranking_submit)을 같이 검증한다.
+-- 완전한 부정 방지는 아니지만(클라이언트만 있는 게임이라 근본적 한계가 있다),
+-- 최소한 "닉네임 하나만 보내서 즉시 등록"은 막는다.
+create table if not exists public.boss_ranking_sessions (
+  token      uuid        primary key default gen_random_uuid(),
+  nickname   text        not null,
+  started_at timestamptz not null default now(),
+  used       boolean     not null default false
+);
+
 create or replace function public.boss_ranking_row_json(p_id bigint)
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
@@ -427,16 +439,57 @@ returns boolean language sql stable security definer set search_path = public as
      );
 $$;
 
--- 격파 순간 한 번 호출 — 이미 등록된(경합 포함) 닉네임이면 ok:false, reason:'taken'.
-create or replace function public.boss_ranking_submit(p_nickname text)
+-- 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급한다.
+create or replace function public.boss_ranking_start(p_nickname text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_nickname text := trim(p_nickname);
-  v_id       bigint;
+  v_token    uuid;
 begin
   if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
+
+  insert into public.boss_ranking_sessions (nickname)
+  values (v_nickname)
+  returning token into v_token;
+
+  return jsonb_build_object('ok', true, 'token', v_token);
+end;
+$$;
+
+-- 이전 시그니처(토큰 없음)가 남아있으면 그대로 호출 가능해 방어가 무의미해지므로 명시적으로 지운다.
+drop function if exists public.boss_ranking_submit(text);
+
+-- 격파 순간 한 번 호출 — 발급받은 토큰이 그 닉네임의 것이고, 아직 안 쓴 채로,
+-- 시작한 지 최소 60초는 지나야 등록된다. 이미 등록된(경합 포함) 닉네임이면
+-- ok:false, reason:'taken'.
+create or replace function public.boss_ranking_submit(p_nickname text, p_token uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_id       bigint;
+  v_session  public.boss_ranking_sessions;
+begin
+  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  select * into v_session from public.boss_ranking_sessions
+   where token = p_token and lower(nickname) = lower(v_nickname)
+   for update;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'no_session');
+  end if;
+  if v_session.used then
+    return jsonb_build_object('ok', false, 'reason', 'session_used');
+  end if;
+  if now() - v_session.started_at < interval '60 seconds' then
+    return jsonb_build_object('ok', false, 'reason', 'too_fast');
+  end if;
+
+  update public.boss_ranking_sessions set used = true where token = p_token;
 
   insert into public.boss_rankings (nickname)
   values (v_nickname)
@@ -475,8 +528,10 @@ $$;
 
 -- 직접 테이블 접근은 막는다(select 정책 없음) — 전부 위 함수로만 읽고 쓴다.
 alter table public.boss_rankings enable row level security;
+alter table public.boss_ranking_sessions enable row level security;
 
-grant execute on function public.boss_ranking_check(text)  to anon, authenticated;
-grant execute on function public.boss_ranking_submit(text) to anon, authenticated;
-grant execute on function public.boss_ranking_top(int)      to anon, authenticated;
-grant execute on function public.boss_ranking_mine(text)    to anon, authenticated;
+grant execute on function public.boss_ranking_check(text)       to anon, authenticated;
+grant execute on function public.boss_ranking_start(text)       to anon, authenticated;
+grant execute on function public.boss_ranking_submit(text, uuid) to anon, authenticated;
+grant execute on function public.boss_ranking_top(int)           to anon, authenticated;
+grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;

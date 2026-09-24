@@ -6,8 +6,11 @@
  * lib/backend.ts와 같은 방식 — Supabase 자격증명이 있으면 Supabase RPC를,
  * 없으면 개발용 로컬 백엔드(app/api/boss-ranking)를 쓴다. 순위는 "클리어한 순서"
  * (cleared_at 오름차순) 기준이며, 닉네임은 대소문자 구분 없이 전역에서 유일해야 한다.
- * 보스전 자체와 마찬가지로 서버 인증 없는 완전 로컬/약식 시스템이라, 닉네임 위조 등의
- * 부정 사용을 막는 별도 보안장치는 없다(참가자 친선용).
+ *
+ * 로그인이 없는 만큼 완벽한 부정 방지는 아니지만("격파 신고" API를 직접 호출하면
+ * 이론적으로는 흉내 낼 수 있다), startBossRankingSession으로 발급받은 1회용 토큰과
+ * 최소 경과시간(서버에서 강제) 없이는 등록 자체가 안 되게 막아뒀다 — 최소한 "닉네임
+ * 하나만 보내서 즉시 등록"하는 건 막는다.
  */
 
 import { backendMode, supabase } from "./supabaseClient";
@@ -20,8 +23,14 @@ export interface RankingEntry {
 
 export interface SubmitResult {
   ok: boolean;
-  reason?: "invalid" | "taken" | string;
+  reason?: "invalid" | "taken" | "no_session" | "session_used" | "too_fast" | string;
   rank?: number;
+}
+
+export interface StartResult {
+  ok: boolean;
+  reason?: "invalid" | string;
+  token?: string;
 }
 
 const NICKNAME_MAX_LEN = 14;
@@ -65,14 +74,26 @@ export async function checkNicknameAvailable(nickname: string): Promise<boolean>
   return Boolean(data.available);
 }
 
-/** 서휘령(2페이즈) 격파 시 한 번 호출 — 닉네임이 이미 등록돼 있으면(경합 포함) ok:false. */
-export async function submitBossClear(nickname: string): Promise<SubmitResult> {
+/** 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급받는다. */
+export async function startBossRankingSession(nickname: string): Promise<StartResult> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_submit", { p_nickname: nickname });
+    const { data, error } = await supabase().rpc("boss_ranking_start", { p_nickname: nickname });
+    if (error) throw new Error(error.message);
+    return data as StartResult;
+  }
+  return (await localJson("/api/boss-ranking/start", { nickname })) as unknown as StartResult;
+}
+
+/** 서휘령(2페이즈) 격파 시 한 번 호출 — startBossRankingSession에서 받은 토큰이 필요하다.
+ *  토큰이 없거나·이미 썼거나·시작한 지 너무 얼마 안 됐거나·닉네임이 이미 등록돼 있으면
+ *  (경합 포함) ok:false. */
+export async function submitBossClear(nickname: string, token: string): Promise<SubmitResult> {
+  if (backendMode === "supabase") {
+    const { data, error } = await supabase().rpc("boss_ranking_submit", { p_nickname: nickname, p_token: token });
     if (error) throw new Error(error.message);
     return data as SubmitResult;
   }
-  return (await localJson("/api/boss-ranking/submit", { nickname })) as unknown as SubmitResult;
+  return (await localJson("/api/boss-ranking/submit", { nickname, token })) as unknown as SubmitResult;
 }
 
 export async function fetchRankings(
