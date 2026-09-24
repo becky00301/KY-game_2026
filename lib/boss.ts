@@ -34,6 +34,19 @@ export function claimBossVictory(team: TeamId): boolean {
   return true;
 }
 
+/** 전투 방법(BossGuide)을 이미 봤는지 — 서휘령 도감의 "guide" 카드 해금 여부. */
+export function hasSeenBossGuide(team: TeamId): boolean {
+  if (typeof window === "undefined") return false;
+  try { return window.localStorage.getItem(`bossGuideSeen:${team}`) === "1"; }
+  catch { return false; }
+}
+
+export function claimBossGuide(team: TeamId): boolean {
+  if (hasSeenBossGuide(team)) return false;
+  try { window.localStorage.setItem(`bossGuideSeen:${team}`, "1"); } catch { /* session fallback */ }
+  return true;
+}
+
 export const BOSS_INTRO = {
   bgmSrc: "/audio/boss-intro-bgm.mp3",
   portraitSrc: "/images/boss/boss-portrait.webp",
@@ -60,6 +73,7 @@ export const BOSS_PHASE2_ASSETS = {
 // Add future story cards here; defeat/unlock conditions can be introduced with combat.
 export const BOSS_CARDS = [
   { id: "intro", title: "???", caption: "이야기는 아직 준비 중입니다." },
+  { id: "guide", title: "???", caption: "이야기는 아직 준비 중입니다." },
   { id: "victory", title: "완벽한 패배", caption: "서휘령은 마지막 순간, 누이 서여한의 진심을 전해받고 눈을 감았다." },
 ] as const;
 

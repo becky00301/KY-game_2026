@@ -118,6 +118,7 @@ export function BossMap({
   onEnterRanking,
   onOpenRanking,
   onGuide,
+  rankingLocked = false,
 }: {
   onExit: () => void;
   onGallery: () => void;
@@ -131,6 +132,9 @@ export function BossMap({
   onOpenRanking: () => void;
   /** 전투 방법 보기 — 언제든 다시 볼 수 있다(없으면 버튼을 숨김). */
   onGuide?: () => void;
+  /** 일반 모드를 아직 클리어하지 못해 랭킹모드가 잠겨 있는지 — 버튼은 흐리게 보이지만
+   *  눌러서 안내 문구는 볼 수 있다(실제 진입 가능 여부 판단은 호출부에서 한다). */
+  rankingLocked?: boolean;
 }) {
   return (
     <section className="boss-map-screen boss-theme" aria-label="서휘령 입장맵">
@@ -161,7 +165,12 @@ export function BossMap({
       <div className="boss-map-actions boss-map-actions--grid">
         <div className="boss-map-actions-row boss-map-actions-row--small">
           <button className="boss-map-ranking-btn" onClick={onOpenRanking}>랭킹</button>
-          <button className="boss-map-ranking-enter-btn" onClick={onEnterRanking}>랭킹모드 도전</button>
+          <button
+            className={`boss-map-ranking-enter-btn ${rankingLocked ? "locked" : ""}`}
+            onClick={onEnterRanking}
+          >
+            랭킹모드 도전
+          </button>
         </div>
         <div className="boss-map-actions-row">
           <button className="boss-map-exit-btn-bottom" onClick={onExit}>나가기</button>
@@ -345,7 +354,17 @@ export function BossCardUnlock({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { unlocked: boolean; victoryUnlocked?: boolean; onClose: () => void }) {
+export function BossGallery({
+  unlocked,
+  guideUnlocked = false,
+  victoryUnlocked = false,
+  onClose,
+}: {
+  unlocked: boolean;
+  guideUnlocked?: boolean;
+  victoryUnlocked?: boolean;
+  onClose: () => void;
+}) {
   const [openId, setOpenIdState] = useState<string | null>(null);
   /** 확대한 카드가 뒤집혀 이야기 면이 보이는 중인지 — 새로 열 때마다 앞면부터 */
   const [flipped, setFlipped] = useState(false);
@@ -354,7 +373,7 @@ export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { un
     setFlipped(false);
   };
   const open = BOSS_CARDS.find((card) => card.id === openId);
-  const unlockedCount = (unlocked ? 1 : 0) + (victoryUnlocked ? 1 : 0);
+  const unlockedCount = (unlocked ? 1 : 0) + (guideUnlocked ? 1 : 0) + (victoryUnlocked ? 1 : 0);
   return (
     <div className="sheet-backdrop boss-theme" onClick={onClose}>
       <section className="sheet gallery sheet--boss" role="dialog" aria-modal="true" aria-label="몰락한 검귀의 이야기" onClick={(e) => e.stopPropagation()}>
@@ -366,8 +385,10 @@ export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { un
         <p className="sheet-note">서휘령을 격파하세요. 그에게 숨겨진 이야기가 공개됩니다.</p>
         <ul className="gallery-grid">
           {BOSS_CARDS.map((card) => {
-            const locked = card.id === "intro" ? !unlocked : card.id === "victory" ? !victoryUnlocked : true;
-            const openLabel = card.id === "victory" ? "서휘령 격파 이야기 확대" : "서휘령 첫 번째 이야기 확대";
+            const locked =
+              card.id === "intro" ? !unlocked : card.id === "guide" ? !guideUnlocked : card.id === "victory" ? !victoryUnlocked : true;
+            const openLabel =
+              card.id === "victory" ? "서휘령 격파 이야기 확대" : card.id === "guide" ? "전투 방법 이야기 확대" : "서휘령 첫 번째 이야기 확대";
             return <li key={card.id}><button className={`gallery-item ${locked ? "locked" : ""}`} disabled={locked} onClick={() => setOpenId(card.id)} aria-label={locked ? "아직 열리지 않은 카드" : openLabel}>
               <BossCardPlaceholder locked={locked} /><span className="gallery-name">{card.title}</span>
             </button></li>;

@@ -6,7 +6,7 @@ import Sword from "./Sword";
 import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
 import BossBattle from "./BossBattle";
-import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
+import { claimBossGuide, claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
@@ -921,11 +921,25 @@ export default function GameScreen({
           setBossRankingNickname(null);
           setBossMode("battle");
         }}
-        onEnterRanking={() => setBossRankingEntryOpen(true)}
+        onEnterRanking={() => {
+          if (!hasSeenBossVictory(team)) {
+            setNotice("일반 모드를 먼저 클리어해야 랭킹모드에 도전할 수 있어요.");
+            return;
+          }
+          setBossRankingEntryOpen(true);
+        }}
         onOpenRanking={() => setBossRankingBoardOpen(true)}
         onGuide={() => setBossGuideOpen(true)}
+        rankingLocked={!hasSeenBossVictory(team)}
       />}
-      {bossGuideOpen && <BossGuide onDone={() => setBossGuideOpen(false)} />}
+      {bossGuideOpen && (
+        <BossGuide
+          onDone={() => {
+            setBossGuideOpen(false);
+            if (claimBossGuide(team)) setBossUnlockOpen(true);
+          }}
+        />
+      )}
       {bossMode === "battle" && (
         <BossBattle
           onExit={() => setBossMode("map")}
@@ -941,6 +955,7 @@ export default function GameScreen({
       {bossGalleryOpen && (
         <BossGallery
           unlocked={hasSeenBossIntro(team)}
+          guideUnlocked={hasSeenBossGuide(team)}
           victoryUnlocked={hasSeenBossVictory(team)}
           onClose={() => setBossGalleryOpen(false)}
         />

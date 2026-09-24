@@ -2079,7 +2079,9 @@ button {
 .boss-map-actions-row { display: flex; gap: 12px; }
 .boss-map-actions-row--small button { min-height: 46px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 .boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd355; background: #0009; color: #d2dfdc; font-weight: 700; }
-.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #14453f, #0a201d); color: #e5fff8; font-weight: 800; }
+.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #14453f, #0a201d); color: #e5fff8; font-weight: 800; transition: opacity 0.3s ease; }
+/* 일반 모드 클리어 전에는 흐리게 — 눌러서 안내 문구는 볼 수 있다(boss-entry-btn.locked와 같은 패턴). */
+.boss-map-ranking-enter-btn.locked { opacity: 0.5; }
 
 /* 랭킹모드 닉네임 입력 시트 */
 .boss-ranking-input {
