@@ -124,7 +124,7 @@ export const BOSS_EPILOGUE_LINES: BossEpilogueLine[] = [
 export const BOSS_GUIDE_LINES: { name: string; text: string; portrait?: boolean; demo?: "zones" | "vanish" }[] = [
   { name: "나", text: "서휘령에게 다가가려는 순간, 누군가의 목소리가 들려왔다." },
   { name: "???", text: "잠시만요, 여행자님. 잠시.. 제 이야기를 들어주실 수 있나요?" },
-  { name: "서여한", text: "제 이름은 서여한. 당신에게 찾아온 서휘령의 죽은 누이랍니다.." },
+  { name: "서여한", text: "제 이름은 서여한. 서휘령의 죽은 누이랍니다.." },
   { name: "서여한", text: "잠깐이지만 혼령의 몸을 빌려 나타날 수 있었어요. 당신에게 휘령이를 막을 방법을 전달해드리겠습니다.", portrait: true },
   { name: "서여한", text: "휘령이가 공격하는 지점은 '붉은 빛'으로 나타나요. 당신이 안전하게 공격할 수 있는 지점은, 제 마력으로 비춰드릴게요.", portrait: true, demo: "zones" },
   { name: "서여한", text: "붉은 빛이 사라지면, 공격이 시작될거에요. 빨간 빛이 비추던 곳은 피하고, 저의 빛이 있던 곳을 기억해 뒀다가 베어주세요.", portrait: true, demo: "vanish" },
