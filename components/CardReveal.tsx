@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import CardArt from "./CardArt";
 import { CardInfo } from "@/lib/cards";
 import { TeamTheme } from "@/lib/game";
 import { stageMultiplier } from "@/lib/engine";
 import { playCardRevealSound } from "@/lib/sfx";
+
+/** 전체 화면 일러스트를 보여준 뒤 자동으로 카드 화면으로 넘어가기까지의 시간 */
+const SPLASH_AUTO_MS = 4000;
 
 /** 진화 순간(또는 후일담 카드 해금 순간) 팀 전원에게 뜨는 카드 공개 연출. */
 export default function CardReveal({
@@ -17,9 +20,39 @@ export default function CardReveal({
   theme: TeamTheme;
   onClose: () => void;
 }) {
+  // 먼저 테두리 없이 일러스트만 화면 가득 보여주고, 누르면(또는 잠시 뒤) 카드 화면으로 넘어간다.
+  const [splash, setSplash] = useState(true);
+
   useEffect(() => {
     playCardRevealSound();
   }, []);
+
+  useEffect(() => {
+    if (!splash) return;
+    const timer = window.setTimeout(() => setSplash(false), SPLASH_AUTO_MS);
+    return () => window.clearTimeout(timer);
+  }, [splash]);
+
+  if (splash) {
+    return (
+      <div
+        className="reveal-splash"
+        role="button"
+        tabIndex={0}
+        autoFocus
+        aria-label={`${card.title} 일러스트 — 눌러서 계속`}
+        onClick={() => setSplash(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " " || e.key === "Escape") setSplash(false);
+        }}
+      >
+        <img className="reveal-splash-bg" src={card.image} alt="" aria-hidden="true" />
+        {/* 그림 파일이 없으면 이 단계를 건너뛰고 바로 카드 화면(대체 그림)으로 간다 */}
+        <img className="reveal-splash-img" src={card.image} alt={card.title} onError={() => setSplash(false)} />
+        <p className="reveal-splash-hint">터치하여 계속</p>
+      </div>
+    );
+  }
 
   // 5단계(이후) 카드는 단일 포커스 뷰에서 훨씬 큰 정사각형 틀로 보여준다.
   const grand = card.stage >= 4;

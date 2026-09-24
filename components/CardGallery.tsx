@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import CardArt from "./CardArt";
 import { CardInfo, isCardLocked } from "@/lib/cards";
 import { TeamTheme } from "@/lib/game";
@@ -21,7 +22,13 @@ export default function CardGallery({
   theme: TeamTheme;
   onClose: () => void;
 }) {
-  const [open, setOpen] = useState<CardInfo | null>(null);
+  const [open, setOpenCard] = useState<CardInfo | null>(null);
+  /** 확대한 카드가 뒤집혀 이야기 면이 보이는 중인지 */
+  const [flipped, setFlipped] = useState(false);
+  const setOpen = (card: CardInfo | null) => {
+    setOpenCard(card);
+    setFlipped(false);
+  };
   const maxStage = theme.stages.length - 1;
   const allCards = useMemo(() => [...cards, bonusCard], [cards, bonusCard]);
   const unlocked = allCards.filter((c) => !isCardLocked(c, stage, stars, maxStage)).length;
@@ -68,19 +75,46 @@ export default function CardGallery({
           })}
         </ul>
 
-        {open && (
+        {/*
+          확대 보기는 body로 빼서 띄운다. 도감 시트 안에 두면 시트의 transform 때문에
+          position: fixed가 화면이 아니라 시트 기준이 되어, 시트 높이만큼만 보이고 잘렸다.
+        */}
+        {open && createPortal(
           <div className="gallery-zoom" onClick={() => setOpen(null)}>
+            {/* 앞면은 일러스트만, 누르면 뒤집혀서 이야기가 보인다. 바깥을 누르면 닫힌다. */}
             <div
-              className={`reveal-frame ${openGrand ? "reveal-frame--grand" : ""}`}
-              onClick={(e) => e.stopPropagation()}
+              className={`flip-card ${openGrand ? "flip-card--grand" : ""} ${flipped ? "flipped" : ""}`}
+              role="button"
+              tabIndex={0}
+              aria-label={flipped ? "그림 다시 보기" : "카드 뒤집어 이야기 보기"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFlipped((f) => !f);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setFlipped((f) => !f);
+                }
+              }}
             >
-              <CardArt card={open} theme={theme} grand={openGrand} />
-              <h3 className="reveal-title">{open.title}</h3>
-              {open.caption && <p className="reveal-caption">{open.caption}</p>}
-              {open.lore && <p className="reveal-lore">{open.lore}</p>}
-              {open.artist && <p className="reveal-artist">그림 {open.artist}</p>}
+              <div className="flip-inner">
+                <div className="flip-face flip-front reveal-frame" aria-hidden={flipped}>
+                  <CardArt card={open} theme={theme} grand={openGrand} />
+                </div>
+                <div className="flip-face flip-back" aria-hidden={!flipped}>
+                  <h3 className="reveal-title">{open.title}</h3>
+                  {open.caption && <p className="reveal-caption">{open.caption}</p>}
+                  {open.lore && <p className="reveal-lore">{open.lore}</p>}
+                  {open.artist && <p className="reveal-artist">그림 {open.artist}</p>}
+                </div>
+              </div>
             </div>
-          </div>
+            <p className="flip-hint">
+              {flipped ? "카드를 누르면 그림으로 · 바깥을 누르면 닫기" : "카드를 누르면 이야기가 보여요"}
+            </p>
+          </div>,
+          document.body
         )}
       </section>
     </div>

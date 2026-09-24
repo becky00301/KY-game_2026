@@ -18,8 +18,8 @@ import {
 import { TeamId } from "@/lib/game";
 
 interface Budget {
-  windowStart: number;
-  taps: number;
+  tokens: number;
+  refilledAt: number;
 }
 
 // 개발 중 Next.js가 모듈을 다시 불러와도 상태가 날아가지 않도록 globalThis에 붙인다.
@@ -52,32 +52,36 @@ export function touchPresence(team: TeamId, clientId: string): number {
   return online;
 }
 
+/** 상태를 저장하면서 버전을 1 올린다 — Supabase의 swords.version과 같은 역할. */
+function save(team: TeamId, state: SwordState): SwordState {
+  const prev = swords.get(team);
+  const next = { ...state, version: (prev?.version ?? 0) + 1 };
+  swords.set(team, next);
+  return next;
+}
+
 export function getSword(team: TeamId): SwordState {
   let state = swords.get(team);
   if (!state) {
     state = createSword(team);
     swords.set(team, state);
   }
-  const next = accrue(state);
-  swords.set(team, next);
-  return next;
+  return save(team, accrue(state));
 }
 
-/** 기기별 초당 터치 상한을 적용해 실제로 인정할 터치 수를 돌려준다. */
+/**
+ * 기기별 터치 상한을 적용해 실제로 인정할 터치 수를 돌려준다.
+ * 토큰 통 방식 — schema.sql의 sword_allow_taps와 같은 규칙이다.
+ */
 function allowTaps(clientId: string, requested: number): number {
   const now = Date.now();
-  const capped = Math.max(0, Math.min(requested, MAX_TAPS_PER_FLUSH));
+  const cap = Math.max(MAX_TAPS_PER_FLUSH, MAX_TAPS_PER_SECOND);
   const budget = budgets.get(clientId);
-
-  if (!budget || now - budget.windowStart >= 1000) {
-    const granted = Math.min(capped, MAX_TAPS_PER_SECOND);
-    budgets.set(clientId, { windowStart: now, taps: granted });
-    return granted;
-  }
-
-  const room = Math.max(0, MAX_TAPS_PER_SECOND - budget.taps);
-  const granted = Math.min(capped, room);
-  budget.taps += granted;
+  const tokens = budget
+    ? Math.min(cap, budget.tokens + (Math.max(now - budget.refilledAt, 0) / 1000) * MAX_TAPS_PER_SECOND)
+    : cap;
+  const granted = Math.max(0, Math.min(requested, Math.floor(tokens)));
+  budgets.set(clientId, { tokens: tokens - granted, refilledAt: now });
   return granted;
 }
 
@@ -88,13 +92,10 @@ export function tapSword(
   clientId: string
 ): SwordState {
   const granted = allowTaps(clientId, taps);
-  const next = applyTaps(getSword(team), granted, elapsedSeconds);
-  swords.set(team, next);
-  return next;
+  return save(team, applyTaps(getSword(team), granted, elapsedSeconds));
 }
 
 export function buySwordUpgrade(team: TeamId, id: string) {
   const outcome = engineBuy(getSword(team), id);
-  swords.set(team, outcome.state);
-  return outcome;
+  return { ...outcome, state: save(team, outcome.state) };
 }

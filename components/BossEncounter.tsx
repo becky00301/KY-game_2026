@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BOSS_CARDS, BOSS_INTRO } from "@/lib/boss";
+import { createPortal } from "react-dom";
+import { BOSS_CARDS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
 import {
   RankingEntry,
   checkNicknameAvailable,
@@ -65,6 +66,44 @@ export function BossIntro({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** 전투 설명 — 조력자가 대사로 규칙을 알려준다. 마지막 대사를 넘기거나 건너뛰면 onDone. */
+export function BossGuide({ onDone, skipLabel = "건너뛰기" }: { onDone: () => void; skipLabel?: string }) {
+  const [line, setLine] = useState(0);
+  const finished = useRef(false);
+  const finish = () => {
+    if (finished.current) return;
+    finished.current = true;
+    onDone();
+  };
+  const advance = () => {
+    if (line >= BOSS_GUIDE_LINES.length - 1) finish();
+    else setLine((n) => n + 1);
+  };
+  const current = BOSS_GUIDE_LINES[line];
+  return (
+    <section className="boss-intro boss-guide boss-theme" role="dialog" aria-modal="true" aria-label="전투 방법">
+      <button className="tutorial-skip boss-skip" onClick={finish}>{skipLabel}</button>
+      <button className="boss-dialogue-advance" onClick={advance} aria-label="다음 대사" autoFocus>
+        {current.demo && (
+          <div className={`boss-guide-demo boss-guide-demo--${current.demo}`} aria-hidden="true">
+            <span className="bb-zone bb-zone--danger bb-zone--warn" />
+            <span className="bb-zone bb-zone--musthit bb-zone--warn" />
+            <span className="bb-zone bb-zone--danger bb-zone--warn" />
+            {current.demo === "vanish" && <span className="boss-guide-tap" />}
+          </div>
+        )}
+        <div className="tutorial-dialogue" aria-live="polite">
+          <p className="tutorial-name">{current.name}</p>
+          <p className="tutorial-line">{current.text}</p>
+          <p className="tutorial-next-hint">
+            {line + 1} / {BOSS_GUIDE_LINES.length} · {line >= BOSS_GUIDE_LINES.length - 1 ? "탭하여 시작" : "탭하여 계속"}
+          </p>
+        </div>
+      </button>
+    </section>
+  );
+}
+
 export function BossMap({
   onExit,
   onGallery,
@@ -74,6 +113,7 @@ export function BossMap({
   onEnter,
   onEnterRanking,
   onOpenRanking,
+  onGuide,
 }: {
   onExit: () => void;
   onGallery: () => void;
@@ -85,6 +125,8 @@ export function BossMap({
   onEnterRanking: () => void;
   /** 순위표(1~10등 + 내 순위) 열기. */
   onOpenRanking: () => void;
+  /** 전투 방법 다시 보기 (없으면 버튼을 숨김) */
+  onGuide?: () => void;
 }) {
   return (
     <section className="boss-map-screen boss-theme" aria-label="서휘령 입장맵">
@@ -109,6 +151,7 @@ export function BossMap({
       <div className="boss-map-content">
         <h1 className="boss-map-heading"><img className="boss-map-title" src="/images/boss/boss-map-title.webp" alt="타도 : 검귀 서휘령" /></h1>
         <p className="boss-map-subtitle">몰락한 검귀, 서휘령의 검이 요동치고 있다.<br />그를 제압할 방법이 있을 것 같은데..</p>
+        {onGuide && <button className="boss-map-guide-btn" onClick={onGuide}>전투 방법 보기</button>}
         <div className="boss-map-sword-wrap"><img className="boss-map-sword" src="/images/boss/boss-map-sword.webp" alt="서휘령의 검" /></div>
       </div>
       <div className="boss-map-actions boss-map-actions--grid">
@@ -296,7 +339,13 @@ export function BossCardUnlock({ onClose }: { onClose: () => void }) {
 }
 
 export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { unlocked: boolean; victoryUnlocked?: boolean; onClose: () => void }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenIdState] = useState<string | null>(null);
+  /** 확대한 카드가 뒤집혀 이야기 면이 보이는 중인지 — 새로 열 때마다 앞면부터 */
+  const [flipped, setFlipped] = useState(false);
+  const setOpenId = (id: string | null) => {
+    setOpenIdState(id);
+    setFlipped(false);
+  };
   const open = BOSS_CARDS.find((card) => card.id === openId);
   const unlockedCount = (unlocked ? 1 : 0) + (victoryUnlocked ? 1 : 0);
   return (
@@ -317,13 +366,33 @@ export function BossGallery({ unlocked, victoryUnlocked = false, onClose }: { un
             </button></li>;
           })}
         </ul>
-        {open && <div className="gallery-zoom" onClick={() => setOpenId(null)}>
-          <section className="reveal-card reveal-card--boss" onClick={(e) => e.stopPropagation()}>
-            <div className="reveal-frame"><BossCardPlaceholder /></div>
-            <h2 className="reveal-title">{open.title}</h2><p className="reveal-caption">{open.caption}</p>
-            <button className="reveal-close" onClick={() => setOpenId(null)} autoFocus>닫기</button>
-          </section>
-        </div>}
+        {/* 칼 도감과 같은 뒤집는 카드. 시트의 transform에 갇히지 않도록 body로 빼서 띄운다. */}
+        {open && createPortal(
+          <div className="gallery-zoom boss-theme" onClick={() => setOpenId(null)}>
+            <div
+              className={`flip-card ${flipped ? "flipped" : ""}`}
+              role="button"
+              tabIndex={0}
+              autoFocus
+              aria-label={flipped ? "그림 다시 보기" : "카드 뒤집어 이야기 보기"}
+              onClick={(e) => { e.stopPropagation(); setFlipped((f) => !f); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFlipped((f) => !f); }
+                if (e.key === "Escape") setOpenId(null);
+              }}
+            >
+              <div className="flip-inner">
+                <div className="flip-face flip-front reveal-frame" aria-hidden={flipped}><BossCardPlaceholder /></div>
+                <div className="flip-face flip-back" aria-hidden={!flipped}>
+                  <h3 className="reveal-title">{open.title}</h3>
+                  <p className="reveal-caption">{open.caption}</p>
+                </div>
+              </div>
+            </div>
+            <p className="flip-hint">{flipped ? "카드를 누르면 그림으로 · 바깥을 누르면 닫기" : "카드를 누르면 이야기가 보여요"}</p>
+          </div>,
+          document.body
+        )}
       </section>
     </div>
   );

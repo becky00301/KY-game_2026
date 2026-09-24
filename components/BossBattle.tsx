@@ -153,6 +153,10 @@ export default function BossBattle({
   const [timeLeftMs, setTimeLeftMs] = useState(BOSS_BATTLE.timeLimitMs);
   const [p1, setP1] = useState<Pattern1State>(IDLE_PATTERN1);
   const [p2Phase, setP2Phase] = useState<SubPhase>("idle");
+  /** 화면 표시용 — 패턴2가 지금 실제로 맞는 순간인지(p2JudgeableRef와 같은 값). */
+  const [p2Judgeable, setP2Judgeable] = useState(false);
+  /** 화면 표시용 — 이번 패턴1의 노란 존을 이미 눌렀는지(p1MustHitSatisfiedRef와 같은 값). */
+  const [p1MustHitDone, setP1MustHitDone] = useState(false);
   const [flash, setFlash] = useState<{ key: number; kind: "hit" | "success" | "finale-fail" | "parry" } | null>(null);
   const [bossLine, setBossLine] = useState<{ key: number; text: string; kind: "taunt" | "success" } | null>(null);
   const [inverted, setInverted] = useState(false);
@@ -513,6 +517,7 @@ export default function BossBattle({
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
+    setP2Judgeable(false);
     laserBeamsRef.current = [];
     setLaserBeams([]);
     phaseRef.current = "invertTransition";
@@ -570,6 +575,7 @@ export default function BossBattle({
     p1Ref.current = IDLE_PATTERN1;
     setP1(IDLE_PATTERN1);
     setP2Phase("idle");
+    setP2Judgeable(false);
     laserBeamsRef.current = [];
     setLaserBeams([]);
     finaleHitsRef.current = 0;
@@ -600,6 +606,7 @@ export default function BossBattle({
       inPattern2Ref.current = false;
       p2JudgeableRef.current = false;
       setP2Phase("idle");
+      setP2Judgeable(false);
       // 방금 맞은 직후에는 일반 패턴 휴식시간(grantPatternRest)보다 훨씬 긴 여유를 줘서,
       // 맞자마자 다음 패턴이 바로 쏟아지는 느낌이 들지 않게 한다.
       const hitRestMs = stageRef.current === 1 ? BOSS_BATTLE.hitRestMs : BOSS_PHASE2.hitRestMs;
@@ -635,13 +642,16 @@ export default function BossBattle({
     const warnTimer = window.setTimeout(() => {
       setP2Phase("active");
       p2JudgeableRef.current = true;
+      setP2Judgeable(true);
       // 판정은 active 시작 시점의 짧은 순간만 — 나머지 잔상 구간은 이펙트만 보이고 안전하다.
       const judgeTimer = window.setTimeout(() => {
         p2JudgeableRef.current = false;
+        setP2Judgeable(false);
       }, judgeMs);
       pendingTimers.current.push(judgeTimer);
       const activeTimer = window.setTimeout(() => {
         setP2Phase("idle");
+        setP2Judgeable(false);
         inPattern2Ref.current = false;
         p2JudgeableRef.current = false;
         lastTapAtRef.current = Date.now(); // 재개 시 콤보 유예시간을 새로 준다
@@ -726,6 +736,7 @@ export default function BossBattle({
     slashId.current += 1;
     const myId = slashId.current;
     p1MustHitSatisfiedRef.current = false;
+    setP1MustHitDone(false);
     const warnState: Pattern1State = { id: myId, phase: "warn", judgeable: false, orientation, dangerZones, mustHitZones };
     p1Ref.current = warnState;
     setP1(warnState);
@@ -794,7 +805,9 @@ export default function BossBattle({
       const pattern2Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern2DeathPenalty : BOSS_PHASE2.pattern2DeathPenalty;
       const pattern1Penalty = stageRef.current === 1 ? BOSS_BATTLE.pattern1DeathPenalty : BOSS_PHASE2.pattern1DeathPenalty;
 
-      if (inPattern2Ref.current && p2Phase === "active" && p2JudgeableRef.current) {
+      // 렌더 시점의 p2Phase가 아니라 ref로 판단한다 — 판정이 켜진 직후 다시 그려지기 전에
+      // 누른 터치가 놓치지 않도록.
+      if (inPattern2Ref.current && p2JudgeableRef.current) {
         registerPatternHit(pattern2Penalty);
         return;
       }
@@ -807,8 +820,9 @@ export default function BossBattle({
         }
         // 반드시 눌러야 하는 존은 judgeable 여부와 상관없이 active인 동안 아무 때나
         // 한 번만 맞히면 된다.
-        if (p1Ref.current.mustHitZones.includes(zone)) {
+        if (p1Ref.current.mustHitZones.includes(zone) && !p1MustHitSatisfiedRef.current) {
           p1MustHitSatisfiedRef.current = true;
+          setP1MustHitDone(true);
         }
       }
 
@@ -842,7 +856,7 @@ export default function BossBattle({
       }
       checkHpThresholds(nextHp);
     },
-    [p2Phase, registerPatternHit, checkHpThresholds, enterFinale, registerLaserHit]
+    [registerPatternHit, checkHpThresholds, enterFinale, registerLaserHit]
   );
 
   /** 거꾸로 패턴 — 화면이 뒤집혀 있으므로 탭 좌표도 뒤집어서 원들의 논리 좌표와 비교한다.
@@ -1166,7 +1180,7 @@ export default function BossBattle({
                         p1.dangerZones.includes(z)
                           ? `bb-zone--danger bb-zone--${p1.phase}`
                           : p1.mustHitZones.includes(z)
-                            ? `bb-zone--musthit bb-zone--${p1.phase}`
+                            ? `bb-zone--musthit bb-zone--${p1.phase}${p1MustHitDone ? " bb-zone--done" : ""}`
                             : ""
                       }`}
                       style={p1.orientation === "diagonal" ? { clipPath: diagonalZoneClipPath(z, zoneCount) } : undefined}
@@ -1196,7 +1210,7 @@ export default function BossBattle({
               )}
               {p2Phase !== "idle" && (
                 <div
-                  className={`bb-full-warning bb-full-warning--${p2Phase}`}
+                  className={`bb-full-warning bb-full-warning--${p2Phase}${p2Judgeable ? " bb-full-warning--judge" : ""}`}
                   style={
                     p2Phase === "warn"
                       ? { animationDuration: `${stage === 1 ? BOSS_BATTLE.pattern2WarnMs : BOSS_PHASE2.pattern2WarnMs}ms` }

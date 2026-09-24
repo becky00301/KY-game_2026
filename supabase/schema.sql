@@ -16,7 +16,7 @@ create table if not exists public.game_config (
   id                  int primary key default 1 check (id = 1),
   stage_thresholds    numeric[] not null,
   stage_growth        numeric   not null default 1.85,
-  max_taps_per_flush  int       not null default 40,
+  max_taps_per_flush  int       not null default 90,
   max_taps_per_second int       not null default 30,
   max_accrual_seconds int       not null default 120,
   fever_max           numeric   not null default 3000,
@@ -53,6 +53,10 @@ create table if not exists public.swords (
   updated_at   timestamptz not null default now()
 );
 
+-- 칼 상태가 바뀔 때마다 1씩 오르는 번호. 응답·실시간 알림이 뒤섞여 늦게 도착해도
+-- 클라이언트가 더 오래된 상태로 되돌아가지 않도록 비교하는 데 쓴다.
+alter table public.swords add column if not exists version bigint not null default 0;
+
 -- 기기별 연타 제한용. 계정이 아니라 단순 식별값이다.
 create table if not exists public.tap_budget (
   client_id    uuid primary key,
@@ -60,13 +64,20 @@ create table if not exists public.tap_budget (
   taps         int         not null default 0
 );
 
+-- 연타 제한을 "1초 고정 창"에서 "토큰 통"으로 바꾸며 추가한 컬럼.
+-- 고정 창에서는 1초 간격 전송이 네트워크 지연으로 0.98초 만에 도착하면 그 묶음이 통째로
+-- 버려져, 화면엔 오른 재화가 서버엔 없어서 구매가 실패했다.
+alter table public.tap_budget add column if not exists tokens      numeric;
+alter table public.tap_budget add column if not exists refilled_at timestamptz not null default now();
+
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
-values (1, array[0, 2400, 75000, 2400000, 75000000]::numeric[], 1.85, 30, 0.05, 10, 100)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
+values (1, array[0, 2400, 75000, 2400000, 75000000]::numeric[], 1.85, 90, 30, 0.05, 10, 150)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
+  max_taps_per_flush = excluded.max_taps_per_flush,
   max_taps_per_second = excluded.max_taps_per_second,
   critical_chance = excluded.critical_chance,
   critical_multiplier = excluded.critical_multiplier,
@@ -153,7 +164,8 @@ begin
   update public.swords
      set energy = energy + gain,
          lifetime = lifetime + gain,
-         updated_at = now()
+         updated_at = now(),
+         version = version + 1
    where team = p_team
    returning * into s;
 
@@ -162,29 +174,38 @@ end;
 $$;
 
 -- 기기별 초당 상한을 적용해 실제로 인정할 터치 수를 정한다.
+--
+-- 토큰 통 방식: 초당 max_taps_per_second 개씩 채워지고, 최대 max_taps_per_flush 개까지
+-- 쌓인다. 길게 보면 초당 상한은 그대로지만, 전송 간격이 조금 흔들리거나 구매 직전에
+-- 한 번 더 보내도 정상 터치가 버려지지 않는다.
 create or replace function public.sword_allow_taps(p_client uuid, p_taps int)
 returns int language plpgsql as $$
 declare
   cfg     public.game_config;
   b       public.tap_budget;
-  capped  int;
+  cap     numeric;
+  tokens  numeric;
   granted int;
 begin
   select * into cfg from public.game_config where id = 1;
-  capped := greatest(0, least(p_taps, cfg.max_taps_per_flush));
+  cap := greatest(cfg.max_taps_per_flush, cfg.max_taps_per_second);
 
   select * into b from public.tap_budget where client_id = p_client for update;
 
-  if not found or now() - b.window_start >= interval '1 second' then
-    granted := least(capped, cfg.max_taps_per_second);
-    insert into public.tap_budget (client_id, window_start, taps)
-    values (p_client, now(), granted)
-    on conflict (client_id) do update set window_start = now(), taps = granted;
-    return granted;
+  if not found or b.tokens is null then
+    tokens := cap;
+  else
+    tokens := least(cap, b.tokens
+      + greatest(extract(epoch from (now() - b.refilled_at)), 0) * cfg.max_taps_per_second);
   end if;
 
-  granted := least(capped, greatest(0, cfg.max_taps_per_second - b.taps));
-  update public.tap_budget set taps = taps + granted where client_id = p_client;
+  granted := greatest(0, least(p_taps, floor(tokens)::int));
+
+  insert into public.tap_budget (client_id, window_start, taps, tokens, refilled_at)
+  values (p_client, now(), granted, tokens - granted, now())
+  on conflict (client_id) do update
+    set tokens = excluded.tokens, refilled_at = excluded.refilled_at;
+
   return granted;
 end;
 $$;
@@ -201,6 +222,7 @@ returns jsonb language sql stable as $$
     'fever_gauge', s.fever_gauge,
     'fever_until', (extract(epoch from s.fever_until) * 1000)::bigint,
     'updated_at', (extract(epoch from s.updated_at) * 1000)::bigint,
+    'version', s.version,
     'stage', public.sword_stage(s.lifetime),
     'tap_power', public.sword_tap_power(s),
     'auto_rate', public.sword_auto_rate(s)
@@ -276,7 +298,8 @@ begin
          taps = taps + granted,
          fever_gauge = gauge,
          fever_until = until,
-         updated_at = now()
+         updated_at = now(),
+         version = version + 1
    where team = p_team
    returning * into s;
 
@@ -316,14 +339,16 @@ begin
     update public.swords
        set energy = energy - cost,
            tap_levels = jsonb_set(tap_levels, array[p_id], to_jsonb(lvl + 1), true),
-           updated_at = now()
+           updated_at = now(),
+           version = version + 1
      where team = p_team
      returning * into s;
   else
     update public.swords
        set energy = energy - cost,
            auto_levels = jsonb_set(auto_levels, array[p_id], to_jsonb(lvl + 1), true),
-           updated_at = now()
+           updated_at = now(),
+           version = version + 1
      where team = p_team
      returning * into s;
   end if;

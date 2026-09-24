@@ -332,7 +332,8 @@ button {
 }
 
 .energy {
-  margin-top: 18px;
+  /* 모바일 크롬처럼 주소창·하단바가 화면을 많이 먹는 브라우저에선 위쪽을 조금 줄인다 */
+  margin-top: clamp(8px, 2.2dvh, 18px);
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -340,7 +341,7 @@ button {
 }
 
 .energy-value {
-  font-size: 42px;
+  font-size: clamp(32px, 5dvh, 42px);
   font-weight: 900;
   letter-spacing: -0.03em;
   text-shadow: 0 0 24px color-mix(in srgb, var(--glow) 55%, transparent);
@@ -359,7 +360,7 @@ button {
 }
 
 .stage-bar {
-  margin-top: 16px;
+  margin-top: clamp(8px, 2dvh, 16px);
 }
 
 .stage-bar-head {
@@ -459,6 +460,10 @@ button {
 .sword-hit {
   position: relative;
   width: min(74vw, 300px);
+  /* 최종 단계 칼(.sword-box)이 이 폭보다 넓어져도 가운데에 오도록 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   touch-action: manipulation;
   transition: transform 0.09s ease;
 }
@@ -479,8 +484,13 @@ button {
 .sword-box {
   position: relative;
   z-index: 1;
-  width: min(74vw, 300px);
-  height: min(52dvh, 420px);
+  /*
+   * 단계 배율(--sword-scale)만큼 키우되, 위 점수판(~210px)과 아래 글씨·강화 버튼(~190px)을
+   * 뺀 남는 높이를 넘지 않는다. 그래서 최종 단계에서도 칼이 글씨를 덮거나 화면을 밀어내지 않는다.
+   */
+  --sword-base: min(52dvh, 420px);
+  width: min(calc(min(74vw, 300px) * var(--sword-scale, 1)), 92vw);
+  height: max(180px, min(calc(var(--sword-base) * var(--sword-scale, 1)), calc(100dvh - 415px)));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1223,6 +1233,72 @@ button {
 
 /* 진화 카드 공개 */
 
+/* 카드 공개 전 — 테두리 없이 일러스트만 화면 가득 */
+.reveal-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  overflow: hidden;
+  background: #000;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: fadeIn 0.5s ease;
+}
+
+/* 원본 비율이 화면과 달라도 빈 곳이 없도록 같은 그림을 흐리게 깔아 둔다 */
+.reveal-splash-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(22px) brightness(0.55);
+  transform: scale(1.2);
+}
+
+.reveal-splash-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: splashZoom 4.5s ease-out forwards;
+}
+
+@keyframes splashZoom {
+  from {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.reveal-splash-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  animation: fadeIn 0.6s ease 1s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-splash-img {
+    animation: none;
+  }
+}
+
 .reveal-backdrop {
   position: fixed;
   inset: 0;
@@ -1415,6 +1491,115 @@ button {
 .gallery-zoom .reveal-frame.reveal-frame--grand {
   width: min(94vw, 420px);
   padding: 4px;
+}
+
+/* 진화 팝업 — 세로가 짧은 폰에서도 그림·이야기·버튼이 한 화면에 들어오도록 그림 높이를 맞춘다 */
+.reveal-card .card-art {
+  width: min(100%, calc(44dvh * 3 / 4));
+  margin-inline: auto;
+}
+
+.reveal-card .card-art.card-art-grand {
+  width: min(100%, 44dvh);
+}
+
+.reveal-card .reveal-lore {
+  max-height: 26dvh;
+}
+
+/* 도감 확대 보기 — 앞면 일러스트, 누르면 뒤집혀 이야기 */
+.gallery-zoom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.flip-card {
+  /* 화면 너비와 높이 중 더 빡빡한 쪽에 맞춘다 (3:4 비율) */
+  width: min(84vw, 340px, calc((100dvh - 120px) * 3 / 4));
+  aspect-ratio: 3 / 4;
+  perspective: 1400px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.flip-card--grand {
+  width: min(92vw, 420px, calc(100dvh - 120px));
+  aspect-ratio: 1 / 1;
+}
+
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+
+.flip-card.flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.gallery-zoom .flip-front {
+  display: flex;
+  width: auto;
+  padding: 6px;
+}
+
+.flip-front .card-art {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px 16px;
+  text-align: center;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--primary) 30%, #0a050c) 0%, #0a050c 72%);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 30px 70px -28px var(--glow);
+}
+
+.flip-back .reveal-title {
+  margin-top: 0;
+}
+
+/* 이야기 본문 없이 제목·설명만 있는 카드(보스 도감)는 가운데에 */
+.flip-back:not(:has(.reveal-lore)) {
+  justify-content: center;
+}
+
+/* 이야기 박스가 남는 높이를 다 쓰고, 넘치면 그 안에서만 스크롤 */
+.flip-back .reveal-lore {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.flip-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-inner {
+    transition: none;
+  }
 }
 
 /* ---------------- 피버 캐릭터 팝업 ---------------- */
@@ -1854,6 +2039,37 @@ button {
 .boss-map-actions { display: flex; flex-shrink: 0; gap: 12px; width: min(100%, 520px); align-self: center; padding: 16px 22px calc(22px + env(safe-area-inset-bottom)); }
 .boss-map-actions button { min-height: 48px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 .boss-map-exit-btn-bottom { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
+.boss-map-guide-btn {
+  align-self: center; flex-shrink: 0; margin: 0 0 8px; padding: 7px 14px;
+  border: 1px solid #a0dfd355; border-radius: 999px; background: #0008;
+  color: #c0eee5; font-size: 13px;
+}
+/* 전투 설명은 그림 없이 어두운 배경 위 대사만 — 지도가 살짝 비쳐 보이게 */
+.boss-guide { background: rgba(0, 0, 0, .78); backdrop-filter: blur(4px); }
+/* 설명용 미니 전투 화면 — 실제 전투와 같은 클래스(bb-zone--*)라 모양이 그대로 같다 */
+.boss-guide-demo {
+  position: relative; display: flex; align-self: center;
+  width: min(62vw, 240px); aspect-ratio: 3 / 4; margin: auto 0 16px;
+  border-radius: 14px; overflow: hidden; border: 1px solid #a0dfd355;
+  background: url("/images/boss-battle/battle-bg.webp") center / cover, #06201d;
+}
+.boss-guide-demo .bb-zone { flex: 1 1 0; height: 100%; }
+/* "사라진 뒤 벤다" — 1.2초 보여주고 사라진 뒤, 노랑이 있던 자리를 누르는 손짓 */
+.boss-guide-demo--vanish .bb-zone { animation: bossGuideVanish 2.4s steps(1, end) infinite; }
+@keyframes bossGuideVanish { 0% { opacity: 1; } 50% { opacity: 0; } }
+.boss-guide-tap {
+  position: absolute; left: 50%; top: 55%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%; border: 3px solid #ffd650; box-shadow: 0 0 18px #ffd650;
+  opacity: 0; animation: bossGuideTap 2.4s ease-out infinite;
+}
+@keyframes bossGuideTap {
+  0%, 55% { opacity: 0; transform: scale(1.5); }
+  65% { opacity: 1; transform: scale(1); }
+  90%, 100% { opacity: 0; transform: scale(.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boss-guide-demo--vanish .bb-zone, .boss-guide-tap { animation: none; }
+}
 .boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
 /* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기 위에 한 줄 더 얹은 작은 버튼 한 쌍.
    왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이 서로 위아래로
@@ -1893,7 +2109,9 @@ button {
 .boss-intro { position: fixed; inset: 0; z-index: 60; background: #000; overflow: hidden; }
 .boss-dialogue-advance { display: flex; flex-direction: column; justify-content: flex-end; position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border: 0; color: inherit; text-align: left; }
 .boss-dialogue-advance .tutorial-dialogue { align-self: stretch; z-index: 2; max-height: 44dvh; overflow-y: auto; }
-.boss-portrait { position: absolute; left: 50%; top: 2dvh; transform: translateX(-50%); max-height: 88dvh; max-width: 94%; object-fit: contain; animation: fadeIn .3s ease; }
+/* 대사창(아래 ~130px) 위에 남는 공간의 한가운데에 세운다. 예전엔 위에 붙어 있어서 세로로 긴
+   폰에선 그림 아래로 빈 공간이 크게 남았다. */
+.boss-portrait { position: absolute; left: 50%; top: calc((100dvh - 130px - env(safe-area-inset-bottom)) / 2); transform: translate(-50%, -50%); max-height: calc(100dvh - 160px - env(safe-area-inset-bottom)); max-width: 94%; object-fit: contain; animation: fadeIn .3s ease; }
 .boss-skip { top: calc(14px + env(safe-area-inset-top)); left: 16px; right: auto; z-index: 5; }
 .boss-reveal-image-wrap { position: absolute; inset: 0; overflow: hidden; }
 .boss-reveal-image { position: absolute; top: 0; left: 50%; transform: translateX(-50%); height: 100%; width: auto; max-width: none; }
@@ -1997,8 +2215,13 @@ button {
    있는(투명 배경) 원형 구도라 phase2-image처럼 cover로 화면을 꽉 채우면 가장자리가
    잘려서, 전체 구도가 다 보이도록 contain으로 최대한 크게 띄운다. */
 .bb-intro-image {
-  position: absolute; inset: 0; z-index: 0;
-  width: 100%; height: 100%; object-fit: contain;
+  /* 그림 크기에 딱 맞춘 정사각형 상자로 가운데에 둔다 — 아래 마스크가 그림 가장자리에 정확히 맞도록 */
+  position: absolute; inset: 0; margin: auto; z-index: 0;
+  width: min(100%, 100dvh); height: auto; aspect-ratio: 1 / 1; object-fit: contain;
+  /* 원본 파일 자체가 아래쪽이 일자로 잘려 있어서(맨 아랫줄까지 그림이 참), 잘린 선이
+     보이지 않도록 아래 가장자리를 검은 배경 속으로 서서히 사라지게 한다. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 72%, transparent 97%);
+  mask-image: linear-gradient(to bottom, #000 72%, transparent 97%);
   animation: fadeIn .8s ease;
 }
 .bb-intro-splash .bb-intro-line { position: relative; z-index: 1; }
@@ -2069,10 +2292,28 @@ button {
 /* 대각선 구역은 구역 수(3분할/5분할)에 따라 clip-path를 JS에서 계산해 인라인으로 넣는다. */
 .bb-zones--diagonal .bb-zone { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* 전조 시간이 짧아진 만큼, 위험구역이 더 뚜렷하게 빨갛게 보이도록 진하게 했다. */
-.bb-zone--danger.bb-zone--warn { background: rgba(220, 38, 38, .5); }
-/* 반드시 눌러야 하는 존 — 노란빛. 위험구역과 똑같이 전조(warn) 때만 옅게 보여주고,
-   active(공격 판정) 동안은 안 보이게 한다 — 전조 때 위치를 기억해뒀다가 눌러야 한다. */
-.bb-zone--musthit.bb-zone--warn { background: rgba(255, 200, 40, .1); }
+/*
+ * 예고(warn) 동안만 약점(노랑)과 공격 올 곳(빨강)을 함께 보여주고, 공격이 시작되면 둘 다
+ * 동시에 사라진다. 플레이어는 위치를 기억해 뒀다가 색이 사라진 뒤에 약점을 눌러야 한다.
+ *   - 예고 때 누르는 건 판정에 안 들어간다(노랑을 눌러도 인정 안 됨, 빨강을 눌러도 안전).
+ *   - 색이 사라진 직후 0.22초 동안 빨강이던 곳을 누르면 하트가 깎인다.
+ *   - 색이 사라진 뒤 공격이 끝나기 전에 노랑이던 곳을 한 번 누르면 성공 — 그 자리가 잠깐 빛난다.
+ */
+.bb-zone--danger.bb-zone--warn {
+  background: repeating-linear-gradient(-45deg, rgba(220, 38, 38, .42) 0 10px, rgba(220, 38, 38, .14) 10px 20px);
+  outline: 2px dashed rgba(255, 90, 90, .85);
+  outline-offset: -2px;
+}
+.bb-zone--musthit.bb-zone--warn {
+  background: rgba(255, 200, 40, .3);
+  outline: 2px solid rgba(255, 214, 80, .9);
+  outline-offset: -2px;
+}
+.bb-zone--musthit.bb-zone--done { animation: bbWeakPointHit .45s ease-out forwards; }
+@keyframes bbWeakPointHit {
+  from { background: rgba(255, 214, 80, .5); }
+  to { background: rgba(255, 214, 80, 0); }
+}
 
 .bb-slash {
   position: absolute; inset: 0; margin: auto; z-index: 2;
@@ -2093,8 +2334,15 @@ button {
    경고라기보단 눈이 아픈 스트로브처럼 느껴졌다. 그래서 반복 없이 예고 시간
    (1.5초) 동안 한 번만 서서히 밝아지는 연출로 바꿔서, 위험이 다가온다는 걸
    깜빡임 없이 읽을 수 있게 했다. */
-.bb-full-warning--warn { background: rgba(220, 38, 38, .75); animation: bbFullWarnBuildup 1.5s ease-in forwards; }
-.bb-full-warning--active { background: rgba(220, 38, 38, .58); }
+.bb-full-warning--warn {
+  /* 예고는 빗금 — 판정 순간의 꽉 찬 빨강(.bb-full-warning--judge)과 구분된다 */
+  background: repeating-linear-gradient(-45deg, rgba(220, 38, 38, .42) 0 14px, rgba(220, 38, 38, .12) 14px 28px);
+  outline: 3px dashed rgba(255, 90, 90, .85); outline-offset: -3px;
+  animation: bbFullWarnBuildup 1.5s ease-in forwards;
+}
+/* 전체 공격도 실제로 맞는 순간(judge)에만 빨갛다. 그 뒤 잔상 구간은 이펙트만 남고 안전하다. */
+.bb-full-warning--active { background: transparent; }
+.bb-full-warning--active.bb-full-warning--judge { background: rgba(220, 38, 38, .58); }
 /* 1·2페이즈 공통 — 패턴2(전체판정) active 구간에 화면 전체 공격 일러스트를 판정 위에
    겹쳐 보여준다(판정 자체는 여전히 .bb-full-warning--active의 배경색이 담당, 이펙트는
    순수 연출). 화면을 꽉 채우도록 cover로 최대한 크게 표시한다. */

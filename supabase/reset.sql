@@ -11,7 +11,9 @@ update public.swords
        auto_levels = '{}'::jsonb,
        fever_gauge = 0,
        fever_until = 'epoch',
-       updated_at  = now();
+       updated_at  = now(),
+       -- 버전은 줄이지 않는다. 접속 중인 화면이 초기화된 상태를 "더 새 것"으로 받아야 한다.
+       version     = version + 1;
 
 -- 연타 제한 기록도 비운다.
 delete from public.tap_budget;
