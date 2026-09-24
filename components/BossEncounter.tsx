@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BOSS_CARDS, BOSS_INTRO } from "@/lib/boss";
+import { BOSS_CARDS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
 import {
   RankingEntry,
   checkNicknameAvailable,
@@ -66,6 +66,45 @@ export function BossIntro({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** 전투 설명 — 조력자가 대사로 규칙을 알려준다. 입장맵의 "전투 방법 보기" 버튼으로 언제든
+ *  볼 수 있다(자동으로는 안 뜬다). 마지막 대사를 넘기거나 건너뛰면 onDone. */
+export function BossGuide({ onDone }: { onDone: () => void }) {
+  const [line, setLine] = useState(0);
+  const finished = useRef(false);
+  const finish = () => {
+    if (finished.current) return;
+    finished.current = true;
+    onDone();
+  };
+  const advance = () => {
+    if (line >= BOSS_GUIDE_LINES.length - 1) finish();
+    else setLine((n) => n + 1);
+  };
+  const current = BOSS_GUIDE_LINES[line];
+  return (
+    <section className="boss-intro boss-guide boss-theme" role="dialog" aria-modal="true" aria-label="전투 방법">
+      <button className="tutorial-skip boss-skip" onClick={finish}>닫기</button>
+      <button className="boss-dialogue-advance" onClick={advance} aria-label="다음 대사" autoFocus>
+        {current.demo && (
+          <div className={`boss-guide-demo boss-guide-demo--${current.demo}`} aria-hidden="true">
+            <span className="bb-zone bb-zone--danger bb-zone--warn" />
+            <span className="bb-zone bb-zone--musthit bb-zone--warn" />
+            <span className="bb-zone bb-zone--danger bb-zone--warn" />
+            {current.demo === "vanish" && <span className="boss-guide-tap" />}
+          </div>
+        )}
+        <div className="tutorial-dialogue" aria-live="polite">
+          <p className="tutorial-name">{current.name}</p>
+          <p className="tutorial-line">{current.text}</p>
+          <p className="tutorial-next-hint">
+            {line + 1} / {BOSS_GUIDE_LINES.length} · {line >= BOSS_GUIDE_LINES.length - 1 ? "탭하여 닫기" : "탭하여 계속"}
+          </p>
+        </div>
+      </button>
+    </section>
+  );
+}
+
 export function BossMap({
   onExit,
   onGallery,
@@ -75,6 +114,7 @@ export function BossMap({
   onEnter,
   onEnterRanking,
   onOpenRanking,
+  onGuide,
 }: {
   onExit: () => void;
   onGallery: () => void;
@@ -86,6 +126,8 @@ export function BossMap({
   onEnterRanking: () => void;
   /** 순위표(1~10등 + 내 순위) 열기. */
   onOpenRanking: () => void;
+  /** 전투 방법 보기 — 언제든 다시 볼 수 있다(없으면 버튼을 숨김). */
+  onGuide?: () => void;
 }) {
   return (
     <section className="boss-map-screen boss-theme" aria-label="서휘령 입장맵">
@@ -110,6 +152,7 @@ export function BossMap({
       <div className="boss-map-content">
         <h1 className="boss-map-heading"><img className="boss-map-title" src="/images/boss/boss-map-title.webp" alt="타도 : 검귀 서휘령" /></h1>
         <p className="boss-map-subtitle">몰락한 검귀, 서휘령의 검이 요동치고 있다.<br />그를 제압할 방법이 있을 것 같은데..</p>
+        {onGuide && <button className="boss-map-guide-btn" onClick={onGuide}>전투 방법 보기</button>}
         <div className="boss-map-sword-wrap"><img className="boss-map-sword" src="/images/boss/boss-map-sword.webp" alt="서휘령의 검" /></div>
       </div>
       <div className="boss-map-actions boss-map-actions--grid">

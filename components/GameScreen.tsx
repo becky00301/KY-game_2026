@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import SwordFx from "./SwordFx";
-import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
+import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
 import BossBattle from "./BossBattle";
 import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
@@ -140,6 +140,8 @@ export default function GameScreen({
   const [bossPending, setBossPending] = useState(false);
   const [bossUnlockOpen, setBossUnlockOpen] = useState(false);
   const [bossGalleryOpen, setBossGalleryOpen] = useState(false);
+  /** 전투 방법 보기 — 입장맵 버튼으로 언제든 열 수 있다(자동으로는 안 뜬다). */
+  const [bossGuideOpen, setBossGuideOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
@@ -921,7 +923,9 @@ export default function GameScreen({
         }}
         onEnterRanking={() => setBossRankingEntryOpen(true)}
         onOpenRanking={() => setBossRankingBoardOpen(true)}
+        onGuide={() => setBossGuideOpen(true)}
       />}
+      {bossGuideOpen && <BossGuide onDone={() => setBossGuideOpen(false)} />}
       {bossMode === "battle" && (
         <BossBattle
           onExit={() => setBossMode("map")}

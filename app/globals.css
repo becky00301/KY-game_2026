@@ -2039,6 +2039,37 @@ button {
 .boss-map-actions { display: flex; flex-shrink: 0; gap: 12px; width: min(100%, 520px); align-self: center; padding: 16px 22px calc(22px + env(safe-area-inset-bottom)); }
 .boss-map-actions button { min-height: 48px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 .boss-map-exit-btn-bottom { border: 1px solid #a0dfd344; background: #0009; color: #d2dfdc; }
+.boss-map-guide-btn {
+  align-self: center; flex-shrink: 0; margin: 0 0 8px; padding: 7px 14px;
+  border: 1px solid #a0dfd355; border-radius: 999px; background: #0008;
+  color: #c0eee5; font-size: 13px;
+}
+/* 전투 설명은 그림 없이 어두운 배경 위 대사만 — 지도가 살짝 비쳐 보이게 */
+.boss-guide { background: rgba(0, 0, 0, .78); backdrop-filter: blur(4px); }
+/* 설명용 미니 전투 화면 — 실제 전투와 같은 클래스(bb-zone--*)라 모양이 그대로 같다 */
+.boss-guide-demo {
+  position: relative; display: flex; align-self: center;
+  width: min(62vw, 240px); aspect-ratio: 3 / 4; margin: auto 0 16px;
+  border-radius: 14px; overflow: hidden; border: 1px solid #a0dfd355;
+  background: url("/images/boss-battle/battle-bg.webp") center / cover, #06201d;
+}
+.boss-guide-demo .bb-zone { flex: 1 1 0; height: 100%; }
+/* "사라진 뒤 벤다" — 1.2초 보여주고 사라진 뒤, 노랑이 있던 자리를 누르는 손짓 */
+.boss-guide-demo--vanish .bb-zone { animation: bossGuideVanish 2.4s steps(1, end) infinite; }
+@keyframes bossGuideVanish { 0% { opacity: 1; } 50% { opacity: 0; } }
+.boss-guide-tap {
+  position: absolute; left: 50%; top: 55%; width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  border-radius: 50%; border: 3px solid #ffd650; box-shadow: 0 0 18px #ffd650;
+  opacity: 0; animation: bossGuideTap 2.4s ease-out infinite;
+}
+@keyframes bossGuideTap {
+  0%, 55% { opacity: 0; transform: scale(1.5); }
+  65% { opacity: 1; transform: scale(1); }
+  90%, 100% { opacity: 0; transform: scale(.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boss-guide-demo--vanish .bb-zone, .boss-guide-tap { animation: none; }
+}
 .boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
 /* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기와 거의 같은 크기로, 그 위에 한 줄 더
    얹은 버튼 한 쌍. 왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이
