@@ -100,29 +100,3 @@ export const BOSS_EPILOGUE_LINES: BossEpilogueLine[] = [
   { speaker: "yeohan", name: "서여한", text: "... 휘령이의 영혼은 더럽혀졌기에, 다시는 만날 수 없겠지만.." },
   { speaker: "yeohan", name: "서여한", text: "마지막 인사정도는.. 해주고싶네요." },
 ];
-
-/**
- * 첫 전투 직전에 조력자가 들려주는 전투 설명. 이름은 후일담 전까지 정체를 숨기려고 "???"로 둔다.
- * 문구를 바꾸려면 여기만 고치면 된다. (규칙 수치는 lib/bossBattle.ts)
- */
-/** demo: 대사와 함께 보여줄 작은 예시 — "zones"는 빨강·노랑 예고, "vanish"는 색이 사라진 뒤 약점을 베는 모습 */
-export const BOSS_GUIDE_LINES: { name: string; text: string; demo?: "zones" | "vanish" }[] = [
-  { name: "???", text: "잠깐만요! 서휘령과 맞서기 전에, 제 이야기를 꼭 들어주세요." },
-  { name: "???", text: "화면을 두드리면 서휘령에게 검격을 가할 수 있어요. 쉬지 않고 이어서 두드릴수록 콤보가 쌓여 더 강한 일격이 돼요." },
-  { name: "???", text: "그가 공격하기 직전, 제가 잠깐 보여드릴게요. 빨간 빗금은 그의 검이 떨어질 곳, 노란빛은 그의 약점이에요.", demo: "zones" },
-  { name: "???", text: "색이 사라지는 순간 공격이 시작돼요. 빨간 빗금이 있던 곳은 누르지 말고, 노란빛이 있던 곳을 기억해 뒀다가 베어주세요!", demo: "vanish" },
-  { name: "???", text: "약점을 한 번도 베지 못하면, 그의 공격을 그대로 맞게 돼요. 색이 보일 때 누르는 건 소용없어요. 사라진 뒤에 베어야 해요.", demo: "vanish" },
-  { name: "???", text: "화면 전체가 붉게 물들면 어디든 위험해요. 그땐 잠깐 손을 떼주세요." },
-  { name: "???", text: "버틸 수 있는 건 다섯 번뿐이에요. 콤보를 50까지 이으면 한 번을 되찾을 수 있어요. 부디.. 그를 멈춰주세요." },
-];
-
-/** 전투 설명을 이미 봤는지 — 처음 입장할 때만 자동으로 보여준다(지도 화면에서 다시 볼 수 있음). */
-export function hasSeenBossGuide(team: TeamId): boolean {
-  if (typeof window === "undefined") return false;
-  try { return window.localStorage.getItem(`bossGuideSeen:${team}`) === "1"; }
-  catch { return false; }
-}
-
-export function markBossGuideSeen(team: TeamId) {
-  try { window.localStorage.setItem(`bossGuideSeen:${team}`, "1"); } catch { /* 저장 불가면 다음에 또 보여준다 */ }
-}

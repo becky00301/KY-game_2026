@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import SwordFx from "./SwordFx";
-import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
+import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
 import BossBattle from "./BossBattle";
-import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory, markBossGuideSeen } from "@/lib/boss";
+import { claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
@@ -140,8 +140,6 @@ export default function GameScreen({
   const [bossPending, setBossPending] = useState(false);
   const [bossUnlockOpen, setBossUnlockOpen] = useState(false);
   const [bossGalleryOpen, setBossGalleryOpen] = useState(false);
-  /** 조력자의 전투 설명 — "enter": 첫 입장 직전(끝나면 전투 시작), "replay": 지도에서 다시 보기 */
-  const [bossGuide, setBossGuide] = useState<"closed" | "enter" | "replay">("closed");
   const [notice, setNotice] = useState("");
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
@@ -919,24 +917,11 @@ export default function GameScreen({
         onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
         onEnter={() => {
           setBossRankingNickname(null);
-          if (hasSeenBossGuide(team)) setBossMode("battle");
-          else setBossGuide("enter");
+          setBossMode("battle");
         }}
         onEnterRanking={() => setBossRankingEntryOpen(true)}
         onOpenRanking={() => setBossRankingBoardOpen(true)}
-        onGuide={() => setBossGuide("replay")}
       />}
-      {bossMode === "map" && bossGuide !== "closed" && (
-        <BossGuide
-          skipLabel={bossGuide === "enter" ? "건너뛰기" : "닫기"}
-          onDone={() => {
-            markBossGuideSeen(team);
-            const startBattle = bossGuide === "enter";
-            setBossGuide("closed");
-            if (startBattle) setBossMode("battle");
-          }}
-        />
-      )}
       {bossMode === "battle" && (
         <BossBattle
           onExit={() => setBossMode("map")}
