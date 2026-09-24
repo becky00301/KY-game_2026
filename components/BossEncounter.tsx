@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BOSS_CARDS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
+import { BOSS_CARDS, BOSS_EPILOGUE_PORTRAITS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
 import {
   RankingEntry,
   checkNicknameAvailable,
@@ -85,6 +85,9 @@ export function BossGuide({ onDone }: { onDone: () => void }) {
     <section className="boss-intro boss-guide boss-theme" role="dialog" aria-modal="true" aria-label="전투 방법">
       <button className="tutorial-skip boss-skip" onClick={finish}>닫기</button>
       <button className="boss-dialogue-advance" onClick={advance} aria-label="다음 대사" autoFocus>
+        {current.portrait && (
+          <img className="boss-portrait" src={BOSS_EPILOGUE_PORTRAITS.yeohan} alt="서여한" />
+        )}
         {current.demo && (
           <div className={`boss-guide-demo boss-guide-demo--${current.demo}`} aria-hidden="true">
             <span className="bb-zone bb-zone--danger bb-zone--warn" />
