@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BOSS_CARDS, BOSS_EPILOGUE_PORTRAITS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
+import { BOSS_CARDS, BossCard, BOSS_EPILOGUE_PORTRAITS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
 import {
   RankingEntry,
   checkNicknameAvailable,
@@ -330,6 +330,18 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** 일러스트가 있는 카드는 칼 도감(CardArt)과 같은 "블러 배경 + 선명한 원본" 2겹으로 보여준다. */
+function BossCardArt({ card, locked = false }: { card: BossCard; locked?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (locked || !card.image || failed) return <BossCardPlaceholder locked={locked} />;
+  return (
+    <div className="card-art card-art-photo">
+      <img className="card-art-bg" src={card.image} alt="" aria-hidden="true" />
+      <img className="card-art-img" src={card.image} alt={card.title} onError={() => setFailed(true)} />
+    </div>
+  );
+}
+
 function BossCardPlaceholder({ locked = false }: { locked?: boolean }) {
   return (
     <div className={`card-art ${locked ? "locked" : "fallback"}`}>
@@ -341,13 +353,15 @@ function BossCardPlaceholder({ locked = false }: { locked?: boolean }) {
 
 export function BossCardUnlock({ onClose }: { onClose: () => void }) {
   useEffect(() => { playCardRevealSound(); }, []);
+  const introCard = BOSS_CARDS[0];
   return (
     <div className="reveal-backdrop boss-theme" onClick={onClose}>
       <section className="reveal-card reveal-card--boss" role="dialog" aria-modal="true" aria-label="서휘령 이야기 해금" onClick={(e) => e.stopPropagation()}>
         <p className="reveal-kicker">서휘령의 이야기를 알게 되었다</p>
-        <div className="reveal-frame"><BossCardPlaceholder locked /></div>
-        <h2 className="reveal-title">???</h2>
-        <p className="reveal-caption">일러스트와 이야기는 아직 준비 중입니다.</p>
+        <div className="reveal-frame"><BossCardArt card={introCard} /></div>
+        <h2 className="reveal-title">{introCard.title}</h2>
+        {introCard.caption && <p className="reveal-caption">{introCard.caption}</p>}
+        {introCard.lore && <p className="reveal-lore">{introCard.lore}</p>}
         <button className="reveal-close" onClick={onClose} autoFocus>계속하기</button>
       </section>
     </div>
@@ -390,7 +404,7 @@ export function BossGallery({
             const openLabel =
               card.id === "victory" ? "서휘령 격파 이야기 확대" : card.id === "guide" ? "전투 방법 이야기 확대" : "서휘령 첫 번째 이야기 확대";
             return <li key={card.id}><button className={`gallery-item ${locked ? "locked" : ""}`} disabled={locked} onClick={() => setOpenId(card.id)} aria-label={locked ? "아직 열리지 않은 카드" : openLabel}>
-              <BossCardPlaceholder locked={locked} /><span className="gallery-name">{card.title}</span>
+              <BossCardArt card={card} locked={locked} /><span className="gallery-name">{locked ? "???" : card.title}</span>
             </button></li>;
           })}
         </ul>
@@ -410,10 +424,11 @@ export function BossGallery({
               }}
             >
               <div className="flip-inner">
-                <div className="flip-face flip-front reveal-frame" aria-hidden={flipped}><BossCardPlaceholder /></div>
+                <div className="flip-face flip-front reveal-frame" aria-hidden={flipped}><BossCardArt card={open} /></div>
                 <div className="flip-face flip-back" aria-hidden={!flipped}>
                   <h3 className="reveal-title">{open.title}</h3>
-                  <p className="reveal-caption">{open.caption}</p>
+                  {open.caption && <p className="reveal-caption">{open.caption}</p>}
+                  {open.lore && <p className="reveal-lore">{open.lore}</p>}
                 </div>
               </div>
             </div>

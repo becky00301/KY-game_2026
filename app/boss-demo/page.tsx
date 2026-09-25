@@ -116,7 +116,7 @@ export default function BossDemoPage() {
         </section>
       )}
 
-      {galleryOpen && <BossGallery unlocked={false} onClose={() => setGalleryOpen(false)} />}
+      {galleryOpen && <BossGallery unlocked onClose={() => setGalleryOpen(false)} />}
       {rankingEntryOpen && (
         <BossRankingEntry
           onSubmit={(nickname) => {

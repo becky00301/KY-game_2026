@@ -71,11 +71,25 @@ export const BOSS_PHASE2_ASSETS = {
 };
 
 // Add future story cards here; defeat/unlock conditions can be introduced with combat.
-export const BOSS_CARDS = [
-  { id: "intro", title: "???", caption: "이야기는 아직 준비 중입니다." },
+// image가 있으면 앞면에 일러스트를, lore가 있으면 뒷면에 칼 도감(노아·연)과 같은 스크롤 박스를 보여준다.
+export interface BossCard {
+  id: "intro" | "guide" | "victory";
+  title: string;
+  caption?: string;
+  lore?: string;
+  image?: string;
+}
+
+export const BOSS_CARDS: BossCard[] = [
+  {
+    id: "intro",
+    title: "검귀 서휘령",
+    image: "/images/boss/boss-card-intro.webp",
+    lore: "완성되지 못하고 사라져버린 검술들. 그 뒤에는 항상 서휘령이라는 검귀가 존재했다. 잘못된 검술의 실험으로 인한 누이의 억울한 죽음은 그를 몇백년간 천지를 떠도는 악귀로 만들어버렸다. 그의 목표는 단 하나. 추악하고 미숙한 검술들을 모두 파괴하고 심판과 전쟁따위 없는 무(無)의 세계를 만드는 것. 그에게는 사용하는 검술 따위 존재하지 않는다. 수많은 세월동안 죽여온 이들의 혼령이 담겨있는 '도깨비의 검' 이 스스로 참격을 만들어 낼 뿐이다.",
+  },
   { id: "guide", title: "???", caption: "이야기는 아직 준비 중입니다." },
   { id: "victory", title: "완벽한 패배", caption: "서휘령은 마지막 순간, 누이 서여한의 진심을 전해받고 눈을 감았다." },
-] as const;
+];
 
 /** 2페이즈(진짜 격파) 후 재생되는 후일담 대화. speaker에 따라 초상화가 바뀌거나
  *  (narrator는 초상화 없음) 사라진다. */
