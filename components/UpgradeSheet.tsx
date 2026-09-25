@@ -50,7 +50,7 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose }: 
         </header>
 
         <p className="sheet-note">
-          {theme.copy.upgradeSheetNote ?? "누구나 공동 기운으로 강화할 수 있어요. 강화는 모두에게 적용됩니다."}
+          {theme.copy.upgradeSheetNote ?? "모두의 기운으로 검술을 강화할 수 있다. 강화는 모두에게 적용된다."}
         </p>
 
         <div className="tabs">

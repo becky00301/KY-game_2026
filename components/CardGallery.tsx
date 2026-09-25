@@ -53,7 +53,7 @@ export default function CardGallery({
         </header>
 
         <p className="sheet-note">
-          {theme.copy.gallerySheetNote ?? "칼이 진화할 때마다 카드가 열립니다. 함께 두드려 남은 카드를 찾아보세요."}
+          {theme.copy.gallerySheetNote ?? "검술이 성장할 때마다 새로운 이야기가 공개된다."}
         </p>
 
         <ul className="gallery-grid">

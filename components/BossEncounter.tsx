@@ -198,7 +198,7 @@ export function BossRankingEntry({
     if (checking) return;
     const trimmed = value.trim();
     if (!isNicknameFormatValid(trimmed)) {
-      setError("닉네임을 1~14자로 입력해주세요.");
+      setError("닉네임은 1~14자까지 입력 가능합니다.");
       return;
     }
     setChecking(true);
@@ -206,7 +206,7 @@ export function BossRankingEntry({
     try {
       const available = await checkNicknameAvailable(trimmed);
       if (!available) {
-        setError("이미 사용 중인 닉네임이에요.");
+        setError("이미 누군가가 사용중인 닉네임이다.");
         return;
       }
       saveNickname(trimmed);
@@ -233,7 +233,7 @@ export function BossRankingEntry({
           <button className="icon-btn" onClick={onClose} aria-label="닫기">✕</button>
         </header>
         <p className="sheet-note">
-          닉네임은 다른 사람과 겹칠 수 없어요. 서휘령을 완전히 격파하면 클리어한 순서 그대로 랭킹에 기록됩니다.
+          닉네임은 중복될 수 없습니다. 랭킹모드 서휘령을 격파하면 클리어한 순서대로 랭킹에 기록됩니다.
         </p>
         <input
           className="boss-ranking-input"
@@ -301,7 +301,7 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
         {!loadFailed && !top && <p className="boss-ranking-loading">불러오는 중..</p>}
         {top && (
           <ol className="boss-ranking-list">
-            {top.length === 0 && <li className="boss-ranking-empty">아직 아무도 클리어하지 못했어요.</li>}
+            {top.length === 0 && <li className="boss-ranking-empty">아직 서휘령을 타도한 자가 없는 것 같다.</li>}
             {top.map((entry) => (
               <li key={entry.rank} className="boss-ranking-row">
                 <span className="boss-ranking-rank">{entry.rank}</span>
@@ -319,7 +319,7 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
               <span className="boss-ranking-name">{mine.nickname}</span>
             </div>
           ) : (
-            <p className="boss-ranking-mine-empty">아직 랭킹에 등록되지 않았어요.</p>
+            <p className="boss-ranking-mine-empty">아직 서휘령을 타도하지 못했다.</p>
           )}
         </div>
         <p className="boss-ranking-verify-note">
@@ -396,7 +396,7 @@ export function BossGallery({
           <div><p className="sheet-energy">{unlockedCount} / {BOSS_CARDS.length}</p><p className="sheet-energy-label">몰락한 검귀의 이야기</p></div>
           <button className="icon-btn" onClick={onClose} aria-label="닫기" autoFocus>✕</button>
         </header>
-        <p className="sheet-note">서휘령을 격파하세요. 그에게 숨겨진 이야기가 공개됩니다.</p>
+        <p className="sheet-note">서휘령을 격파하고, 그에게 숨겨진 이야기를 찾아내자.</p>
         <ul className="gallery-grid">
           {BOSS_CARDS.map((card) => {
             const locked =
