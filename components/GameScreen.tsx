@@ -923,7 +923,7 @@ export default function GameScreen({
         }}
         onEnterRanking={() => {
           if (!hasSeenBossVictory(team)) {
-            setNotice("일반 모드를 먼저 클리어해야 랭킹모드에 도전할 수 있어요.");
+            setNotice("일반 모드를 클리어해야 랭킹모드에 도전할 수 있습니다.");
             return;
           }
           setBossRankingEntryOpen(true);
