@@ -111,7 +111,7 @@ export default function CardGallery({
               </div>
             </div>
             <p className="flip-hint">
-              {flipped ? "카드를 누르면 그림으로 · 바깥을 누르면 닫기" : "카드를 누르면 이야기가 보여요"}
+              {flipped ? "카드를 누르면 그림으로 · 바깥을 누르면 닫기" : "숨겨진 이야기가 드러난다."}
             </p>
           </div>,
           document.body
