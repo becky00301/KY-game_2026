@@ -47,6 +47,10 @@ export function claimBossGuide(team: TeamId): boolean {
   return true;
 }
 
+/** 서휘령 랭킹모드 최초 격파(boss_rankings 최초 등록 성공) 보상 — 개인 재화(염원의
+ *  빛/데이터로그)로 지급된다. boss_rankings가 기기당 한 자리뿐이라 평생 한 번만 받는다. */
+export const BOSS_RANKING_CLEAR_REWARD = 30_000_000;
+
 export const BOSS_INTRO = {
   bgmSrc: "/audio/boss-intro-bgm.mp3",
   portraitSrc: "/images/boss/boss-portrait.webp",

@@ -124,6 +124,7 @@ const CIRCLE_HIT_RADIUS_PX = 72;
 export default function BossBattle({
   onExit,
   onVictoryEpilogueDone,
+  onRankingClearReward,
   rankingNickname = null,
   rankingToken = null,
   debugStartPhase2 = false,
@@ -134,6 +135,11 @@ export default function BossBattle({
   /** 2페이즈(진짜 격파) 후일담 대화가 끝나는 순간(엔딩 이미지로 넘어가는 시점) 한 번
    * 호출된다 — 호출부(GameScreen 등)에서 팀별 서휘령 도감 "victory" 카드를 해금하는 데 쓴다. */
   onVictoryEpilogueDone?: () => void;
+  /** 랭킹모드로 실제 격파에 성공해 순위표에 처음 등록된 경우에만, 후일담이 끝나는
+   * 같은 시점(onVictoryEpilogueDone과 동시)에 한 번 호출된다 — 호출부에서 "서휘령
+   * 랭킹모드 최초 격파" 보상(개인 재화)을 지급하고 안내하는 데 쓴다. boss_rankings가
+   * device당 한 자리뿐이라 평생 한 번만 호출될 수 있다. */
+  onRankingClearReward?: () => void;
   /** 랭킹모드로 입장한 경우의 닉네임 — null이면 일반 모드(순위 기록 없음). 2페이즈를
    * 실제로 격파하는 순간 이 닉네임으로 순위표에 한 번 기록된다. 그 외 로직/패턴은
    * 일반 모드와 완전히 동일하다. */
@@ -198,6 +204,8 @@ export default function BossBattle({
   onExitRef.current = onExit;
   const onVictoryEpilogueDoneRef = useRef(onVictoryEpilogueDone);
   onVictoryEpilogueDoneRef.current = onVictoryEpilogueDone;
+  const onRankingClearRewardRef = useRef(onRankingClearReward);
+  onRankingClearRewardRef.current = onRankingClearReward;
   const rankingNicknameRef = useRef(rankingNickname);
   rankingNicknameRef.current = rankingNickname;
   // 랭킹모드 격파 신고 위조 방지용 1회용 토큰 — GameScreen이 전투 진입 전에 미리
@@ -205,6 +213,9 @@ export default function BossBattle({
   // (서버가 최소 경과시간도 같이 검증한다).
   const rankingTokenRef = useRef<string | null>(rankingToken);
   rankingTokenRef.current = rankingToken;
+  // submitBossClear가 성공(ok:true)해서 순위표에 처음 등록됐는지 — 후일담이 끝나는
+  // 시점에 이 값을 보고 onRankingClearReward를 부를지 정한다.
+  const rankingClearRegisteredRef = useRef(false);
 
   // 2페이즈 격파 후일담 — 지금 보여주고 있는 대사 인덱스, 그리고 후일담을 이미 한 번
   // 끝냈는지(엔딩 이미지까지 봤는지) 여부. 후자는 blackout이 다시 한 번 더(엔딩 이미지
@@ -366,7 +377,11 @@ export default function BossBattle({
       // 없거나(발급 실패) 경합으로 닉네임이 이미 쓰였거나 네트워크 오류가 나도, 전투
       // 결과 자체에는 영향 없다.
       if (win && stageRef.current === 2 && rankingNicknameRef.current && rankingTokenRef.current) {
-        void submitBossClear(rankingTokenRef.current).catch(() => {});
+        void submitBossClear(rankingTokenRef.current)
+          .then((result) => {
+            if (result.ok) rankingClearRegisteredRef.current = true;
+          })
+          .catch(() => {});
       }
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);
@@ -947,11 +962,16 @@ export default function BossBattle({
   }, [endBattle, triggerFlash, clearPendingTimers, startFinaleBeat]);
 
   // 2페이즈 격파 후일담 — 대사를 다 읽었거나 건너뛰면 엔딩 이미지 단계로 넘어간다.
-  // 이 시점에 호출부(GameScreen 등)로 "후일담을 봤다"를 알려서 도감을 해금시킨다.
+  // 이 시점에 호출부(GameScreen 등)로 "후일담을 봤다"를 알려서 도감을 해금시키고,
+  // 랭킹모드 최초 격파로 순위표에 막 등록됐다면 보상 지급도 같은 시점에 같이 알린다.
   const finishEpilogueDialogue = useCallback(() => {
     phaseRef.current = "epilogueImage";
     setPhase("epilogueImage");
     onVictoryEpilogueDoneRef.current?.();
+    if (rankingClearRegisteredRef.current) {
+      rankingClearRegisteredRef.current = false;
+      onRankingClearRewardRef.current?.();
+    }
   }, []);
 
   const advanceEpilogue = useCallback(() => {

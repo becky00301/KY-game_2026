@@ -7,7 +7,7 @@ import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingBoard } from "./BossEncounter";
 import { startBossRankingSession } from "@/lib/bossRanking";
 import BossBattle from "./BossBattle";
-import { claimBossGuide, claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
+import { BOSS_RANKING_CLEAR_REWARD, claimBossGuide, claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
 import CardReveal from "./CardReveal";
 import CardGallery from "./CardGallery";
@@ -1286,6 +1286,16 @@ export default function GameScreen({
         <BossBattle
           onExit={() => setBossMode("map")}
           onVictoryEpilogueDone={() => claimBossVictory(team)}
+          onRankingClearReward={() => {
+            setPersonalEarned((p) => {
+              const next = p + BOSS_RANKING_CLEAR_REWARD;
+              window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
+              return next;
+            });
+            setNotice(
+              `서휘령 랭킹모드 최초 격파! ${theme.personalCurrency} ${formatNumber(BOSS_RANKING_CLEAR_REWARD)} 획득!`
+            );
+          }}
           rankingNickname={bossRankingNickname}
           rankingToken={bossRankingToken}
           debugStartPhase2={debugBossPhase2}
