@@ -15,6 +15,7 @@ export function ChatTicker({ latest, onOpen }: { latest: RankingChatMessage | nu
       {latest ? (
         <span key={latest.id} className="chat-ticker-text">
           <strong className="chat-ticker-name">{latest.nickname}</strong>
+          {latest.enhanceLevel > 0 && <span className="chat-ticker-level">{latest.enhanceLevel}강</span>}
           <span className="chat-ticker-sep">:</span> {latest.text}
         </span>
       ) : (

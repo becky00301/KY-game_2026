@@ -3105,6 +3105,13 @@ button {
   font-weight: 800;
 }
 
+.chat-ticker-level {
+  margin-left: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-dim);
+}
+
 .chat-ticker-sep {
   color: var(--ink-dim);
   margin: 0 1px;
@@ -3187,6 +3194,16 @@ button {
   color: var(--accent);
 }
 
+.chat-bubble-level {
+  margin-left: 5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .chat-bubble-text {
   display: block;
   white-space: pre-wrap;
@@ -3245,14 +3262,14 @@ button {
 }
 
 /* ---------- 강화 단계 오오라(채팅 말풍선) ----------
-   22단계: 양 팀 공통 노란빛. 23단계: 팀 색(노아=빨강/연=파랑). 24단계부터: 팀 색의
-   검은 번개. 채팅창에서 한눈에 "이 사람 고단수다" 싶게 번쩍이는 게 목적이다. */
+   20~21단계: 양 팀 공통 노란빛. 22단계: 팀 색(노아=빨강/연=파랑). 23단계부터: 팀 색의
+   검은 번개(가장 강한 연출). 채팅창에서 한눈에 "이 사람 고단수다" 싶게 번쩍이는 게 목적이다. */
 
 @keyframes chatAuraPulseYellow {
   0%, 100% { box-shadow: 0 0 10px 2px rgba(255, 214, 90, 0.55); }
   50% { box-shadow: 0 0 22px 6px rgba(255, 214, 90, 0.9); }
 }
-.chat-aura-22 {
+.chat-aura-tier1 {
   border: 1px solid rgba(255, 214, 90, 0.75) !important;
   animation: chatAuraPulseYellow 1.8s ease-in-out infinite;
 }
@@ -3261,7 +3278,7 @@ button {
   0%, 100% { box-shadow: 0 0 10px 2px rgba(255, 70, 70, 0.55); }
   50% { box-shadow: 0 0 24px 7px rgba(255, 70, 70, 0.9); }
 }
-.chat-aura-23-ku {
+.chat-aura-tier2-ku {
   border: 1px solid rgba(255, 90, 90, 0.8) !important;
   animation: chatAuraPulseRed 1.6s ease-in-out infinite;
 }
@@ -3270,7 +3287,7 @@ button {
   0%, 100% { box-shadow: 0 0 10px 2px rgba(90, 170, 255, 0.55); }
   50% { box-shadow: 0 0 24px 7px rgba(90, 170, 255, 0.9); }
 }
-.chat-aura-23-yu {
+.chat-aura-tier2-yu {
   border: 1px solid rgba(110, 185, 255, 0.8) !important;
   animation: chatAuraPulseBlue 1.6s ease-in-out infinite;
 }
@@ -3285,14 +3302,14 @@ button {
   93%, 95% { opacity: 0.3; }
   96%, 98% { opacity: 1; }
 }
-.chat-aura-24-ku {
+.chat-aura-tier3-ku {
   position: relative;
   border: 1px solid rgba(255, 70, 70, 0.85) !important;
   background: linear-gradient(135deg, #2a0006, #0a0002) !important;
   animation: chatAuraPulseDarkRed 1.4s ease-in-out infinite;
   isolation: isolate;
 }
-.chat-aura-24-ku::after {
+.chat-aura-tier3-ku::after {
   content: "";
   position: absolute;
   inset: -5px;
@@ -3315,14 +3332,14 @@ button {
   93%, 95% { opacity: 0.3; }
   96%, 98% { opacity: 1; }
 }
-.chat-aura-24-yu {
+.chat-aura-tier3-yu {
   position: relative;
   border: 1px solid rgba(90, 170, 255, 0.85) !important;
   background: linear-gradient(135deg, #00122a, #00050f) !important;
   animation: chatAuraPulseDarkBlue 1.4s ease-in-out infinite;
   isolation: isolate;
 }
-.chat-aura-24-yu::after {
+.chat-aura-tier3-yu::after {
   content: "";
   position: absolute;
   inset: -5px;
@@ -3336,15 +3353,15 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-aura-22,
-  .chat-aura-23-ku,
-  .chat-aura-23-yu,
-  .chat-aura-24-ku,
-  .chat-aura-24-yu {
+  .chat-aura-tier1,
+  .chat-aura-tier2-ku,
+  .chat-aura-tier2-yu,
+  .chat-aura-tier3-ku,
+  .chat-aura-tier3-yu {
     animation: none;
   }
-  .chat-aura-24-ku::after,
-  .chat-aura-24-yu::after {
+  .chat-aura-tier3-ku::after,
+  .chat-aura-tier3-yu::after {
     animation: none;
     opacity: 0.6;
   }

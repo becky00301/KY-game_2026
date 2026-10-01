@@ -393,7 +393,8 @@ export interface RankingChatMessage {
   id: number;
   nickname: string;
   text: string;
-  /** 보낸 기기가 그 순간 보고 있던 팀의 강화 진행도 — 채팅 말풍선 오오라 연출에만 쓴다. */
+  /** 보낸 기기가 그 팀에서 등록한 강화 닉네임·단계 — 서버가 enhance_players에서 직접
+   *  찾아 붙인 값(클라이언트가 보낸 값이 아니다). 채팅 말풍선 오오라 연출에 쓴다. */
   enhanceTeam: TeamId;
   enhanceLevel: number;
   createdAt: number;
@@ -445,33 +446,28 @@ export async function fetchRankingChatRecent(limit = 50): Promise<RankingChatMes
   return ((data as Record<string, unknown>[]) ?? []).map(normalizeChatMessage);
 }
 
-/** 이 기기가 보스 랭킹(서휘령 랭킹모드)에 등록한 닉네임 — 없으면 null(채팅을 보낼 수 없다). */
-export async function fetchMyBossRankingNickname(device: string): Promise<string | null> {
-  if (backendMode !== "supabase") return null;
-  const { data, error } = await supabase().rpc("boss_ranking_my_nickname", { p_device: device });
-  if (error) return null;
-  return (data as string | null) ?? null;
-}
-
 export interface RankingChatSendResult {
   ok: boolean;
   reason?: string;
   message?: RankingChatMessage;
 }
 
-/** 랭킹 채팅 메시지 전송 — 보스 랭킹 미등록 기기는 서버가 reason:'not_registered'로 거절한다. */
+/**
+ * 랭킹 채팅 메시지 전송 — "장비 강화"에 닉네임을 등록한 기기만 보낼 수 있다. 닉네임과
+ * 강화 단계는 클라이언트가 보내지 않는다 — 서버가 device+team으로 enhance_players에서
+ * 직접 찾아 붙인다(다른 사람 이름/단계로 보내는 걸 원천 차단). 그 팀에 강화 닉네임이
+ * 없으면 서버가 reason:'not_registered'로 거절한다.
+ */
 export async function sendRankingChatMessage(
   device: string,
-  text: string,
-  enhanceTeam: TeamId,
-  enhanceLevel: number
+  team: TeamId,
+  text: string
 ): Promise<RankingChatSendResult> {
   if (backendMode !== "supabase") return { ok: false, reason: "local-mode" };
   const { data, error } = await supabase().rpc("ranking_chat_send", {
     p_device: device,
+    p_team: team,
     p_text: text,
-    p_enhance_team: enhanceTeam,
-    p_enhance_level: enhanceLevel,
   });
   if (error) throw new Error(error.message);
   const result = data as Record<string, unknown>;

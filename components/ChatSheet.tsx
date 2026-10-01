@@ -7,16 +7,15 @@ import { TeamId } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
 
 /**
- * 전체 화면으로 펼쳐지는 랭킹 채팅 — 보스 랭킹(서휘령 랭킹모드)에 닉네임을 등록한
- * 사람들끼리만 보낼 수 있다. 내가 보낸 메시지는 오른쪽, 남이 보낸 메시지는 왼쪽에
- * 뜨는 일반적인 메신저 말풍선 형태다. 22단계 이상 강화한 사람의 말풍선에는 단계별
- * 오오라 연출이 붙는다(lib/chat.ts의 chatAuraClass).
+ * 전체 화면으로 펼쳐지는 랭킹 채팅 — "장비 강화"에 닉네임을 등록한 사람들끼리만 보낼
+ * 수 있다. 내가 보낸 메시지는 오른쪽, 남이 보낸 메시지는 왼쪽에 뜨는 일반적인 메신저
+ * 말풍선 형태다. 20단계 이상 강화한 사람의 말풍선에는 단계별 오오라 연출이 붙는다
+ * (lib/chat.ts의 chatAuraClass).
  */
 export function ChatSheet({
   team,
   clientId,
   myNickname,
-  myEnhanceLevel,
   messages,
   onSent,
   onClose,
@@ -24,7 +23,6 @@ export function ChatSheet({
   team: TeamId;
   clientId: string;
   myNickname: string | null;
-  myEnhanceLevel: number;
   messages: RankingChatMessage[];
   onSent: (msg: RankingChatMessage) => void;
   onClose: () => void;
@@ -55,9 +53,13 @@ export function ChatSheet({
     setSending(true);
     setError("");
     try {
-      const result = await sendRankingChatMessage(clientId, trimmed, team, myEnhanceLevel);
+      const result = await sendRankingChatMessage(clientId, team, trimmed);
       if (!result.ok || !result.message) {
-        setError("지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요.");
+        setError(
+          result.reason === "not_registered"
+            ? "강화에 닉네임을 등록해야 채팅을 보낼 수 있습니다."
+            : "지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요."
+        );
         return;
       }
       onSent(result.message);
@@ -82,7 +84,7 @@ export function ChatSheet({
         <header className="sheet-head">
           <div>
             <p className="sheet-energy-label">랭킹 채팅</p>
-            <p className="chat-sheet-note">보스 랭킹 등록자 전용</p>
+            <p className="chat-sheet-note">강화 닉네임 등록자 전용</p>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="닫기">
             ✕
@@ -92,12 +94,19 @@ export function ChatSheet({
         <div className="chat-messages" ref={listRef}>
           {messages.length === 0 && <p className="chat-empty">아직 메시지가 없습니다.</p>}
           {messages.map((m) => {
-            const mine = myNickname !== null && m.nickname === myNickname;
+            // 강화 닉네임은 "같은 팀 안에서만" 유일해서, 노아·연 양쪽에 같은 닉네임이
+            // 동시에 있을 수 있다 — 그래서 닉네임만이 아니라 보낸 팀까지 같이 비교한다.
+            const mine = myNickname !== null && m.nickname === myNickname && m.enhanceTeam === team;
             const aura = chatAuraClass(m.enhanceTeam, m.enhanceLevel);
             return (
               <div key={m.id} className={`chat-msg-row ${mine ? "chat-msg-row--mine" : "chat-msg-row--theirs"}`}>
                 <div className={`chat-bubble ${mine ? "chat-bubble--mine" : "chat-bubble--theirs"} ${aura ?? ""}`}>
-                  {!mine && <span className="chat-bubble-name">{m.nickname}</span>}
+                  {!mine && (
+                    <span className="chat-bubble-name">
+                      {m.nickname}
+                      {m.enhanceLevel > 0 && <span className="chat-bubble-level">{m.enhanceLevel}강</span>}
+                    </span>
+                  )}
                   <span className="chat-bubble-text">{m.text}</span>
                 </div>
               </div>
@@ -130,7 +139,7 @@ export function ChatSheet({
             {error && <p className="shout-error">{error}</p>}
           </>
         ) : (
-          <p className="chat-locked-note">보스 랭킹(서휘령 랭킹모드)에 닉네임을 등록해야 채팅을 보낼 수 있습니다.</p>
+          <p className="chat-locked-note">강화에 닉네임을 등록해야 채팅을 보낼 수 있습니다.</p>
         )}
       </section>
     </div>

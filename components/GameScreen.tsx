@@ -62,7 +62,6 @@ import {
   buyUpgrade,
   clientId,
   fetchEnhanceResetAt,
-  fetchMyBossRankingNickname,
   fetchRankingChatRecent,
   fetchSword,
   sendTaps,
@@ -194,14 +193,13 @@ export default function GameScreen({
   const [milestoneQueue, setMilestoneQueue] = useState<EnhanceMilestone[]>([]);
   const [currentMilestone, setCurrentMilestone] = useState<EnhanceMilestone | null>(null);
   /**
-   * 랭킹 채팅 — 보스 랭킹(서휘령 랭킹모드)에 닉네임을 등록한 사람들끼리만 보낼 수 있는
-   * 전체 채팅. myRankingNickname이 null이면 이 기기는 아직 미등록(읽기는 누구나 가능,
-   * 쓰기만 막힌다). 평소엔 보스전 입장 버튼 옆에 최신 메시지 한 줄만(ChatTicker) 보이고,
-   * 눌러야 전체 대화창(ChatSheet)이 펼쳐진다.
+   * 랭킹 채팅 — "장비 강화"에 닉네임을 등록한 사람들끼리만 보낼 수 있는 전체 채팅.
+   * 지금 팀에서 강화 닉네임이 없으면 이 기기는 아직 미등록(읽기는 누구나 가능, 쓰기만
+   * 막힌다 — 아래 myEnhanceNickname). 평소엔 보스전 입장 버튼 옆에 최신 메시지 한
+   * 줄만(ChatTicker) 보이고, 눌러야 전체 대화창(ChatSheet)이 펼쳐진다.
    */
   const [chatMessages, setChatMessages] = useState<RankingChatMessage[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
-  const [myRankingNickname, setMyRankingNickname] = useState<string | null>(null);
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -460,15 +458,12 @@ export default function GameScreen({
   }, [currentMilestone]);
 
   // 랭킹 채팅 — 접속 시 최근 기록을 한 번 불러오고, 그 뒤로는 새 메시지 INSERT만
-  // 실시간으로 받아서 이어붙인다(과거 기록 재전송 없음, shouts와 같은 패턴). 이 기기가
-  // 보스 랭킹에 등록한 닉네임도 한 번 같이 조회해서, 있어야만 채팅을 보낼 수 있게 한다.
+  // 실시간으로 받아서 이어붙인다(과거 기록 재전송 없음, shouts와 같은 패턴). 보낼 수
+  // 있는지(이 팀에 강화 닉네임이 있는지)는 로컬 캐시(myEnhanceNickname, 아래)로 판단한다.
   useEffect(() => {
     let alive = true;
     fetchRankingChatRecent(CHAT_HISTORY_LIMIT).then((recent) => {
       if (alive) setChatMessages(recent);
-    });
-    fetchMyBossRankingNickname(clientId()).then((nickname) => {
-      if (alive) setMyRankingNickname(nickname);
     });
     return () => {
       alive = false;
@@ -897,9 +892,12 @@ export default function GameScreen({
     ? theme.copy.stageHintMax ?? "모든 별을 다 모았습니다."
     : `${theme.copy.stageHintNext ?? "다음 단계까지"} ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`;
 
-  // 채팅 전송 시 같이 보낼 "지금 이 기기가 이 팀에서 도달한 강화 단계" — 오오라 연출용.
-  const myEnhanceLevel =
-    typeof window !== "undefined" ? Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0) : 0;
+  // 채팅 신원 — "지금 이 기기가 이 팀에서 등록한 강화 닉네임"을 그대로 쓴다(이미
+  // Enhance.tsx가 유지하는 로컬 캐시). 닉네임이 없으면 이 팀으로는 아직 강화 미등록 —
+  // 채팅을 읽을 순 있어도 보낼 수는 없다. 강화 단계는 서버가 enhance_players에서 직접
+  // 찾아 붙이므로 여기서는 필요 없다.
+  const myEnhanceNickname =
+    typeof window !== "undefined" ? window.localStorage.getItem(`${ENHANCE_NICKNAME_CACHE_KEY}.${team}`) : null;
   const latestChatMessage = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
 
   return (
@@ -1145,8 +1143,7 @@ export default function GameScreen({
         <ChatSheet
           team={team}
           clientId={clientId()}
-          myNickname={myRankingNickname}
-          myEnhanceLevel={myEnhanceLevel}
+          myNickname={myEnhanceNickname}
           messages={chatMessages}
           onSent={(msg) => setChatMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg])}
           onClose={() => setChatOpen(false)}

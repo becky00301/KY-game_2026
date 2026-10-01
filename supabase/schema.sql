@@ -1042,13 +1042,15 @@ grant execute on function public.enhance_report(uuid, text, int)    to anon, aut
 grant execute on function public.enhance_top(int, text)             to anon, authenticated;
 grant execute on function public.enhance_mine(text, text)           to anon, authenticated;
 
--- ---------- 랭킹 채팅 (보스 랭킹 등록자 전용) ----------
+-- ---------- 랭킹 채팅 (강화 닉네임 등록자 전용) ----------
 --
--- 서휘령 보스전 랭킹모드(boss_rankings)에 닉네임을 등록한 사람들끼리만 보낼 수 있는
--- 전체 채팅 — 노아·연 구분 없이 모두가 같은 채팅방을 본다. 강화 단계(enhance_level)는
--- "보내는 순간 그 기기가 보고 있던 팀에서의 강화 진행도"를 그대로 신뢰해서 같이 저장한다
--- (다른 강화 수치들과 동일한 클라이언트 신뢰 모델 — 채팅 말풍선 오오라 연출에만 쓰이는
--- 장식 정보라 서버에서 따로 검증하지 않는다).
+-- "장비 강화(enhance_players)"에 닉네임을 등록한 사람들끼리만 보낼 수 있는 전체
+-- 채팅 — 노아·연 구분 없이 모두가 같은 채팅방을 본다. 닉네임·강화 단계는 클라이언트가
+-- 보낸 값을 쓰지 않고, 서버가 "보내는 기기 + 그 순간 보고 있던 팀"으로
+-- enhance_players에서 직접 찾아 붙인다 — 다른 사람 이름이나 단계로 보내는 걸 원천
+-- 차단한다. 강화 닉네임은 팀별로만 유일(enhance_players_team_nickname_lower_idx)해서,
+-- 노아·연 양쪽에 같은 닉네임이 동시에 존재할 수 있다 — 그래서 "내가 보낸 메시지"
+-- 판정은 닉네임만이 아니라 (닉네임, 보낸 팀) 쌍으로 한다.
 
 create table if not exists public.ranking_chat_messages (
   id            bigint generated always as identity primary key,
@@ -1063,27 +1065,23 @@ create table if not exists public.ranking_chat_messages (
 create index if not exists ranking_chat_messages_created_at_idx
   on public.ranking_chat_messages (created_at desc);
 
--- 이 기기가 보스 랭킹에 등록한 닉네임(없으면 null) — 채팅을 보낼 수 있는지, 내가 보낸
--- 메시지인지(닉네임 비교) 판단하는 데 쓰인다.
-create or replace function public.boss_ranking_my_nickname(p_device uuid)
-returns text language sql stable security definer set search_path = public as $$
-  select nickname from public.boss_rankings where device_id = p_device limit 1;
-$$;
+-- 이전 버전(보스 랭킹 기준)에서 쓰던 함수 — 더 이상 쓰지 않는다.
+drop function if exists public.boss_ranking_my_nickname(uuid);
 
--- 채팅 전송 — 이 기기가 보스 랭킹에 등록돼 있어야만 보낼 수 있다(아니면 ok:false,
--- reason:'not_registered'). 닉네임은 요청으로 받지 않고 서버가 boss_rankings에서
--- 직접 찾아 붙인다 — 다른 사람 이름으로 보내는 걸 원천 차단한다.
-create or replace function public.ranking_chat_send(
-  p_device uuid, p_text text, p_enhance_team text default 'ku', p_enhance_level int default 0
-)
+-- 채팅 전송 — 이 기기가 p_team에서 강화 닉네임을 등록해 두어야만 보낼 수 있다(아니면
+-- ok:false, reason:'not_registered'). 닉네임·강화 단계 모두 요청으로 받지 않고
+-- enhance_players에서 직접 찾아 붙인다.
+drop function if exists public.ranking_chat_send(uuid, text, text, int);
+create or replace function public.ranking_chat_send(p_device uuid, p_team text, p_text text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_nickname text;
-  v_text     text := trim(p_text);
-  v_row      public.ranking_chat_messages;
+  v_team   text := coalesce(p_team, 'ku');
+  v_player public.enhance_players;
+  v_text   text := trim(p_text);
+  v_row    public.ranking_chat_messages;
 begin
-  select nickname into v_nickname from public.boss_rankings where device_id = p_device limit 1;
-  if v_nickname is null then
+  select * into v_player from public.enhance_players where device_id = p_device and team = v_team;
+  if not found then
     return jsonb_build_object('ok', false, 'reason', 'not_registered');
   end if;
   if char_length(v_text) < 1 or char_length(v_text) > 120 then
@@ -1091,11 +1089,7 @@ begin
   end if;
 
   insert into public.ranking_chat_messages (device_id, nickname, text, enhance_team, enhance_level)
-  values (
-    p_device, v_nickname, v_text,
-    case when p_enhance_team = 'yu' then 'yu' else 'ku' end,
-    greatest(0, least(30, coalesce(p_enhance_level, 0)))
-  )
+  values (p_device, v_player.nickname, v_text, v_team, v_player.level)
   returning * into v_row;
 
   return jsonb_build_object(
@@ -1143,6 +1137,5 @@ begin
 end
 $$;
 
-grant execute on function public.boss_ranking_my_nickname(uuid)        to anon, authenticated;
-grant execute on function public.ranking_chat_send(uuid, text, text, int) to anon, authenticated;
-grant execute on function public.ranking_chat_recent(int)              to anon, authenticated;
+grant execute on function public.ranking_chat_send(uuid, text, text) to anon, authenticated;
+grant execute on function public.ranking_chat_recent(int)            to anon, authenticated;
