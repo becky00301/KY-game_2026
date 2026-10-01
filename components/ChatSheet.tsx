@@ -11,20 +11,23 @@ import { containsBannedWord } from "@/lib/profanity";
  * 수 있다. 내가 보낸 메시지는 오른쪽, 남이 보낸 메시지는 왼쪽에 뜨는 일반적인 메신저
  * 말풍선 형태다. 20단계 이상 강화한 사람의 말풍선에는 단계별 오오라 연출이 붙는다
  * (lib/chat.ts의 chatAuraClass).
+ *
+ * 보낸 메시지를 여기서 바로 목록에 추가하지 않는다(shouts와 같은 이유) — Supabase
+ * Realtime의 INSERT 이벤트는 "보낸 사람 본인"에게도 그대로 돌아오기 때문에, 여기서
+ * 한 번 더 추가하면 본인 화면에서만 메시지가 두 번 보이는 버그가 생긴다. 목록은
+ * 전적으로 GameScreen의 subscribeRankingChat 구독 하나로만 채운다.
  */
 export function ChatSheet({
   team,
   clientId,
   myNickname,
   messages,
-  onSent,
   onClose,
 }: {
   team: TeamId;
   clientId: string;
   myNickname: string | null;
   messages: RankingChatMessage[];
-  onSent: (msg: RankingChatMessage) => void;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState("");
@@ -62,7 +65,6 @@ export function ChatSheet({
         );
         return;
       }
-      onSent(result.message);
       setDraft("");
     } catch {
       setError("지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요.");

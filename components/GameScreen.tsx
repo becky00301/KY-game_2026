@@ -472,7 +472,10 @@ export default function GameScreen({
   useEffect(
     () =>
       subscribeRankingChat((msg) =>
-        setChatMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg])
+        setChatMessages((prev) =>
+          // 재구독·재연결 시 같은 메시지가 두 번 들어올 수 있어 id로 한 번 더 막는다.
+          prev.some((m) => m.id === msg.id) ? prev : [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg]
+        )
       ),
     []
   );
@@ -1145,7 +1148,6 @@ export default function GameScreen({
           clientId={clientId()}
           myNickname={myEnhanceNickname}
           messages={chatMessages}
-          onSent={(msg) => setChatMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg])}
           onClose={() => setChatOpen(false)}
         />
       )}
