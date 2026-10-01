@@ -96,7 +96,7 @@ const SETTINGS_ICON_SRC = "/images/icons-misc/settings-icon-unified.webp";
 const TAP_EFFECT_DURATION_MS = 950;
 
 const COMBO_WINDOW_MS = 1_200;
-const COMBO_MAX = 100;
+const COMBO_MAX = 9_999;
 const FLUSH_INTERVAL_MS = 1_000;
 /** 내가 이 칼에 보탠 터치 수 (자랑용, 이 기기에만 저장) */
 const CONTRIB_KEY = "kyg.contrib";
