@@ -72,15 +72,12 @@ export interface ReportOutcome {
   level?: number;
 }
 
-/** 레벨이 오를 때만 반영한다 — 내려가는 값은 무시. */
+/** 보낸 값을 그대로 반영한다 — 파괴로 0단계까지 내려가는 것도 정상적인 상태 변화다. */
 export function reportLevel(deviceId: string, level: number): ReportOutcome {
   const row = players.get(deviceId);
   if (!row) return { ok: false };
-  const clamped = Math.max(0, Math.min(MAX_LEVEL, Math.floor(level)));
-  if (clamped > row.level) {
-    row.level = clamped;
-    row.updatedAt = Date.now();
-  }
+  row.level = Math.max(0, Math.min(MAX_LEVEL, Math.floor(level)));
+  row.updatedAt = Date.now();
   return { ok: true, level: row.level };
 }
 

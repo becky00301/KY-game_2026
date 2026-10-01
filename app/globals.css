@@ -904,7 +904,7 @@ button {
   font-size: 13px;
 }
 
-/* ---------------- 강화(여의보주) ---------------- */
+/* ---------------- 강화(아리아의 옥) ---------------- */
 
 .enhance-backdrop {
   position: fixed;
@@ -1027,6 +1027,11 @@ button {
   color: var(--ink-dim);
 }
 
+.enhance-odds-risk {
+  color: #ff9c9c;
+  font-weight: 700;
+}
+
 .enhance-result {
   margin: -2px 0 10px;
   text-align: center;
@@ -1040,6 +1045,11 @@ button {
 
 .enhance-result--fail {
   color: #ff9c9c;
+}
+
+.enhance-result--destroy {
+  color: #ff5c5c;
+  text-shadow: 0 0 12px rgba(255, 70, 70, 0.55);
 }
 
 .enhance-main-btn {
@@ -1103,16 +1113,28 @@ button {
   font-size: 13px;
 }
 
+.enhance-table-row--head {
+  background: none;
+  color: var(--ink-dim);
+  font-size: 11px;
+  padding: 0 10px;
+}
+
 .enhance-table-step {
   flex: 1;
   font-weight: 700;
 }
 
 .enhance-table-rate {
-  width: 44px;
+  width: 40px;
   text-align: right;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
+}
+
+.enhance-table-rate--destroy {
+  width: 58px;
+  color: #ff9c9c;
 }
 
 .enhance-table-cost {
@@ -1150,6 +1172,11 @@ button {
   animation: enhanceBackdropFlash 0.5s ease-out;
 }
 
+.enhance-backdrop-flash--destroy {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 20, 20, 0.75) 0%, transparent 70%);
+  animation: enhanceBackdropFlash 0.9s ease-out;
+}
+
 @keyframes enhanceBackdropFlash {
   0% {
     opacity: 0;
@@ -1185,6 +1212,35 @@ button {
   }
 }
 
+.enhance-modal--shatter-shake {
+  animation: enhanceModalShatterShake 0.7s ease-in-out;
+}
+
+@keyframes enhanceModalShatterShake {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  12% {
+    transform: translateX(-14px) translateY(2px) rotate(-1deg);
+  }
+  26% {
+    transform: translateX(13px) translateY(-2px) rotate(1deg);
+  }
+  40% {
+    transform: translateX(-10px) rotate(-0.7deg);
+  }
+  55% {
+    transform: translateX(8px) rotate(0.6deg);
+  }
+  70% {
+    transform: translateX(-5px);
+  }
+  85% {
+    transform: translateX(3px);
+  }
+}
+
 .enhance-fx {
   position: absolute;
   inset: -30px;
@@ -1207,6 +1263,11 @@ button {
 .enhance-fx--fail .enhance-flash {
   background: radial-gradient(circle, rgba(255, 60, 60, 0.7) 0%, transparent 70%);
   animation: enhanceFlashPop 0.45s ease-out;
+}
+
+.enhance-fx--destroy .enhance-flash {
+  background: radial-gradient(circle, rgba(255, 30, 30, 0.85) 0%, transparent 72%);
+  animation: enhanceFlashPop 0.6s ease-out;
 }
 
 @keyframes enhanceFlashPop {
@@ -1249,6 +1310,34 @@ button {
   100% {
     opacity: 0;
     transform: rotate(var(--angle)) translateX(85px) scale(0.4);
+  }
+}
+
+/* 파괴 이펙트 — 아이템이 깨지며 삼각형 파편이 회전하며 튀어나간다. */
+.enhance-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: linear-gradient(135deg, #fff, #ff8a8a);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  opacity: 0;
+}
+
+.enhance-fx--destroy .enhance-shard {
+  animation: enhanceShardOut 0.85s cubic-bezier(0.17, 0.67, 0.3, 1) forwards;
+}
+
+@keyframes enhanceShardOut {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateX(0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(120px) rotate(260deg) scale(0.3);
   }
 }
 
@@ -1299,6 +1388,43 @@ button {
   }
 }
 
+.enhance-image-wrap.enhance-shatter {
+  animation: enhanceShatter 0.9s ease-in-out;
+}
+
+/* 깨져서 사라졌다가(0% 불투명도 근처) 0단계 상태로 다시 떠오른다. */
+@keyframes enhanceShatter {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
+  22% {
+    transform: scale(1.08) rotate(-3deg);
+    opacity: 1;
+    filter: brightness(2) saturate(0.2);
+  }
+  50% {
+    transform: scale(0.15) rotate(14deg);
+    opacity: 0;
+    filter: brightness(0.2) saturate(0);
+  }
+  51% {
+    transform: scale(0.15) rotate(-10deg);
+    opacity: 0;
+  }
+  78% {
+    transform: scale(1.1) rotate(3deg);
+    opacity: 1;
+    filter: brightness(1.3) saturate(1);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
+}
+
 .enhance-level-badge {
   animation: enhanceBadgePop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
@@ -1341,12 +1467,17 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .enhance-backdrop-flash--success,
   .enhance-backdrop-flash--fail,
+  .enhance-backdrop-flash--destroy,
   .enhance-modal--shake,
+  .enhance-modal--shatter-shake,
   .enhance-fx--success .enhance-flash,
   .enhance-fx--fail .enhance-flash,
+  .enhance-fx--destroy .enhance-flash,
   .enhance-fx--success .enhance-spark,
+  .enhance-fx--destroy .enhance-shard,
   .enhance-image-wrap.enhance-pulse-success,
   .enhance-image-wrap.enhance-pulse-fail,
+  .enhance-image-wrap.enhance-shatter,
   .enhance-level-badge,
   .enhance-result {
     animation: none;

@@ -150,3 +150,30 @@ export function playEnhanceFailSound() {
   osc.start(now);
   osc.stop(now + 0.32);
 }
+
+/** 강화 파괴 — 실패음보다 훨씬 무겁고 길게, 두 오실레이터를 겹쳐 "쿵" 깨지는 느낌을 낸다. */
+export function playEnhanceDestroySound() {
+  if (!enabled || typeof window === "undefined") return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  resumeAudioContext();
+  const volume = getEffectiveTapVolume() * 0.75;
+  if (volume <= 0) return;
+  const now = ctx.currentTime;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+  gain.connect(ctx.destination);
+  [
+    { type: "sawtooth" as OscillatorType, from: 140, to: 48 },
+    { type: "square" as OscillatorType, from: 95, to: 33 },
+  ].forEach(({ type, from, to }) => {
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, now);
+    osc.frequency.exponentialRampToValueAtTime(to, now + 0.55);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.6);
+  });
+}

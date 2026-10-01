@@ -837,7 +837,7 @@ grant execute on function public.boss_ranking_top(int)           to anon, authen
 grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;
 
 --
--- "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 여의보주를 0~30단계까지
+-- "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 아리아의 옥을 0~30단계까지
 -- 강화한다. 재화 차감·성공확률 굴림은 전부 클라이언트에서 계산한다(계정 시스템이
 -- 없는 캐주얼 게임이라 contrib와 같은 신뢰 모델 — 완벽한 부정 방지는 하지 않는다).
 -- 서버에는 랭킹에 필요한 닉네임·현재 단계만 올라간다. 지금은 노아(ku)만 플레이
@@ -901,8 +901,10 @@ begin
 end;
 $$;
 
--- 강화 성공으로 레벨이 오를 때마다 호출 — 내려가는 값은 무시하고, 실제로 오를 때만
--- updated_at을 갱신한다(랭킹 동점자는 먼저 그 단계에 도달한 쪽이 위로 오도록).
+-- 강화를 시도할 때마다 호출 — 성공하면 레벨이 오르고, 16단계 이상에서 파괴가 뜨면
+-- 0단계로 완전히 초기화된다. 그래서 "greatest"가 아니라 보낸 값을 그대로 반영한다
+-- (파괴로 내려가는 것도 정상적인 상태 변화다). updated_at은 항상 지금 시각으로 — 랭킹
+-- 동점자는 "마지막으로 그 단계였던" 시점이 빠른 쪽이 위로 오도록 한다.
 create or replace function public.enhance_report(p_device uuid, p_level int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -910,8 +912,8 @@ declare
   v_result int;
 begin
   update public.enhance_players
-     set level = greatest(level, v_level),
-         updated_at = case when v_level > level then now() else updated_at end
+     set level = v_level,
+         updated_at = now()
    where device_id = p_device
   returning level into v_result;
 

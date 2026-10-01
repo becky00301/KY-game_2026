@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { formatNumber, TeamId, TeamTheme } from "@/lib/game";
-import { ENHANCE_MAX_LEVEL, enhanceCost, enhanceSuccessRate, enhanceTable } from "@/lib/enhance";
+import {
+  ENHANCE_DESTROY_FROM_LEVEL,
+  ENHANCE_MAX_LEVEL,
+  enhanceCost,
+  enhanceDestroyRate,
+  enhanceSuccessRate,
+  enhanceTable,
+  rollEnhanceOutcome,
+} from "@/lib/enhance";
 import {
   EnhanceRankEntry,
   checkEnhanceNicknameAvailable,
@@ -12,13 +20,15 @@ import {
   registerEnhance,
   reportEnhanceLevel,
 } from "@/lib/enhanceRanking";
-import { playCardRevealSound, playEnhanceFailSound } from "@/lib/sfx";
+import { playCardRevealSound, playEnhanceDestroySound, playEnhanceFailSound } from "@/lib/sfx";
 
 const RANKING_SLOTS = 10;
 const NICKNAME_KEY = "kyg.enhanceNickname";
 const LEVEL_KEY = "kyg.enhanceLevel";
 /** 성공 이펙트 — 이미지 주변에 튀는 스파크 각도(14방향으로 고르게). */
 const SPARK_ANGLES = Array.from({ length: 14 }, (_, i) => Math.round((i * 360) / 14));
+/** 파괴 이펙트 — 아이템이 깨지며 튀는 파편 각도(10방향). */
+const SHARD_ANGLES = Array.from({ length: 10 }, (_, i) => Math.round((i * 360) / 10));
 
 type Step = "loading" | "nickname" | "main" | "probability" | "ranking";
 
@@ -41,7 +51,7 @@ function saveCache(team: TeamId, nickname: string, level: number) {
 }
 
 /**
- * "강화" — 기기별 개인 재화로 여의보주를 0~30단계까지 강화하는 미니게임.
+ * "강화" — 기기별 개인 재화로 아리아의 옥을 0~30단계까지 강화하는 미니게임.
  * 닉네임은 기기당 하나, 전역에서 유일하다(랭킹 식별자 겸용). 재화 차감·확률
  * 굴림은 contrib(개인 재화)와 같은 신뢰 모델로 전부 클라이언트에서 계산하고,
  * 서버에는 랭킹(닉네임·현재 단계)만 올라간다.
@@ -65,7 +75,7 @@ export default function Enhance({
   const [nicknameInput, setNicknameInput] = useState("");
   const [nicknameError, setNicknameError] = useState("");
   const [checking, setChecking] = useState(false);
-  const [result, setResult] = useState<"success" | "fail" | null>(null);
+  const [result, setResult] = useState<"success" | "fail" | "destroy" | null>(null);
   /** 시도할 때마다 +1 — 같은 결과(예: 연속 실패)가 나와도 이펙트를 처음부터 다시 재생시키는 용도. */
   const [attemptId, setAttemptId] = useState(0);
   const [rankTop, setRankTop] = useState<EnhanceRankEntry[] | null>(null);
@@ -88,12 +98,16 @@ export default function Enhance({
       void (el as HTMLElement).offsetWidth;
       el.classList.add(cls);
     };
-    const modifier = result === "success" ? "success" : "fail";
-    restart(backdropFlashRef.current, `enhance-backdrop-flash--${modifier}`);
-    restart(fxRef.current, `enhance-fx--${modifier}`);
-    restart(imageWrapRef.current, result === "success" ? "enhance-pulse-success" : "enhance-pulse-fail");
+    restart(backdropFlashRef.current, `enhance-backdrop-flash--${result}`);
+    restart(fxRef.current, `enhance-fx--${result}`);
+    restart(
+      imageWrapRef.current,
+      result === "success" ? "enhance-pulse-success" : result === "destroy" ? "enhance-shatter" : "enhance-pulse-fail"
+    );
     if (result === "fail") restart(modalRef.current, "enhance-modal--shake");
+    if (result === "destroy") restart(modalRef.current, "enhance-modal--shatter-shake");
     if (result === "success") playCardRevealSound();
+    else if (result === "destroy") playEnhanceDestroySound();
     else playEnhanceFailSound();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
@@ -111,8 +125,8 @@ export default function Enhance({
         if (!alive) return;
         if (me.registered) {
           setNickname(me.nickname);
-          setLevel((prev) => Math.max(prev, me.level));
-          saveCache(team, me.nickname, Math.max(cached?.level ?? 0, me.level));
+          setLevel(me.level);
+          saveCache(team, me.nickname, me.level);
           setStep("main");
         } else if (!cached) {
           setStep("nickname");
@@ -163,18 +177,26 @@ export default function Enhance({
 
   const cost = enhanceCost(level);
   const rate = enhanceSuccessRate(level);
+  const destroyRate = enhanceDestroyRate(level);
   const maxed = level >= ENHANCE_MAX_LEVEL;
   const insufficient = !maxed && cost !== null && balance < cost;
+  const risky = level >= ENHANCE_DESTROY_FROM_LEVEL;
 
   const attempt = () => {
-    if (maxed || cost === null || rate === null || balance < cost) return;
+    if (maxed || cost === null || balance < cost) return;
     onSpend(cost);
-    if (Math.random() < rate) {
+    const outcome = rollEnhanceOutcome(level);
+    if (outcome === "success") {
       const next = level + 1;
       setLevel(next);
       saveCache(team, nickname, next);
       void reportEnhanceLevel(next).catch(() => {});
       setResult("success");
+    } else if (outcome === "destroy") {
+      setLevel(0);
+      saveCache(team, nickname, 0);
+      void reportEnhanceLevel(0).catch(() => {});
+      setResult("destroy");
     } else {
       setResult("fail");
     }
@@ -261,6 +283,9 @@ export default function Enhance({
                 {SPARK_ANGLES.map((angle) => (
                   <span key={angle} className="enhance-spark" style={{ "--angle": `${angle}deg` } as React.CSSProperties} />
                 ))}
+                {SHARD_ANGLES.map((angle) => (
+                  <span key={angle} className="enhance-shard" style={{ "--angle": `${angle}deg` } as React.CSSProperties} />
+                ))}
               </div>
             </div>
 
@@ -271,9 +296,10 @@ export default function Enhance({
               <span className="enhance-currency-value">{formatNumber(balance)}</span>
             </div>
 
-            {!maxed && cost !== null && rate !== null && (
+            {!maxed && cost !== null && rate !== null && destroyRate !== null && (
               <p className="enhance-odds">
                 비용 {formatNumber(cost)} · 성공확률 {Math.round(rate * 100)}%
+                {risky && <span className="enhance-odds-risk"> · 파괴확률 {(destroyRate * 100).toFixed(2)}%</span>}
               </p>
             )}
 
@@ -285,6 +311,11 @@ export default function Enhance({
             {result === "fail" && (
               <p key={attemptId} className="enhance-result enhance-result--fail">
                 강화 실패..
+              </p>
+            )}
+            {result === "destroy" && (
+              <p key={attemptId} className="enhance-result enhance-result--destroy">
+                아이템이 파괴되었습니다.. 0단계로 초기화
               </p>
             )}
             {result === null && insufficient && (
@@ -318,12 +349,21 @@ export default function Enhance({
               </button>
             </header>
             <ol className="enhance-table">
+              <li className="enhance-table-row enhance-table-row--head">
+                <span className="enhance-table-step">단계</span>
+                <span className="enhance-table-rate">성공</span>
+                <span className="enhance-table-rate enhance-table-rate--destroy">파괴</span>
+                <span className="enhance-table-cost">비용</span>
+              </li>
               {enhanceTable().map((row) => (
                 <li key={row.level} className="enhance-table-row">
                   <span className="enhance-table-step">
                     {row.level} → {row.level + 1}
                   </span>
-                  <span className="enhance-table-rate">{Math.round(row.rate * 100)}%</span>
+                  <span className="enhance-table-rate">{Math.round(row.successRate * 100)}%</span>
+                  <span className="enhance-table-rate enhance-table-rate--destroy">
+                    {row.destroyRate > 0 ? `${(row.destroyRate * 100).toFixed(2)}%` : "—"}
+                  </span>
                   <span className="enhance-table-cost">{formatNumber(row.cost)}</span>
                 </li>
               ))}
