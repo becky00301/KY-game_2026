@@ -65,8 +65,8 @@ export const RATE_BONUS_PER_TAP = 0.02;
 export const RATE_BONUS_CAP = 20;
 
 /** 크리티컬 — 터치마다 이 확률로 발동하며, 발동하면 그 터치의 획득량이 이 배수가 된다. */
-export const CRITICAL_CHANCE = 0.05;
-export const CRITICAL_MULTIPLIER = 10;
+export const CRITICAL_CHANCE = 0.1;
+export const CRITICAL_MULTIPLIER = 5;
 
 /** 터치 1회가 크리티컬인지 굴린다. */
 export function rollCritical(): boolean {

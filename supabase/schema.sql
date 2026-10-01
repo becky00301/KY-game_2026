@@ -29,8 +29,8 @@ create table if not exists public.game_config (
 -- game_config는 이미 운영 중인 테이블이라 create table if not exists로는 새 컬럼이 추가되지
 -- 않는다(테이블이 이미 있으면 그 문장 자체가 통째로 무시됨). 그래서 새 설정값은 이렇게
 -- alter table ... add column if not exists로 따로 얹는다.
-alter table public.game_config add column if not exists critical_chance     numeric not null default 0.05;
-alter table public.game_config add column if not exists critical_multiplier numeric not null default 10;
+alter table public.game_config add column if not exists critical_chance     numeric not null default 0.1;
+alter table public.game_config add column if not exists critical_multiplier numeric not null default 5;
 
 create table if not exists public.upgrade_defs (
   id        text primary key,
@@ -91,7 +91,7 @@ create table if not exists public.tap_blocklist (
 -- ---------- 초기값 ----------
 
 insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
-values (1, array[0, 4800, 150000, 24000000, 750000000]::numeric[], 1.85, 45, 15, 0.05, 10, 3000)
+values (1, array[0, 4800, 150000, 24000000, 750000000]::numeric[], 1.85, 45, 15, 0.1, 5, 3000)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
