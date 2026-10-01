@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const SITE_URL = "https://www.eveofvictory.com";
@@ -42,6 +43,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <div className="app-frame">{children}</div>
+        {/* 방문자 수 집계 — Vercel 대시보드 Analytics 탭에서 확인한다. 개인정보는 수집하지 않는다. */}
+        <Analytics />
       </body>
     </html>
   );
