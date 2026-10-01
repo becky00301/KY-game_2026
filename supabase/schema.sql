@@ -111,7 +111,7 @@ insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) value
   ('wrist',  'tap',      105, 1.14,    0.5, 1),
   ('stick',  'tap',     2100, 1.15,    4, 2),
   ('glove',  'tap',    30000, 1.16,   27.5, 3),
-  ('beast',  'tap',   450000, 1.17,  200, 4),
+  ('beast',  'tap',   450000, 1.17,  100, 4),
   ('fresh',  'auto',      540, 1.14, 0.375, 1),
   ('dept',   'auto',     7200, 1.15,    3, 2),
   ('band',   'auto',    90000, 1.15,   22.5, 3),

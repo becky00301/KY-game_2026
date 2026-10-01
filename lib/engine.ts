@@ -98,7 +98,7 @@ export const UPGRADE_NUMBERS: UpgradeNumbers[] = [
   { id: "wrist", kind: "tap", baseCost: 105, growth: 1.14, power: 0.5 },
   { id: "stick", kind: "tap", baseCost: 2_100, growth: 1.15, power: 4 },
   { id: "glove", kind: "tap", baseCost: 30_000, growth: 1.16, power: 27.5 },
-  { id: "beast", kind: "tap", baseCost: 450_000, growth: 1.17, power: 200 },
+  { id: "beast", kind: "tap", baseCost: 450_000, growth: 1.17, power: 100 },
   // 자동 응원은 "접속자가 없는 사이에도 조금씩 자라는" 용도다. 예전 수치로는 자동 수입이
   // 또 자동 강화를 사는 눈덩이가 돌아서, 터치로 번 몫이 20%도 안 됐다(누적 194억 중 터치
   // 12,000번). 그래서 성능은 1/4로 낮추고 가격은 2배로 올려 같은 기운 대비 수입을 1/8로 줄였다.
