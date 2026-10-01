@@ -3119,7 +3119,8 @@ button {
   border: 1px solid var(--panel-line);
   background: rgba(255, 255, 255, 0.06);
   color: var(--ink);
-  font-size: 12px;
+  /* 16px 미만이면 모바일 브라우저가 입력창 포커스 시 화면을 자동으로 확대한다 — shout-input과 동일 이유. */
+  font-size: 16px;
 }
 
 .ranking-chat-send {
