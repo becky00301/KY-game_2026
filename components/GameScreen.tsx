@@ -18,7 +18,12 @@ import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
 import { EnhanceMilestoneBanner } from "./EnhanceMilestone";
 import Enhance from "./Enhance";
-import { ENHANCE_LEVEL_CACHE_KEY, PERSONAL_CURRENCY_PER_TAP, enhanceScoreMultiplier } from "@/lib/enhance";
+import {
+  ENHANCE_LEVEL_CACHE_KEY,
+  PERSONAL_CURRENCY_PER_TAP,
+  enhanceCurrencyMultiplier,
+  enhanceScoreMultiplier,
+} from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -646,17 +651,20 @@ export default function GameScreen({
         return next;
       });
 
+      // 강화 단계(이 기기의 캐시값) — 개인 재화와 기기별 추가 점수 둘 다 이 단계에 따른
+      // 배율이 붙는다. 공용 칼의 점수·재화와는 완전히 별개라 서버에는 전혀 보내지 않는다.
+      const enhanceLevel = Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0);
+
       // 개인 재화(염원의 빛/데이터로그) — contrib(두드린 횟수)와는 별개로 터치마다
-      // PERSONAL_CURRENCY_PER_TAP만큼 쌓인다. 이것도 공용 재산과 무관한 이 기기만의 값.
+      // PERSONAL_CURRENCY_PER_TAP × 강화 배율만큼 쌓인다.
+      const currencyGain = PERSONAL_CURRENCY_PER_TAP * enhanceCurrencyMultiplier(enhanceLevel);
       setPersonalEarned((p) => {
-        const next = p + PERSONAL_CURRENCY_PER_TAP;
+        const next = p + currencyGain;
         window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
         return next;
       });
 
-      // 기기별 추가 점수 — 강화 단계(이 기기의 캐시값)에 따른 배율만큼 쌓인다. 공용 칼의
-      // 점수·재화와는 완전히 별개라 서버에는 전혀 보내지 않는다.
-      const enhanceLevel = Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0);
+      // 기기별 추가 점수 — 강화 단계에 따른 배율만큼 쌓인다.
       const scoreGain = enhanceScoreMultiplier(enhanceLevel);
       setDeviceScore((s) => {
         const next = s + scoreGain;
