@@ -106,7 +106,8 @@ alter table public.game_config add column if not exists notice_at   timestamptz 
 -- "함성" — 재화를 써서 화면 전체에 문구를 띄우는 기능의 가격.
 alter table public.game_config add column if not exists shout_cost numeric not null default 100000;
 
--- "함성"을 쓸 때마다 기기별 마지막 사용 시각을 남긴다 — 10분에 한 번만 쓸 수 있게 막는 데 쓴다.
+-- "함성"을 쓸 때마다 기기별 마지막 사용 시각을 남긴다. 제한을 걸진 않지만, 나중에
+-- 기기별 사용 빈도를 들여다봐야 할 때를 위한 기록이다.
 create table if not exists public.shout_log (
   client_id     uuid primary key,
   last_shout_at timestamptz not null default 'epoch'
@@ -535,17 +536,15 @@ begin
 end;
 $$;
 
--- "함성" — 재화를 써서 화면 전체에 문구를 띄운다. 기기당 10분에 한 번, 전역으로는
--- 마지막 함성 이후 10초가 지나야 한다(겹쳐 보이지 않게). pg_advisory_xact_lock으로
--- 동시 요청이 쿨다운 체크를 동시에 통과하는 경합을 막는다 — 그래서 거의 동시에 여러
--- 명이 쓰려 해도 한 명만 성공하고, 나머지는 10초 뒤에나 다시 시도해 자연히 순차적으로
--- 화면에 뜬다.
+-- "함성" — 재화를 써서 화면 전체에 문구를 띄운다. 기기별 제한은 없고, 전역으로 마지막
+-- 함성 이후 10초가 지나야 한다(겹쳐 보이지 않게 — 같은 기기도 포함). pg_advisory_xact_lock으로
+-- 동시 요청이 쿨다운 체크를 동시에 통과하는 경합을 막는다 — 그래서 거의 동시에 여러 명이
+-- 쓰려 해도 한 명만 성공하고, 나머지는 10초 뒤에나 다시 시도해 자연히 순차적으로 화면에 뜬다.
 create or replace function public.shout_post(p_team text, p_client uuid, p_nickname text, p_text text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  cfg      public.game_config;
-  s        public.swords;
-  last_dev   timestamptz;
+  cfg        public.game_config;
+  s          public.swords;
   last_any   timestamptz;
   v_nickname text := trim(coalesce(p_nickname, ''));
   v_text     text := trim(coalesce(p_text, ''));
@@ -557,11 +556,6 @@ begin
   end if;
 
   select * into cfg from public.game_config where id = 1;
-
-  select last_shout_at into last_dev from public.shout_log where client_id = p_client;
-  if last_dev is not null and now() - last_dev < interval '10 minutes' then
-    return jsonb_build_object('ok', false, 'reason', 'device-cooldown');
-  end if;
 
   select max(created_at) into last_any from public.shouts;
   if last_any is not null and now() - last_any < interval '10 seconds' then

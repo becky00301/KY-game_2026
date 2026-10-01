@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { postShout } from "@/lib/backend";
-import { SHOUT_COST, SHOUT_DEVICE_COOLDOWN_MIN, SHOUT_GLOBAL_COOLDOWN_SEC } from "@/lib/engine";
+import { SHOUT_COST, SHOUT_GLOBAL_COOLDOWN_SEC } from "@/lib/engine";
 import { TeamId, formatNumber } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
 
@@ -63,11 +63,9 @@ export function ShoutSheet({
         setError(
           result.reason === "insufficient"
             ? `${spirit}이(가) 부족합니다.`
-            : result.reason === "device-cooldown"
-              ? `이 기기는 ${SHOUT_DEVICE_COOLDOWN_MIN}분에 한 번만 함성을 쓸 수 있습니다.`
-              : result.reason === "global-cooldown"
-                ? `다른 사람이 방금 사용했습니다. ${SHOUT_GLOBAL_COOLDOWN_SEC}초 뒤 다시 시도해주세요.`
-                : "지금은 사용할 수 없습니다. 잠시 후 다시 시도해주세요."
+            : result.reason === "global-cooldown"
+              ? `다른 사람이 방금 사용했습니다. ${SHOUT_GLOBAL_COOLDOWN_SEC}초 뒤 다시 시도해주세요.`
+              : "지금은 사용할 수 없습니다. 잠시 후 다시 시도해주세요."
         );
         return;
       }

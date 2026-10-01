@@ -318,7 +318,7 @@ export interface ShoutResult {
   reason?: string;
 }
 
-/** 재화를 써서 "함성"을 보낸다. 기기당 10분 제한·전역 10초 제한은 서버가 강제한다. */
+/** 재화를 써서 "함성"을 보낸다. 전역 10초 제한(마지막 함성 이후)은 서버가 강제한다. */
 export async function postShout(
   team: TeamId,
   client: string,
