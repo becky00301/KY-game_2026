@@ -16,6 +16,16 @@ export const ENHANCE_DESTROY_FROM_LEVEL = 15;
  *  GameScreen.tsx가 터치 점수 배율을 계산할 때 읽기 전용으로 같이 참조한다. */
 export const ENHANCE_LEVEL_CACHE_KEY = "kyg.enhanceLevel";
 
+/**
+ * 터치 1회당 쌓이는 개인 재화(염원의 빛/데이터로그) 양 — 하루 10분 정도만 적극적으로
+ * 두드려도 22단계 기댓값(약 2,790만) 정도는 모을 수 있게 잡은 값이다. 초당 5회 ×
+ * 600초 = 3,000타 기준으로 약 3,000만이 모이도록 역산했다(초당 5회는 이 레포의
+ * 다른 주석에서도 "사람이 보통 내는 속도"로 쓰는 기준). 실제 재화 차감·확률 굴림은
+ * contrib와 같은 신뢰 모델로 클라이언트에서 계산하므로, 이 값도 서버 검증 없이
+ * 그대로 적용된다.
+ */
+export const PERSONAL_CURRENCY_PER_TAP = 10_000;
+
 export interface EnhanceLevelData {
   /** 이 단계에서 1단계 강화를 시도하는 데 드는 비용. */
   cost: number;

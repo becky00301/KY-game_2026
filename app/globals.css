@@ -3002,7 +3002,7 @@ button {
 /* 1등만 왕관 */
 .boss-ranking-row--top1 .boss-ranking-name::after { content: " 👑"; }
 
-.boss-ranking-name { flex: 1; font-size: 14px; color: #e5fff8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.boss-ranking-name { flex: 1; font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 아직 주인이 없는 자리 */
 .boss-ranking-row--vacant { background: #ffffff05; border: 1px dashed #ffffff14; }
 .boss-ranking-row--vacant .boss-ranking-rank { color: #ffffff3d; font-weight: 800; }

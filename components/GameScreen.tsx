@@ -17,7 +17,12 @@ import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
 import Enhance from "./Enhance";
-import { ENHANCE_LEVEL_CACHE_KEY, enhanceEnabledFor, enhanceScoreMultiplier } from "@/lib/enhance";
+import {
+  ENHANCE_LEVEL_CACHE_KEY,
+  PERSONAL_CURRENCY_PER_TAP,
+  enhanceEnabledFor,
+  enhanceScoreMultiplier,
+} from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -110,6 +115,9 @@ const FLUSH_INTERVAL_MS = 1_000;
 const CONTRIB_KEY = "kyg.contrib";
 /** 강화에 쓴 개인 재화 누적치 (이 기기에만 저장) */
 const ENHANCE_SPENT_KEY = "kyg.enhanceSpent";
+/** 터치로 모은 개인 재화(염원의 빛/데이터로그) 누적치 — contrib(두드린 횟수)와는 별개로,
+ *  터치마다 PERSONAL_CURRENCY_PER_TAP만큼 쌓인다. */
+const PERSONAL_EARNED_KEY = "kyg.personalEarned";
 /** 강화 배율이 적용된 "기기별 추가 점수" 누적치 — 공용 재산과 무관한 이 기기만의 점수. */
 const DEVICE_SCORE_KEY = "kyg.deviceScore";
 
@@ -144,8 +152,9 @@ export default function GameScreen({
   const [sfxOn, setSfxOn] = useState(true);
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
-  /** 강화에 쓴 개인 재화 — contrib(기기별 누적치)에서 이만큼을 뺀 값이 실제 잔액이다. */
+  /** 강화에 쓴 개인 재화 — personalEarned(터치로 모은 개인 재화)에서 이만큼을 뺀 값이 실제 잔액이다. */
   const [enhanceSpent, setEnhanceSpent] = useState(0);
+  const [personalEarned, setPersonalEarned] = useState(0);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
   /** 강화 단계 배율이 적용된 기기별 추가 점수 — 공용 재산과 무관, 이 기기에만 저장. */
   const [deviceScore, setDeviceScore] = useState(0);
@@ -458,6 +467,7 @@ export default function GameScreen({
     setReady(false);
     setContrib(Number(window.localStorage.getItem(`${CONTRIB_KEY}.${team}`) ?? 0));
     setEnhanceSpent(Number(window.localStorage.getItem(`${ENHANCE_SPENT_KEY}.${team}`) ?? 0));
+    setPersonalEarned(Number(window.localStorage.getItem(`${PERSONAL_EARNED_KEY}.${team}`) ?? 0));
     setDeviceScore(Number(window.localStorage.getItem(`${DEVICE_SCORE_KEY}.${team}`) ?? 0));
 
     fetchSword(team)
@@ -619,6 +629,14 @@ export default function GameScreen({
       setContrib((c) => {
         const next = c + 1;
         window.localStorage.setItem(`${CONTRIB_KEY}.${team}`, String(next));
+        return next;
+      });
+
+      // 개인 재화(염원의 빛/데이터로그) — contrib(두드린 횟수)와는 별개로 터치마다
+      // PERSONAL_CURRENCY_PER_TAP만큼 쌓인다. 이것도 공용 재산과 무관한 이 기기만의 값.
+      setPersonalEarned((p) => {
+        const next = p + PERSONAL_CURRENCY_PER_TAP;
+        window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
         return next;
       });
 
@@ -980,7 +998,7 @@ export default function GameScreen({
             disabled={!ready}
           >
             <span className="personal-btn-label">강화</span>
-            <span className="personal-chip-value">{formatNumber(Math.max(0, contrib - enhanceSpent))}</span>
+            <span className="personal-chip-value">{formatNumber(Math.max(0, personalEarned - enhanceSpent))}</span>
             <span className="personal-chip-name">{theme.personalCurrency}</span>
           </button>
           <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
@@ -1017,7 +1035,7 @@ export default function GameScreen({
         <Enhance
           team={team}
           theme={theme}
-          balance={Math.max(0, contrib - enhanceSpent)}
+          balance={Math.max(0, personalEarned - enhanceSpent)}
           onSpend={(amount) => {
             setEnhanceSpent((s) => {
               const next = s + amount;
