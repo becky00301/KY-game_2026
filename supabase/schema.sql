@@ -835,3 +835,130 @@ grant execute on function public.boss_ranking_start(text, uuid) to anon, authent
 grant execute on function public.boss_ranking_submit(text, uuid) to anon, authenticated;
 grant execute on function public.boss_ranking_top(int)           to anon, authenticated;
 grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;
+
+--
+-- "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 여의보주를 0~30단계까지
+-- 강화한다. 재화 차감·성공확률 굴림은 전부 클라이언트에서 계산한다(계정 시스템이
+-- 없는 캐주얼 게임이라 contrib와 같은 신뢰 모델 — 완벽한 부정 방지는 하지 않는다).
+-- 서버에는 랭킹에 필요한 닉네임·현재 단계만 올라간다. 지금은 노아(ku)만 플레이
+-- 가능하고 연(yu)은 준비 중이다. 닉네임은 boss_rankings와 같이 대소문자 구분 없이
+-- 전역에서 유일하고, 기기 하나당 한 자리만 가질 수 있다(device_id가 기본키).
+
+create table if not exists public.enhance_players (
+  device_id  uuid        primary key,
+  team       text        not null default 'ku' check (team in ('ku', 'yu')),
+  nickname   text        not null check (char_length(trim(nickname)) between 1 and 14),
+  level      int         not null default 0 check (level between 0 and 30),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists enhance_players_nickname_lower_idx
+  on public.enhance_players (lower(nickname));
+
+-- 닉네임이 아직 아무도 안 쓰고 있는지(대소문자 무시).
+create or replace function public.enhance_nickname_check(p_nickname text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(char_length(trim(p_nickname)), 0) between 1 and 14
+     and not exists (
+       select 1 from public.enhance_players where lower(nickname) = lower(trim(p_nickname))
+     );
+$$;
+
+-- 이 기기가 이미 강화 기록을 갖고 있는지 — 있으면 클라이언트가 닉네임 입력 단계를
+-- 건너뛰고 바로 현재 단계를 불러온다.
+create or replace function public.enhance_me(p_device uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('nickname', nickname, 'level', level)
+  from public.enhance_players
+  where device_id = p_device;
+$$;
+
+-- 닉네임 확정 시 한 번 호출 — 이 기기가 이미 등록돼 있으면 새로 보낸 닉네임은
+-- 무시하고 기존 기록을 그대로 돌려준다(중복 등록 방지 겸 재입장 처리).
+create or replace function public.enhance_register(p_nickname text, p_device uuid, p_team text default 'ku')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_nickname text := trim(p_nickname);
+  v_existing public.enhance_players;
+begin
+  select * into v_existing from public.enhance_players where device_id = p_device;
+  if found then
+    return jsonb_build_object('ok', true, 'nickname', v_existing.nickname, 'level', v_existing.level);
+  end if;
+
+  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+  if exists (select 1 from public.enhance_players where lower(nickname) = lower(v_nickname)) then
+    return jsonb_build_object('ok', false, 'reason', 'taken');
+  end if;
+
+  insert into public.enhance_players (device_id, team, nickname, level)
+  values (p_device, coalesce(p_team, 'ku'), v_nickname, 0);
+
+  return jsonb_build_object('ok', true, 'nickname', v_nickname, 'level', 0);
+end;
+$$;
+
+-- 강화 성공으로 레벨이 오를 때마다 호출 — 내려가는 값은 무시하고, 실제로 오를 때만
+-- updated_at을 갱신한다(랭킹 동점자는 먼저 그 단계에 도달한 쪽이 위로 오도록).
+create or replace function public.enhance_report(p_device uuid, p_level int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_level  int := least(30, greatest(0, coalesce(p_level, 0)));
+  v_result int;
+begin
+  update public.enhance_players
+     set level = greatest(level, v_level),
+         updated_at = case when v_level > level then now() else updated_at end
+   where device_id = p_device
+  returning level into v_result;
+
+  if v_result is null then
+    return jsonb_build_object('ok', false);
+  end if;
+  return jsonb_build_object('ok', true, 'level', v_result);
+end;
+$$;
+
+create or replace function public.enhance_top(p_limit int default 10)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row), '[]'::jsonb) from (
+    select jsonb_build_object(
+      'nickname', nickname,
+      'level', level,
+      'rank', row_number() over (order by level desc, updated_at asc),
+      'updated_at', (extract(epoch from updated_at) * 1000)::bigint
+    ) as row
+    from public.enhance_players
+    order by level desc, updated_at asc
+    limit greatest(1, least(coalesce(p_limit, 10), 50))
+  ) t;
+$$;
+
+create or replace function public.enhance_mine(p_nickname text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'nickname', nickname,
+    'level', level,
+    'rank', (
+      select count(*) + 1 from public.enhance_players o
+      where o.level > r.level or (o.level = r.level and o.updated_at < r.updated_at)
+    ),
+    'updated_at', (extract(epoch from updated_at) * 1000)::bigint
+  )
+  from public.enhance_players r
+  where lower(nickname) = lower(trim(p_nickname))
+  limit 1;
+$$;
+
+-- 직접 테이블 접근은 막는다(select 정책 없음) — 전부 위 함수로만 읽고 쓴다.
+alter table public.enhance_players enable row level security;
+
+grant execute on function public.enhance_nickname_check(text)       to anon, authenticated;
+grant execute on function public.enhance_me(uuid)                   to anon, authenticated;
+grant execute on function public.enhance_register(text, uuid, text) to anon, authenticated;
+grant execute on function public.enhance_report(uuid, int)          to anon, authenticated;
+grant execute on function public.enhance_top(int)                   to anon, authenticated;
+grant execute on function public.enhance_mine(text)                 to anon, authenticated;

@@ -16,6 +16,8 @@ import FeverPop from "./FeverPop";
 import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
+import Enhance from "./Enhance";
+import { enhanceEnabledFor } from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -106,6 +108,8 @@ const COMBO_MAX = 9_999;
 const FLUSH_INTERVAL_MS = 1_000;
 /** 내가 이 칼에 보탠 터치 수 (자랑용, 이 기기에만 저장) */
 const CONTRIB_KEY = "kyg.contrib";
+/** 강화에 쓴 개인 재화 누적치 (이 기기에만 저장) */
+const ENHANCE_SPENT_KEY = "kyg.enhanceSpent";
 
 /** "염원의 힘" → "염원의 힘이", "데이터베이스" → "데이터베이스가" */
 function withSubjectParticle(word: string) {
@@ -138,6 +142,9 @@ export default function GameScreen({
   const [sfxOn, setSfxOn] = useState(true);
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
+  /** 강화에 쓴 개인 재화 — contrib(기기별 누적치)에서 이만큼을 뺀 값이 실제 잔액이다. */
+  const [enhanceSpent, setEnhanceSpent] = useState(0);
+  const [enhanceOpen, setEnhanceOpen] = useState(false);
   const [online, setOnline] = useState(0);
   const [rivalSword, setRivalSword] = useState<SwordState | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -446,6 +453,7 @@ export default function GameScreen({
     let alive = true;
     setReady(false);
     setContrib(Number(window.localStorage.getItem(`${CONTRIB_KEY}.${team}`) ?? 0));
+    setEnhanceSpent(Number(window.localStorage.getItem(`${ENHANCE_SPENT_KEY}.${team}`) ?? 0));
 
     fetchSword(team)
       .then((state) => {
@@ -949,10 +957,14 @@ export default function GameScreen({
             <span className="shout-btn-icon">📣</span>
             <span>함성</span>
           </button>
-          {/* 기기별·개인별 재화 — 아직 쓸 곳(강화)은 준비 중이라 숫자만 보여준다. */}
-          <button className="personal-btn" onClick={() => setNotice("준비중입니다.")} disabled={!ready}>
+          {/* 기기별·개인별 재화 — 노아만 강화 기능이 열려 있다. 연은 아직 준비중. */}
+          <button
+            className="personal-btn"
+            onClick={() => (enhanceEnabledFor(team) ? setEnhanceOpen(true) : setNotice("준비중입니다."))}
+            disabled={!ready}
+          >
             <span className="personal-btn-label">강화</span>
-            <span className="personal-chip-value">{formatNumber(contrib)}</span>
+            <span className="personal-chip-value">{formatNumber(Math.max(0, contrib - enhanceSpent))}</span>
             <span className="personal-chip-name">{theme.personalCurrency}</span>
           </button>
           <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
@@ -982,6 +994,22 @@ export default function GameScreen({
           spirit={theme.spirit}
           clientId={clientId()}
           onClose={() => setShoutOpen(false)}
+        />
+      )}
+
+      {enhanceOpen && (
+        <Enhance
+          team={team}
+          theme={theme}
+          balance={Math.max(0, contrib - enhanceSpent)}
+          onSpend={(amount) => {
+            setEnhanceSpent((s) => {
+              const next = s + amount;
+              window.localStorage.setItem(`${ENHANCE_SPENT_KEY}.${team}`, String(next));
+              return next;
+            });
+          }}
+          onClose={() => setEnhanceOpen(false)}
         />
       )}
 

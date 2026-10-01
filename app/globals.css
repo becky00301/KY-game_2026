@@ -904,6 +904,225 @@ button {
   font-size: 13px;
 }
 
+/* ---------------- 강화(여의보주) ---------------- */
+
+.enhance-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+  animation: fadeIn 0.18s ease;
+}
+
+.enhance-modal {
+  width: 100%;
+  max-width: 340px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  border-radius: 22px;
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+  background: linear-gradient(165deg, color-mix(in srgb, var(--primary) 26%, #000) 0%, #000 62%);
+  border: 1px solid var(--panel-line);
+  animation: slideUp 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.enhance-loading {
+  padding: 30px 0;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 14px;
+}
+
+.enhance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.enhance-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.enhance-note {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
+.enhance-image-wrap {
+  position: relative;
+  width: 168px;
+  height: 168px;
+  margin: 4px auto 10px;
+}
+
+.enhance-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--glow) 55%, transparent));
+}
+
+.enhance-level-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #000;
+  background: var(--accent);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.6);
+}
+
+.enhance-level-text {
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.enhance-currency {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.enhance-currency-name {
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.enhance-currency-value {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.enhance-odds {
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.enhance-result {
+  margin: -2px 0 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.enhance-result--success {
+  color: #8cf0b0;
+}
+
+.enhance-result--fail {
+  color: #ff9c9c;
+}
+
+.enhance-main-btn {
+  width: 100%;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 14px 30px -16px var(--primary);
+}
+
+.enhance-main-btn:active {
+  transform: scale(0.985);
+}
+
+.enhance-main-btn:disabled {
+  opacity: 0.5;
+}
+
+.enhance-sub-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.enhance-sub-btn {
+  height: 42px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--panel-line);
+}
+
+.enhance-sub-btn:active {
+  transform: scale(0.97);
+}
+
+.enhance-table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+.enhance-table-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+}
+
+.enhance-table-step {
+  flex: 1;
+  font-weight: 700;
+}
+
+.enhance-table-rate {
+  width: 44px;
+  text-align: right;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.enhance-table-cost {
+  width: 72px;
+  text-align: right;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.enhance-rank-level {
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 함성 배너 — 화면 위쪽에 번쩍이며 나타났다가 5초 뒤 스르륵 사라진다 */
 /* --shout-*는 보는 사람의 팀이 아니라 "보낸" 팀 색 — Shout.tsx가 엘리먼트에 직접 꽂는다. */
 .shout-banner {
