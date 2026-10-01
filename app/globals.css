@@ -945,6 +945,13 @@ button {
   margin-bottom: 12px;
 }
 
+/* 닫기 버튼 하나뿐인 헤더(뒤로가기 버튼이 없는 화면)에서, 제목이 진짜 가운데에 오도록
+   반대쪽에 보이지 않는 버튼 크기의 빈 칸을 둔다. */
+.enhance-icon-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .enhance-title {
   flex: 1;
   font-size: 15px;

@@ -210,6 +210,7 @@ export default function Enhance({
         {step === "nickname" && (
           <>
             <header className="enhance-head">
+              <span className="icon-btn enhance-icon-spacer" aria-hidden="true" />
               <p className="enhance-title">강화 — 닉네임 설정</p>
               <button className="icon-btn" onClick={onClose} aria-label="닫기">
                 ✕
@@ -243,14 +244,15 @@ export default function Enhance({
         {step === "main" && (
           <>
             <header className="enhance-head">
-              <p className="enhance-title">{nickname}님의 여의보주</p>
+              <span className="icon-btn enhance-icon-spacer" aria-hidden="true" />
+              <p className="enhance-title">{nickname}님의 아리아의 옥</p>
               <button className="icon-btn" onClick={onClose} aria-label="닫기">
                 ✕
               </button>
             </header>
 
             <div className="enhance-image-wrap" ref={imageWrapRef}>
-              <img src="/images/enhance/yeouiboju.webp" alt="여의보주" className="enhance-image" />
+              <img src="/images/enhance/yeouiboju.webp" alt="아리아의 옥" className="enhance-image" />
               <span key={level} className="enhance-level-badge">
                 +{level}
               </span>
