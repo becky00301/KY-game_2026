@@ -69,8 +69,10 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose }: 
             const numbers = NUMBERS.get(label.id);
             if (!numbers) return null;
             const level = levelOf(sword, label.id);
+            const maxed = numbers.maxLevel !== undefined && level >= numbers.maxLevel;
             const cost = upgradeCost(label.id, level);
-            const affordable = sword.energy >= cost;
+            const affordable = !maxed && sword.energy >= cost;
+            const isCrit = !!numbers.critChancePerLevel || !!numbers.critMultPerLevel;
             const delta = numbers.power * mult;
             return (
               <li key={label.id}>
@@ -88,10 +90,12 @@ export default function UpgradeSheet({ sword, theme, contrib, onBuy, onClose }: 
                       {level > 0 && <em className="up-level">Lv.{level}</em>}
                     </span>
                     <span className="up-desc">
-                      {tab === "tap" ? "터치당" : "초당"} +{formatRate(delta)}
+                      {isCrit
+                        ? `크리티컬 확률 +${((numbers.critChancePerLevel ?? 0) * 100).toFixed(0)}%p · 배수 +${((numbers.critMultPerLevel ?? 0) * 100).toFixed(0)}%`
+                        : `${tab === "tap" ? "터치당" : "초당"} +${formatRate(delta)}`}
                     </span>
                   </span>
-                  <span className="up-cost">{formatNumber(cost)}</span>
+                  <span className="up-cost">{maxed ? "MAX" : formatNumber(cost)}</span>
                 </button>
               </li>
             );

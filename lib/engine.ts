@@ -69,18 +69,22 @@ export const CRITICAL_CHANCE = 0.1;
 export const CRITICAL_MULTIPLIER = 10;
 
 /** 터치 1회가 크리티컬인지 굴린다. */
-export function rollCritical(): boolean {
-  return Math.random() < CRITICAL_CHANCE;
+export function rollCritical(chance: number = CRITICAL_CHANCE): boolean {
+  return Math.random() < chance;
 }
 
 /**
  * `taps`번의 개별 터치를 각각 굴려서 합산 배수를 낸다 — 평범한 터치는 1, 크리티컬은
- * CRITICAL_MULTIPLIER로 친다. 배치로 묶어 처리하는 서버/로컬 백엔드에서 씀.
+ * `multiplier`로 친다. 배치로 묶어 처리하는 서버/로컬 백엔드에서 씀.
  */
-export function criticalUnits(taps: number): number {
+export function criticalUnits(
+  taps: number,
+  chance: number = CRITICAL_CHANCE,
+  multiplier: number = CRITICAL_MULTIPLIER
+): number {
   let units = 0;
   for (let i = 0; i < taps; i++) {
-    units += rollCritical() ? CRITICAL_MULTIPLIER : 1;
+    units += rollCritical(chance) ? multiplier : 1;
   }
   return units;
 }
@@ -91,6 +95,14 @@ export interface UpgradeNumbers {
   baseCost: number;
   growth: number;
   power: number;
+  /** 있으면 growth 대신 baseCost * (level+1)로 가격을 매긴다("1배, 2배, 3배..."로 늘어나는 강화용). */
+  linearCost?: boolean;
+  /** 있으면 이 레벨부터는 더 살 수 없다(강화 비용이 Infinity가 된다). */
+  maxLevel?: number;
+  /** 있으면 power 대신, 레벨당 크리티컬 확률을 이만큼 더한다(0.01 = 레벨당 +1%p). */
+  critChancePerLevel?: number;
+  /** 있으면 레벨당 크리티컬 배수를 이 비율만큼 곱해서 늘린다(0.1 = 레벨당 +10%). */
+  critMultPerLevel?: number;
 }
 
 /** 강화 수치. 이름·아이콘은 lib/upgrades.ts에 따로 있다. STAGE_THRESHOLDS와 같은 시뮬레이션으로 맞췄다. */
@@ -99,6 +111,10 @@ export const UPGRADE_NUMBERS: UpgradeNumbers[] = [
   { id: "stick", kind: "tap", baseCost: 2_100, growth: 1.15, power: 4 },
   { id: "glove", kind: "tap", baseCost: 30_000, growth: 1.16, power: 27.5 },
   { id: "beast", kind: "tap", baseCost: 450_000, growth: 1.17, power: 100 },
+  // 터치 5단계 — 힘을 더하는 대신 크리티컬 확률·배수를 올린다. 레벨당 +1%p·+10%,
+  // 최대 10레벨(확률 +10%p, 배수 +100%). 가격은 지수가 아니라 1000만 × (레벨+1)로
+  // 선형 증가(1배, 2배, 3배...).
+  { id: "ultimate", kind: "tap", baseCost: 10_000_000, growth: 1, power: 0, linearCost: true, maxLevel: 10, critChancePerLevel: 0.01, critMultPerLevel: 0.1 },
   // 자동 응원은 "접속자가 없는 사이에도 조금씩 자라는" 용도다. 예전 수치로는 자동 수입이
   // 또 자동 강화를 사는 눈덩이가 돌아서, 터치로 번 몫이 20%도 안 됐다(누적 194억 중 터치
   // 12,000번). 그래서 성능은 1/4로 낮추고 가격은 2배로 올려 같은 기운 대비 수입을 1/8로 줄였다.
@@ -199,7 +215,31 @@ export function autoPerSecond(state: SwordState) {
 export function upgradeCost(id: string, level: number) {
   const def = BY_ID.get(id);
   if (!def) return Infinity;
+  if (def.maxLevel !== undefined && level >= def.maxLevel) return Infinity;
+  if (def.linearCost) return Math.ceil(def.baseCost * (level + 1));
   return Math.ceil(def.baseCost * Math.pow(def.growth, level));
+}
+
+/** 팀의 크리티컬 확률 — 기본값에 "잠잠한 비명"/"최종오의" 같은 레벨당 보너스를 더한다. */
+export function criticalChanceOf(state: SwordState) {
+  let chance = CRITICAL_CHANCE;
+  for (const def of UPGRADE_NUMBERS) {
+    if (!def.critChancePerLevel) continue;
+    const key = def.kind === "tap" ? state.tapLevels : state.autoLevels;
+    chance += (key[def.id] ?? 0) * def.critChancePerLevel;
+  }
+  return chance;
+}
+
+/** 팀의 크리티컬 배수 — 기본값에 레벨당 보너스 비율을 곱해서 늘린다. */
+export function criticalMultiplierOf(state: SwordState) {
+  let bonus = 0;
+  for (const def of UPGRADE_NUMBERS) {
+    if (!def.critMultPerLevel) continue;
+    const key = def.kind === "tap" ? state.tapLevels : state.autoLevels;
+    bonus += (key[def.id] ?? 0) * def.critMultPerLevel;
+  }
+  return CRITICAL_MULTIPLIER * (1 + bonus);
 }
 
 export function levelOf(state: SwordState, id: string) {
@@ -253,7 +293,11 @@ export function applyTaps(
   const mult = isFeverActive(next, now) ? FEVER_MULTIPLIER : 1;
   // 크리티컬은 개별 터치 단위로 굴리므로 taps 대신 합산 배수(criticalUnits)를 곱한다.
   // 콤보/레이트 보너스는 크리티컬과 무관하게 실제 터치 횟수 그대로 계산한다.
-  const gain = tapPower(next) * criticalUnits(taps) * rateBonus(taps, elapsedSeconds) * mult;
+  const gain =
+    tapPower(next) *
+    criticalUnits(taps, criticalChanceOf(next), criticalMultiplierOf(next)) *
+    rateBonus(taps, elapsedSeconds) *
+    mult;
 
   let feverGauge = next.feverGauge;
   let feverUntil = next.feverUntil;

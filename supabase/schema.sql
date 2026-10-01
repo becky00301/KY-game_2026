@@ -41,6 +41,13 @@ create table if not exists public.upgrade_defs (
   sort      int     not null
 );
 
+-- "잠잠한 비명"/"최종오의"처럼 power 대신 크리티컬 확률·배수를 올리고, 가격도 지수가
+-- 아니라 선형으로 느는 강화용 컬럼. 기존 항목은 전부 기본값(해당 없음)을 쓴다.
+alter table public.upgrade_defs add column if not exists max_level             int;
+alter table public.upgrade_defs add column if not exists linear_cost           boolean not null default false;
+alter table public.upgrade_defs add column if not exists crit_chance_per_level numeric not null default 0;
+alter table public.upgrade_defs add column if not exists crit_mult_per_level   numeric not null default 0;
+
 create table if not exists public.swords (
   team         text primary key check (team in ('ku', 'yu')),
   energy       numeric     not null default 0,
@@ -107,22 +114,27 @@ on conflict (id) do update set
   critical_multiplier = excluded.critical_multiplier,
   fever_max = excluded.fever_max;
 
-insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) values
-  ('wrist',  'tap',      105, 1.14,    0.5, 1),
-  ('stick',  'tap',     2100, 1.15,    4, 2),
-  ('glove',  'tap',    30000, 1.16,   27.5, 3),
-  ('beast',  'tap',   450000, 1.17,  100, 4),
-  ('fresh',  'auto',      540, 1.14, 0.375, 1),
-  ('dept',   'auto',     7200, 1.15,    3, 2),
-  ('band',   'auto',    90000, 1.15,   22.5, 3),
-  ('senior', 'auto',  1200000, 1.16,  162.5, 4),
-  ('choir',  'auto', 15000000, 1.17, 1125, 5)
+insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort, max_level, linear_cost, crit_chance_per_level, crit_mult_per_level) values
+  ('wrist',    'tap',      105, 1.14,    0.5, 1, null, false, 0,    0),
+  ('stick',    'tap',     2100, 1.15,    4,   2, null, false, 0,    0),
+  ('glove',    'tap',    30000, 1.16,   27.5, 3, null, false, 0,    0),
+  ('beast',    'tap',   450000, 1.17,  100,   4, null, false, 0,    0),
+  ('ultimate', 'tap', 10000000, 1,       0,   5, 10,   true,  0.01, 0.1),
+  ('fresh',    'auto',     540, 1.14, 0.375, 1, null, false, 0,    0),
+  ('dept',     'auto',    7200, 1.15,    3,   2, null, false, 0,    0),
+  ('band',     'auto',   90000, 1.15,   22.5, 3, null, false, 0,    0),
+  ('senior',   'auto', 1200000, 1.16,  162.5, 4, null, false, 0,    0),
+  ('choir',    'auto',15000000, 1.17, 1125,   5, null, false, 0,    0)
 on conflict (id) do update set
   kind = excluded.kind,
   base_cost = excluded.base_cost,
   growth = excluded.growth,
   power = excluded.power,
-  sort = excluded.sort;
+  sort = excluded.sort,
+  max_level = excluded.max_level,
+  linear_cost = excluded.linear_cost,
+  crit_chance_per_level = excluded.crit_chance_per_level,
+  crit_mult_per_level = excluded.crit_mult_per_level;
 
 insert into public.swords (team) values ('ku'), ('yu')
 on conflict (team) do nothing;
@@ -158,9 +170,34 @@ returns numeric language sql stable as $$
   where d.kind = 'auto';
 $$;
 
+-- max_level에 닿았으면 null(더 못 산다). linear_cost면 1배,2배,3배..로, 아니면 기존처럼
+-- 지수(growth^level)로 가격을 매긴다.
 create or replace function public.sword_upgrade_cost(p_id text, p_level numeric)
 returns numeric language sql stable as $$
-  select ceil(d.base_cost * (d.growth ^ p_level)) from public.upgrade_defs d where d.id = p_id;
+  select case
+    when d.max_level is not null and p_level >= d.max_level then null
+    when d.linear_cost then ceil(d.base_cost * (p_level + 1))
+    else ceil(d.base_cost * (d.growth ^ p_level))
+  end
+  from public.upgrade_defs d where d.id = p_id;
+$$;
+
+-- 팀의 크리티컬 확률 — "잠잠한 비명"/"최종오의" 레벨당 보너스를 기본 확률에 더한다.
+create or replace function public.sword_critical_chance(p_sword public.swords)
+returns numeric language sql stable as $$
+  select (select critical_chance from public.game_config where id = 1)
+       + coalesce(sum(d.crit_chance_per_level * coalesce((p_sword.tap_levels ->> d.id)::numeric, 0)), 0)
+  from public.upgrade_defs d
+  where d.kind = 'tap';
+$$;
+
+-- 팀의 크리티컬 배수 — 레벨당 보너스 비율만큼 기본 배수에 곱한다.
+create or replace function public.sword_critical_multiplier(p_sword public.swords)
+returns numeric language sql stable as $$
+  select (select critical_multiplier from public.game_config where id = 1)
+       * (1 + coalesce(sum(d.crit_mult_per_level * coalesce((p_sword.tap_levels ->> d.id)::numeric, 0)), 0))
+  from public.upgrade_defs d
+  where d.kind = 'tap';
 $$;
 
 -- ---------- 상태 전이 ----------
@@ -282,16 +319,18 @@ $$;
 create or replace function public.sword_tap(p_team text, p_client uuid, p_taps int, p_elapsed numeric)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  s        public.swords;
-  cfg      public.game_config;
-  granted  int;
-  bonus    numeric;
-  mult     numeric;
-  gain     numeric;
-  gauge    numeric;
-  until    timestamptz;
-  units    numeric;
-  i        int;
+  s           public.swords;
+  cfg         public.game_config;
+  granted     int;
+  bonus       numeric;
+  mult        numeric;
+  gain        numeric;
+  gauge       numeric;
+  until       timestamptz;
+  units       numeric;
+  i           int;
+  crit_chance numeric;
+  crit_mult   numeric;
 begin
   select * into cfg from public.game_config where id = 1;
 
@@ -302,13 +341,16 @@ begin
     return public.sword_row_json(s);
   end if;
 
-  -- 크리티컬(기본 5% 확률, 10배)을 터치 개수만큼 각각 따로 굴려서 합산한다. 클라이언트의
-  -- 낙관적 예측도 터치 1회 단위로 같은 확률을 굴리므로(lib/engine.ts의 rollCritical),
-  -- 정확히 같은 결과는 아니어도 평균적으로는 같은 기댓값으로 수렴한다.
+  -- 크리티컬(기본 확률·배수에 "잠잠한 비명"/"최종오의" 레벨당 보너스를 더한 값)을 터치
+  -- 개수만큼 각각 따로 굴려서 합산한다. 클라이언트의 낙관적 예측도 터치 1회 단위로 같은
+  -- 확률을 굴리므로(lib/engine.ts의 rollCritical), 정확히 같은 결과는 아니어도 평균적으로는
+  -- 같은 기댓값으로 수렴한다.
+  crit_chance := public.sword_critical_chance(s);
+  crit_mult := public.sword_critical_multiplier(s);
   units := 0;
   for i in 1..granted loop
-    if random() < cfg.critical_chance then
-      units := units + cfg.critical_multiplier;
+    if random() < crit_chance then
+      units := units + crit_mult;
     else
       units := units + 1;
     end if;
@@ -369,6 +411,12 @@ begin
   end if;
 
   cost := public.sword_upgrade_cost(p_id, lvl);
+
+  -- cost가 null이면 max_level에 닿아 더 못 사는 상태 — 바로 반환한다(null과 비교하면
+  -- 항상 false라 아래 insufficient 체크를 그냥 통과해버리므로 따로 걸러야 한다).
+  if cost is null then
+    return jsonb_build_object('ok', false, 'reason', 'max-level', 'sword', public.sword_row_json(s));
+  end if;
 
   if s.energy < cost then
     return jsonb_build_object('ok', false, 'reason', 'insufficient', 'sword', public.sword_row_json(s));

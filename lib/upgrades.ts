@@ -26,12 +26,14 @@ export const TAP_LABELS: Record<TeamId, UpgradeLabel[]> = {
     { id: "stick", name: "포기하지 않을 의지", icon: "🥁", iconImg: TAP_ICON_IMG.ku },
     { id: "glove", name: "진실을 꿰뚫을 지혜", icon: "🧤", iconImg: TAP_ICON_IMG.ku },
     { id: "beast", name: "전설로 거듭날 운명", icon: "🔥", iconImg: TAP_ICON_IMG.ku },
+    { id: "ultimate", name: "잠잠한 비명", icon: "⚡", iconImg: TAP_ICON_IMG.ku },
   ],
   yu: [
     { id: "wrist", name: "타격 : 푸른 궤도", icon: "✊", iconImg: TAP_ICON_IMG.yu },
     { id: "stick", name: "타격 : 진리의 코드", icon: "🥁", iconImg: TAP_ICON_IMG.yu },
     { id: "glove", name: "타격 : 임계점 돌파", icon: "🧤", iconImg: TAP_ICON_IMG.yu },
     { id: "beast", name: "타격 : 라그나로크", icon: "🔥", iconImg: TAP_ICON_IMG.yu },
+    { id: "ultimate", name: "타격 : 최종오의", icon: "⚡", iconImg: TAP_ICON_IMG.yu },
   ],
 };
 

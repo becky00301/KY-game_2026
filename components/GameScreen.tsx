@@ -24,13 +24,14 @@ import {
   FEVER_MAX,
   FEVER_MULTIPLIER,
   MAX_TAPS_PER_SECOND,
-  CRITICAL_MULTIPLIER,
   SWORD_STAGE_SCALE,
   SwordState,
   accrue,
   autoPerSecond,
   buyUpgrade as engineBuy,
   createSword,
+  criticalChanceOf,
+  criticalMultiplierOf,
   isFeverActive,
   levelOf,
   rateBonus,
@@ -539,8 +540,8 @@ export default function GameScreen({
       // 낙관적 반영 — 서버가 실제로 인정하는 값과 같은 공식을 쓴다.
       const current = swordStateRef.current;
       const feverNow = isFeverActive(current, now);
-      const critical = rollCritical();
-      const units = critical ? CRITICAL_MULTIPLIER : 1;
+      const critical = rollCritical(criticalChanceOf(current));
+      const units = critical ? criticalMultiplierOf(current) : 1;
       const gain =
         tapPower(current) * units * rateBonus(tapWindow.current.length, 1) * (feverNow ? FEVER_MULTIPLIER : 1);
       pendingGain.current += gain;
