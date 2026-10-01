@@ -1156,13 +1156,14 @@ button {
   color: rgba(255, 255, 255, 0.45);
 }
 
-/* 운영자 전체 공지 — 여러 문장일 수 있어 줄바꿈을 허용하고, 다른 토스트와 안 겹치게 위쪽에 띄운다. */
+/* 운영자 전체 공지 — 여러 문장일 수 있어 줄바꿈을 허용하고, 다른 토스트와 안 겹치게 위쪽에 띄운다.
+   함성 배너(z-index 95)보다도 위, 이 파일에서 가장 높은 z-index — 운영자 공지는 항상 최상단. */
 .announcement-toast {
   position: fixed;
   left: 50%;
   top: calc(16px + env(safe-area-inset-top));
   transform: translateX(-50%);
-  z-index: 90;
+  z-index: 100;
   width: min(92vw, 420px);
   padding: 14px 18px;
   border-radius: 16px;
