@@ -195,7 +195,7 @@ export default function AdminPage() {
 
       <section className="admin-card">
         <h2>전체 공지</h2>
-        <p className="admin-note">지금 접속 중인 모든 사람에게 토스트로 2초간 뜹니다. 새로고침하고 들어온 사람에게는 다시 뜨지 않습니다.</p>
+        <p className="admin-note">지금 접속 중인 모든 사람에게 토스트로 5초간 뜹니다. 새로고침하고 들어온 사람에게는 다시 뜨지 않습니다.</p>
         <div className="admin-row">
           <input
             className="admin-input"

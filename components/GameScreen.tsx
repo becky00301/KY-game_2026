@@ -360,7 +360,7 @@ export default function GameScreen({
   useEffect(() => subscribeAnnouncement((text) => setAnnouncement(text)), []);
   useEffect(() => {
     if (!announcement) return;
-    const timer = window.setTimeout(() => setAnnouncement(""), 2000);
+    const timer = window.setTimeout(() => setAnnouncement(""), 5000);
     return () => window.clearTimeout(timer);
   }, [announcement]);
 
