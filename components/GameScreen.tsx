@@ -316,6 +316,7 @@ export default function GameScreen({
   const rivalTheme = TEAMS[rivalTeam];
   const rivalProgress = rivalSword ? stageProgress(rivalSword.lifetime) : null;
   const rivalStars = rivalSword ? Math.min(starRank(rivalSword.lifetime), 5) : 0;
+  const rivalStage = rivalSword ? stageOf(rivalSword.lifetime) : 0;
 
   const enterBoss = useCallback(() => {
     const current = swordStateRef.current;
@@ -773,6 +774,7 @@ export default function GameScreen({
             />
           </div>
           <span className="rival-gauge-pct">{Math.floor(rivalProgress.ratio * 100)}%</span>
+          <span className="rival-gauge-stage">{rivalStage + 1}단계</span>
         </div>
       )}
 
