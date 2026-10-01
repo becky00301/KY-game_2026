@@ -2091,7 +2091,13 @@ button {
 }
 .boss-ranking-input::placeholder { color: #7fada5; }
 .boss-ranking-error { margin: -2px 0 10px; color: #ff9c9c; font-size: 13px; }
-.boss-ranking-submit { width: 100%; }
+/* 버튼 크기 규칙(.boss-map-actions button)은 지도 화면 전용이라 이 시트 안에서는 적용되지
+   않는다. 그래서 높이 18px짜리 납작한 줄로 보였다 — 여기서 따로 크기를 준다. */
+.boss-ranking-submit {
+  width: 100%; min-height: 48px; padding: 12px 18px;
+  border-radius: 10px; font-size: 16px;
+  margin-bottom: calc(4px + env(safe-area-inset-bottom));
+}
 
 /* 랭킹 순위표 시트 */
 .boss-ranking-loading, .boss-ranking-empty, .boss-ranking-mine-empty {
