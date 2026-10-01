@@ -162,23 +162,32 @@ export function BossMap({
       <div className="boss-map-content">
         <h1 className="boss-map-heading"><img className="boss-map-title" src="/images/boss/boss-map-title.webp" alt="타도 : 검귀 서휘령" /></h1>
         <p className="boss-map-subtitle">몰락한 검귀, 서휘령의 검이 요동치고 있다.<br />그를 제압할 방법이 있을 것 같은데..</p>
-        {onGuide && <button className="boss-map-guide-btn" onClick={onGuide}>누군가의 전언</button>}
         <div className="boss-map-sword-wrap"><img className="boss-map-sword" src="/images/boss/boss-map-sword.webp" alt="서휘령의 검" /></div>
       </div>
       <div className="boss-map-actions boss-map-actions--grid">
-        <div className="boss-map-actions-row boss-map-actions-row--small">
-          <button className="boss-map-ranking-btn" onClick={onOpenRanking}>랭킹</button>
+        {/* 보조 기능은 동그란 버튼으로 위에, 실제로 들어가는 두 버튼은 아래에 나란히 */}
+        <div className="boss-map-circles">
+          <button className="boss-map-circle-btn" onClick={onOpenRanking} aria-label="순위표 보기">
+            랭킹
+          </button>
+          {onGuide && (
+            <button className="boss-map-circle-btn" onClick={onGuide} aria-label="전투 방법 보기">
+              누군가의
+              <br />
+              전언
+            </button>
+          )}
+        </div>
+        <div className="boss-map-actions-row">
           <button
             className={`boss-map-ranking-enter-btn ${rankingLocked ? "locked" : ""}`}
             onClick={onEnterRanking}
           >
             랭킹모드 도전
           </button>
-        </div>
-        <div className="boss-map-actions-row">
-          <button className="boss-map-exit-btn-bottom" onClick={onExit}>나가기</button>
           <button className="boss-map-enter-btn" onClick={onEnter}>입장하기</button>
         </div>
+        <button className="boss-map-exit-btn-bottom" onClick={onExit}>나가기</button>
       </div>
     </section>
   );
