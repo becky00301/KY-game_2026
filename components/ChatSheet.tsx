@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RankingChatMessage, sendRankingChatMessage } from "@/lib/backend";
-import { CHAT_TEXT_MAX, chatAuraClass } from "@/lib/chat";
+import { CHAT_RATE_LIMIT_MAX, CHAT_RATE_LIMIT_WINDOW_MS, CHAT_TEXT_MAX, chatAuraClass } from "@/lib/chat";
 import { TeamId } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
 
@@ -34,6 +34,8 @@ export function ChatSheet({
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  /** 도배 방지 — 이 기기가 최근 보낸 시각들(서버 ranking_chat_send의 5초/3회 제한과 동일한 값). */
+  const sendTimestamps = useRef<number[]>([]);
 
   // 새 메시지가 오면(또는 처음 열릴 때) 맨 아래로 — 일반 메신저와 같은 동작.
   useEffect(() => {
@@ -53,6 +55,12 @@ export function ChatSheet({
       setError("비속어·성적인 표현은 쓸 수 없습니다.");
       return;
     }
+    const now = Date.now();
+    sendTimestamps.current = sendTimestamps.current.filter((t) => now - t < CHAT_RATE_LIMIT_WINDOW_MS);
+    if (sendTimestamps.current.length >= CHAT_RATE_LIMIT_MAX) {
+      setError("너무 빨리 보내고 있어요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
     setSending(true);
     setError("");
     try {
@@ -61,10 +69,13 @@ export function ChatSheet({
         setError(
           result.reason === "not_registered"
             ? "강화에 닉네임을 등록해야 채팅을 보낼 수 있습니다."
-            : "지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요."
+            : result.reason === "rate_limited"
+              ? "너무 빨리 보내고 있어요. 잠시 후 다시 시도해주세요."
+              : "지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요."
         );
         return;
       }
+      sendTimestamps.current.push(now);
       setDraft("");
     } catch {
       setError("지금은 보낼 수 없습니다. 잠시 후 다시 시도해주세요.");

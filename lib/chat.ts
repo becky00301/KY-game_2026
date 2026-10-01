@@ -9,6 +9,14 @@ export const CHAT_TEXT_MAX = 80;
 /** 평소(접은) 상태에서 보스전 입장 버튼 옆에 보여줄 한 줄 티커가 유지하는 최근 메시지 수. */
 export const CHAT_HISTORY_LIMIT = 50;
 
+/**
+ * 도배 방지 — 같은 기기가 이 시간(ms) 안에 이 횟수만큼 이미 보냈으면 다음 전송을 막는다.
+ * 서버(ranking_chat_send RPC)가 최종적으로 강제하는 값과 맞춰둔 클라이언트 쪽 사본 —
+ * 여기서 먼저 막아 왕복 없이 바로 안내하고, 실제 차단은 서버가 한다.
+ */
+export const CHAT_RATE_LIMIT_WINDOW_MS = 5_000;
+export const CHAT_RATE_LIMIT_MAX = 3;
+
 /** 강화 말풍선 오오라 구간 — 이 단계부터 번쩍이기 시작한다(1단계: 노란빛). */
 export const CHAT_AURA_FROM_LEVEL = 20;
 

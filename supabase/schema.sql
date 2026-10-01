@@ -1076,7 +1076,9 @@ drop function if exists public.boss_ranking_my_nickname(uuid);
 
 -- 채팅 전송 — 이 기기가 p_team에서 강화 닉네임을 등록해 두어야만 보낼 수 있다(아니면
 -- ok:false, reason:'not_registered'). 닉네임·강화 단계 모두 요청으로 받지 않고
--- enhance_players에서 직접 찾아 붙인다.
+-- enhance_players에서 직접 찾아 붙인다. 도배 방지로 같은 기기가 최근 5초 안에 이미
+-- 3번 보냈으면 4번째는 ok:false, reason:'rate_limited'로 막는다. 전송에 성공하면
+-- 전체 기록을 최신 50개만 남기고 오래된 것부터 지운다(테이블이 끝없이 커지지 않게).
 drop function if exists public.ranking_chat_send(uuid, text, text, int);
 create or replace function public.ranking_chat_send(p_device uuid, p_team text, p_text text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -1090,6 +1092,12 @@ begin
   if not found then
     return jsonb_build_object('ok', false, 'reason', 'not_registered');
   end if;
+  if (
+    select count(*) from public.ranking_chat_messages
+    where device_id = p_device and created_at > now() - interval '5 seconds'
+  ) >= 3 then
+    return jsonb_build_object('ok', false, 'reason', 'rate_limited');
+  end if;
   if char_length(v_text) < 1 or char_length(v_text) > 120 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
@@ -1097,6 +1105,11 @@ begin
   insert into public.ranking_chat_messages (device_id, nickname, text, enhance_team, enhance_level)
   values (p_device, v_player.nickname, v_text, v_team, v_player.level)
   returning * into v_row;
+
+  delete from public.ranking_chat_messages
+  where id in (
+    select id from public.ranking_chat_messages order by created_at desc offset 50
+  );
 
   return jsonb_build_object(
     'ok', true,

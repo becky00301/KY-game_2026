@@ -456,7 +456,8 @@ export interface RankingChatSendResult {
  * 랭킹 채팅 메시지 전송 — "장비 강화"에 닉네임을 등록한 기기만 보낼 수 있다. 닉네임과
  * 강화 단계는 클라이언트가 보내지 않는다 — 서버가 device+team으로 enhance_players에서
  * 직접 찾아 붙인다(다른 사람 이름/단계로 보내는 걸 원천 차단). 그 팀에 강화 닉네임이
- * 없으면 서버가 reason:'not_registered'로 거절한다.
+ * 없으면 서버가 reason:'not_registered'로, 5초 안에 3번 넘게 보냈으면
+ * reason:'rate_limited'로 거절한다.
  */
 export async function sendRankingChatMessage(
   device: string,
