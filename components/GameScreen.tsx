@@ -26,6 +26,7 @@ import {
   MAX_TAPS_PER_SECOND,
   SWORD_STAGE_SCALE,
   SwordState,
+  TAP_CURRENCY_RATIO,
   accrue,
   autoPerSecond,
   buyUpgrade as engineBuy,
@@ -220,7 +221,7 @@ export default function GameScreen({
       extraGain > 0 || extraTaps > 0
         ? {
             ...base,
-            energy: base.energy + extraGain,
+            energy: base.energy + extraGain * TAP_CURRENCY_RATIO,
             lifetime: base.lifetime + extraGain,
             taps: base.taps + extraTaps,
           }
@@ -547,7 +548,7 @@ export default function GameScreen({
       pendingGain.current += gain;
       setSword((prev) => ({
         ...prev,
-        energy: prev.energy + gain,
+        energy: prev.energy + gain * TAP_CURRENCY_RATIO,
         lifetime: prev.lifetime + gain,
         taps: prev.taps + 1,
         feverGauge: prev.feverUntil > now ? prev.feverGauge : Math.min(prev.feverGauge + 1, FEVER_MAX),

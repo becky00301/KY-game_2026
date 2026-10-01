@@ -64,6 +64,13 @@ export const FEVER_MULTIPLIER = 3;
 export const RATE_BONUS_PER_TAP = 0.02;
 export const RATE_BONUS_CAP = 20;
 
+/**
+ * 터치로 얻는 "보유 재화"(energy)는 점수(lifetime)의 이 비율만큼만 쌓인다. 점수는 단계
+ * 진행 기준이라 그대로 두고, 강화에 쓰는 재화만 터치당 절반으로 줄인 것 — 자동 응원(accrue)
+ * 수입에는 적용하지 않는다.
+ */
+export const TAP_CURRENCY_RATIO = 0.5;
+
 /** 크리티컬 — 터치마다 이 확률로 발동하며, 발동하면 그 터치의 획득량이 이 배수가 된다. */
 export const CRITICAL_CHANCE = 0.1;
 export const CRITICAL_MULTIPLIER = 10;
@@ -312,7 +319,7 @@ export function applyTaps(
 
   return {
     ...next,
-    energy: next.energy + gain,
+    energy: next.energy + gain * TAP_CURRENCY_RATIO,
     lifetime: next.lifetime + gain,
     taps: next.taps + taps,
     feverGauge,

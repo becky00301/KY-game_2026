@@ -31,6 +31,9 @@ create table if not exists public.game_config (
 -- alter table ... add column if not exists로 따로 얹는다.
 alter table public.game_config add column if not exists critical_chance     numeric not null default 0.1;
 alter table public.game_config add column if not exists critical_multiplier numeric not null default 10;
+-- 터치로 "보유 재화"(energy)에 쌓이는 몫 — 점수(lifetime)는 그대로 두고 재화만 줄일 때 쓴다.
+-- 자동 응원(accrue) 수입에는 적용하지 않는다.
+alter table public.game_config add column if not exists tap_currency_ratio   numeric not null default 1;
 
 create table if not exists public.upgrade_defs (
   id        text primary key,
@@ -103,8 +106,8 @@ create table if not exists public.tap_blocklist (
 
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
-values (1, array[0, 15000, 400000, 56000000, 750000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max, tap_currency_ratio)
+values (1, array[0, 15000, 400000, 56000000, 750000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000, 0.5)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
@@ -112,7 +115,8 @@ on conflict (id) do update set
   max_taps_per_second = excluded.max_taps_per_second,
   critical_chance = excluded.critical_chance,
   critical_multiplier = excluded.critical_multiplier,
-  fever_max = excluded.fever_max;
+  fever_max = excluded.fever_max,
+  tap_currency_ratio = excluded.tap_currency_ratio;
 
 insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort, max_level, linear_cost, crit_chance_per_level, crit_mult_per_level) values
   ('wrist',    'tap',      105, 1.14,    0.5, 1, null, false, 0,    0),
@@ -373,8 +377,9 @@ begin
     end if;
   end if;
 
+  -- 점수(lifetime)는 그대로, 재화(energy)만 tap_currency_ratio만큼 줄여서 쌓는다.
   update public.swords
-     set energy = energy + gain,
+     set energy = energy + gain * cfg.tap_currency_ratio,
          lifetime = lifetime + gain,
          taps = taps + granted,
          fever_gauge = gauge,
