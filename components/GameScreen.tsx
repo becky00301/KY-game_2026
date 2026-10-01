@@ -928,6 +928,12 @@ export default function GameScreen({
             <span className="shout-btn-icon">📣</span>
             <span>함성</span>
           </button>
+          {/* 기기별·개인별 재화 — 아직 쓸 곳(강화)은 준비 중이라 숫자만 보여준다. */}
+          <button className="personal-btn" onClick={() => setNotice("준비중입니다.")} disabled={!ready}>
+            <span className="personal-btn-label">강화</span>
+            <span className="personal-chip-value">{formatNumber(contrib)}</span>
+            <span className="personal-chip-name">{theme.personalCurrency}</span>
+          </button>
           <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
             <span className="upgrade-btn-label">{theme.copy.upgradeBtnLabel ?? "함께 강화하기"}</span>
             {/* 재화 = 강화(스킬)를 사면 줄어드는 값. 점수와 헷갈리지 않게 구매 버튼 옆에 따로 둔다. */}

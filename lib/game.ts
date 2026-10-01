@@ -36,7 +36,9 @@ export interface TeamTheme {
   name: string;
   short: string;
   slogan: string;
-  spirit: string; // 재화 이름
+  spirit: string; // 재화 이름 — 팀 공동 재화(강화에 쓰임)
+  /** 기기별·개인별로만 쌓이는 재화 이름 — 공동 재화(spirit)와 다른 통. */
+  personalCurrency: string;
   emblem: string;
   /** 칼 5단계 이름 */
   stages: string[];
@@ -60,6 +62,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     short: "노아",
     slogan: "타오르는 노을과 진리의 여정",
     spirit: "염원의 힘",
+    personalCurrency: "염원의 빛",
     emblem: "/images/emblems/emblem-ku.webp",
     stages: [
       "성화가 시작될 검",
@@ -104,6 +107,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
     short: "연",
     slogan: "비상하는 진리와 자유의 여정",
     spirit: "데이터베이스",
+    personalCurrency: "데이터로그",
     emblem: "/images/emblems/emblem-yu.webp",
     stages: [
       "프로토타입 : 청우",

@@ -835,6 +835,47 @@ button {
   opacity: 0.5;
 }
 
+/* 기기별·개인별 재화 버튼 — 아직은 숫자만 보여주고 누르면 "준비중"으로 막혀 있다. */
+.personal-btn {
+  flex: none;
+  width: 84px;
+  height: 54px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.personal-btn-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.personal-chip-value {
+  font-size: 15px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.personal-chip-name {
+  font-size: 9.5px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.personal-btn:active {
+  transform: scale(0.97);
+}
+
+.personal-btn:disabled {
+  opacity: 0.5;
+}
+
 /* 함성 입력 시트 */
 .shout-input {
   width: 100%;
