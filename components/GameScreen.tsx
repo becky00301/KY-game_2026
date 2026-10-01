@@ -344,11 +344,11 @@ export default function GameScreen({
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  // 운영자가 /admin에서 보낸 전체 공지 — 길게 보여주고 사라진다.
+  // 운영자가 /admin에서 보낸 전체 공지.
   useEffect(() => subscribeAnnouncement((text) => setAnnouncement(text)), []);
   useEffect(() => {
     if (!announcement) return;
-    const timer = window.setTimeout(() => setAnnouncement(""), 8000);
+    const timer = window.setTimeout(() => setAnnouncement(""), 2000);
     return () => window.clearTimeout(timer);
   }, [announcement]);
 
