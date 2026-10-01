@@ -900,6 +900,8 @@ $$;
 
 -- 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새로 보낸
 -- 닉네임은 무시하고 기존 기록을 그대로 돌려준다(중복 등록 방지 겸 재입장 처리).
+-- 한 기기는 노아·연 둘 중 한 진영에서만 강화할 수 있다 — 반대 진영에 이미 등록돼
+-- 있으면(team <> v_team) ok:false, reason:'other_team_registered'로 막는다.
 -- 사전 exists() 체크와 별개로, 두 기기가 같은 닉네임을 동시에 등록하는 경합까지
 -- 막기 위해 insert 자체도 "on conflict do nothing"으로 유니크 인덱스에 기대어
 -- 한 번 더 걸러낸다(경합에서 진 쪽은 예외 대신 ok:false,'taken'을 받는다).
@@ -915,6 +917,10 @@ begin
   select * into v_existing from public.enhance_players where device_id = p_device and team = v_team;
   if found then
     return jsonb_build_object('ok', true, 'nickname', v_existing.nickname, 'level', v_existing.level);
+  end if;
+
+  if exists (select 1 from public.enhance_players where device_id = p_device and team <> v_team) then
+    return jsonb_build_object('ok', false, 'reason', 'other_team_registered');
   end if;
 
   if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then

@@ -30,7 +30,8 @@ export interface EnhanceMe {
 
 export interface RegisterResult {
   ok: boolean;
-  reason?: "invalid" | "taken" | string;
+  /** "other_team_registered" — 이 기기가 반대 진영에 이미 강화 닉네임을 등록해 둔 경우. */
+  reason?: "invalid" | "taken" | "other_team_registered" | string;
   nickname?: string;
   level?: number;
 }

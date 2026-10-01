@@ -175,7 +175,11 @@ export default function Enhance({
       const registered = await registerEnhance(trimmed, team);
       if (!registered.ok) {
         setNicknameError(
-          registered.reason === "taken" ? "이미 누군가가 사용중인 닉네임입니다." : "닉네임은 1~14자까지 입력 가능합니다."
+          registered.reason === "taken"
+            ? "이미 누군가가 사용중인 닉네임입니다."
+            : registered.reason === "other_team_registered"
+              ? "이미 반대 진영에서 강화 닉네임을 등록했습니다. 한 기기는 한 진영에서만 강화할 수 있습니다."
+              : "닉네임은 1~14자까지 입력 가능합니다."
         );
         return;
       }

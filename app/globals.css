@@ -3130,8 +3130,15 @@ button {
 }
 
 /* 전체 채팅창 — .sheet(바텀시트) 패턴 재사용, 메시지 목록만큼 세로로 꽉 채운다. */
+/* 배경만 80% 투명하게(말풍선·텍스트는 그대로) — .sheet 기본 배경색 레시피에 알파만 입힌다. */
 .chat-sheet {
   height: 78dvh;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, color-mix(in srgb, var(--primary) 26%, #000) 20%, transparent) 0%,
+    color-mix(in srgb, #000 20%, transparent) 62%
+  );
+  backdrop-filter: blur(14px);
 }
 
 .chat-sheet-note {

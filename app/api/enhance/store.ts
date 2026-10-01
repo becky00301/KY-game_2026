@@ -49,18 +49,33 @@ export function getByDevice(deviceId: string, team: string): EnhanceRow | null {
   return players.get(key(deviceId, team)) ?? null;
 }
 
+/** 이 기기가 (다른 팀이든 무엇이든) 이미 강화 자리를 하나라도 갖고 있는지 — 반대 진영 등록 차단용. */
+function isRegisteredElsewhere(deviceId: string, team: string): boolean {
+  for (const row of players.values()) {
+    if (row.deviceId === deviceId && row.team !== team) return true;
+  }
+  return false;
+}
+
 export interface RegisterOutcome {
   ok: boolean;
-  reason?: "invalid" | "taken";
+  reason?: "invalid" | "taken" | "other_team_registered";
   nickname?: string;
   level?: number;
 }
 
-/** 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
+/**
+ * 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다.
+ * 한 기기는 노아·연 둘 중 한 진영에서만 강화할 수 있다 — 반대 진영에 이미 등록돼
+ * 있으면 'other_team_registered'로 막는다.
+ */
 export function register(nickname: string, deviceId: string, team: string): RegisterOutcome {
   const existing = players.get(key(deviceId, team));
   if (existing) {
     return { ok: true, nickname: existing.nickname, level: existing.level };
+  }
+  if (isRegisteredElsewhere(deviceId, team)) {
+    return { ok: false, reason: "other_team_registered" };
   }
   const trimmed = nickname.trim();
   if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
