@@ -2122,6 +2122,11 @@ button {
 .boss-ranking-row--top1 .boss-ranking-name::after { content: " 👑"; }
 
 .boss-ranking-name { flex: 1; font-size: 14px; color: #e5fff8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 아직 주인이 없는 자리 */
+.boss-ranking-row--vacant { background: #ffffff05; border: 1px dashed #ffffff14; }
+.boss-ranking-row--vacant .boss-ranking-rank { color: #ffffff3d; font-weight: 800; }
+.boss-ranking-row--vacant .boss-ranking-name { color: #ffffff30; font-size: 13px; }
+
 .boss-ranking-mine { border-top: 1px solid #ffffff1a; padding-top: 10px; }
 .boss-ranking-mine-label { margin: 0 0 6px; font-size: 12px; color: var(--ink-dim); }
 .boss-ranking-row--mine { border: 1px solid #67b0a766; background: #0e2b27; }

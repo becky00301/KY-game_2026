@@ -14,6 +14,9 @@ import {
 import { playCardRevealSound } from "@/lib/sfx";
 import VolumeButton from "./VolumeButton";
 
+/** 순위표에 항상 보여줄 자리 수 — 아직 주인이 없는 자리는 "비어 있음"으로 채운다. */
+const RANKING_SLOTS = 10;
+
 type IntroPhase = "dark" | "lines" | "flash" | "image";
 
 export function BossIntro({ onDone }: { onDone: () => void }) {
@@ -295,22 +298,31 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
           <p className="sheet-energy-label">타도 : 검귀 서휘령 TOP 10</p>
           <button className="icon-btn" onClick={onClose} aria-label="닫기" autoFocus>✕</button>
         </header>
-        <p className="sheet-note">서휘령을 격파한 전설의 검사들이다.</p>
+        <p className="sheet-note">
+          {top && top.length === 0 ? "아직 서휘령을 타도한 자가 없다. 첫 자리의 주인이 되어보자." : "서휘령을 격파한 전설의 검사들이다."}
+        </p>
 
         {loadFailed && <p className="boss-ranking-error">순위를 불러오지 못했어요.</p>}
         {!loadFailed && !top && <p className="boss-ranking-loading">불러오는 중..</p>}
         {top && (
           <ol className="boss-ranking-list">
-            {top.length === 0 && <li className="boss-ranking-empty">아직 서휘령을 타도한 자가 없는 것 같다.</li>}
-            {top.map((entry) => (
-              <li
-                key={entry.rank}
-                className={`boss-ranking-row ${entry.rank <= 3 ? `boss-ranking-row--top boss-ranking-row--top${entry.rank}` : ""}`}
-              >
-                <span className="boss-ranking-rank">{entry.rank}</span>
-                <span className="boss-ranking-name">{entry.nickname}</span>
-              </li>
-            ))}
+            {/* 아직 아무도 못 깬 자리도 빈 줄로 보여준다 — 몇 자리가 남았는지 한눈에 보이도록 */}
+            {Array.from({ length: RANKING_SLOTS }, (_, i) => top[i] ?? null).map((entry, i) =>
+              entry ? (
+                <li
+                  key={entry.rank}
+                  className={`boss-ranking-row ${entry.rank <= 3 ? `boss-ranking-row--top boss-ranking-row--top${entry.rank}` : ""}`}
+                >
+                  <span className="boss-ranking-rank">{entry.rank}</span>
+                  <span className="boss-ranking-name">{entry.nickname}</span>
+                </li>
+              ) : (
+                <li key={`vacant-${i}`} className="boss-ranking-row boss-ranking-row--vacant">
+                  <span className="boss-ranking-rank">{i + 1}</span>
+                  <span className="boss-ranking-name">비어 있음</span>
+                </li>
+              )
+            )}
           </ol>
         )}
 
