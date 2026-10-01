@@ -403,6 +403,67 @@ button {
   transition: width 0.25s ease;
 }
 
+/* 상대 팀 진행 상태 — 화면 왼쪽 가장자리에 세로 게이지로 띄운다. 내 테마 색(--primary 등)과
+   섞이면 안 되니 --rival-* 변수를 엘리먼트에 직접 꽂아서 쓴다. */
+.rival-gauge {
+  position: fixed;
+  left: calc(8px + env(safe-area-inset-left));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+}
+
+.rival-gauge-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--rival-color);
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.rival-gauge-stars {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--rival-accent);
+}
+
+.rival-gauge-track {
+  position: relative;
+  width: 10px;
+  height: 140px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.rival-gauge-fill {
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(0deg, var(--rival-color), var(--rival-glow), var(--rival-accent));
+  box-shadow: 0 0 10px var(--rival-glow);
+  transition: height 0.3s ease;
+}
+
+.rival-gauge-pct {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
 .stage-hint {
   margin-top: 5px;
   font-size: 11.5px;

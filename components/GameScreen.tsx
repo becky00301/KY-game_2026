@@ -138,6 +138,7 @@ export default function GameScreen({
   const [hitting, setHitting] = useState(false);
   const [contrib, setContrib] = useState(0);
   const [online, setOnline] = useState(0);
+  const [rivalSword, setRivalSword] = useState<SwordState | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [pipWin, setPipWin] = useState<Window | null>(null);
   const [pipFloaters, setPipFloaters] = useState<PipFloater[]>([]);
@@ -299,6 +300,7 @@ export default function GameScreen({
   }, [team, acceptServer, reproject]);
 
   const theme = TEAMS[team];
+  const rivalTeam: TeamId = team === "ku" ? "yu" : "ku";
   const stage = stageOf(sword.lifetime);
   const bgmGroup = gameplayGroupOf(stage);
   const progress = stageProgress(sword.lifetime);
@@ -310,6 +312,10 @@ export default function GameScreen({
   const isMaxStage = stage >= maxStage;
   // 보스전은 최종 단계 + 별 1개부터. 버튼은 늘 보이되, 잠겨 있으면 흐리게 보여준다.
   const bossUnlocked = isMaxStage && stars >= 1;
+
+  const rivalTheme = TEAMS[rivalTeam];
+  const rivalProgress = rivalSword ? stageProgress(rivalSword.lifetime) : null;
+  const rivalStars = rivalSword ? Math.min(starRank(rivalSword.lifetime), 5) : 0;
 
   const enterBoss = useCallback(() => {
     const current = swordStateRef.current;
@@ -460,6 +466,20 @@ export default function GameScreen({
     const unsubscribe = subscribePresence(team, setOnline);
     return unsubscribe;
   }, [team]);
+
+  // 상대 팀 칼 진행 상태 — 읽기만 하면 되므로 내 칼처럼 낙관적 반영 없이 그대로 받아본다.
+  useEffect(() => {
+    let alive = true;
+    setRivalSword(null);
+    fetchSword(rivalTeam)
+      .then((state) => alive && setRivalSword(state))
+      .catch(() => {});
+    const unsubscribe = subscribeSword(rivalTeam, (state) => alive && setRivalSword(state));
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [rivalTeam]);
 
   // 밀린 터치를 서버로 보낸다
   useEffect(() => {
@@ -729,6 +749,32 @@ export default function GameScreen({
         <span />
         <span />
       </div>
+
+      {rivalProgress && (
+        <div
+          className="rival-gauge"
+          style={
+            {
+              "--rival-color": rivalTheme.colors.primary,
+              "--rival-glow": rivalTheme.colors.glow,
+              "--rival-accent": rivalTheme.colors.accent,
+            } as React.CSSProperties
+          }
+          aria-label={`${rivalTheme.short} 진행 상태 ${Math.floor(rivalProgress.ratio * 100)}%`}
+        >
+          <span className="rival-gauge-label">
+            {rivalTheme.short}
+            {rivalStars > 0 && <em className="rival-gauge-stars">{"★".repeat(rivalStars)}</em>}
+          </span>
+          <div className="rival-gauge-track">
+            <div
+              className="rival-gauge-fill"
+              style={{ height: `${Math.min(rivalProgress.ratio * 100, 100)}%` }}
+            />
+          </div>
+          <span className="rival-gauge-pct">{Math.floor(rivalProgress.ratio * 100)}%</span>
+        </div>
+      )}
 
       <header className="hud">
         <div className="hud-row">
