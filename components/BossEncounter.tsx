@@ -303,7 +303,10 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
           <ol className="boss-ranking-list">
             {top.length === 0 && <li className="boss-ranking-empty">아직 서휘령을 타도한 자가 없는 것 같다.</li>}
             {top.map((entry) => (
-              <li key={entry.rank} className="boss-ranking-row">
+              <li
+                key={entry.rank}
+                className={`boss-ranking-row ${entry.rank <= 3 ? `boss-ranking-row--top boss-ranking-row--top${entry.rank}` : ""}`}
+              >
                 <span className="boss-ranking-rank">{entry.rank}</span>
                 <span className="boss-ranking-name">{entry.nickname}</span>
               </li>
@@ -314,7 +317,9 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
         <div className="boss-ranking-mine">
           <p className="boss-ranking-mine-label">내 순위</p>
           {mine ? (
-            <div className="boss-ranking-row boss-ranking-row--mine">
+            <div
+              className={`boss-ranking-row boss-ranking-row--mine ${mine.rank <= 3 ? `boss-ranking-row--top boss-ranking-row--top${mine.rank}` : ""}`}
+            >
               <span className="boss-ranking-rank">{mine.rank}</span>
               <span className="boss-ranking-name">{mine.nickname}</span>
             </div>

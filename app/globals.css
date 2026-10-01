@@ -2111,6 +2111,16 @@ button {
 .boss-ranking-rank {
   flex: 0 0 26px; text-align: center; font-weight: 900; font-size: 14px; color: var(--accent);
 }
+/* 1~3등은 금·은·동으로 구분 — 숫자만으로는 상위권이 눈에 안 띄었다 */
+.boss-ranking-row--top { border: 1px solid var(--medal); background: linear-gradient(90deg, color-mix(in srgb, var(--medal) 20%, transparent), #ffffff0a 60%); }
+.boss-ranking-row--top .boss-ranking-rank { color: var(--medal); font-size: 15px; text-shadow: 0 0 10px color-mix(in srgb, var(--medal) 60%, transparent); }
+.boss-ranking-row--top .boss-ranking-name { font-weight: 800; }
+.boss-ranking-row--top1 { --medal: #ffd450; }
+.boss-ranking-row--top2 { --medal: #d6e2e8; }
+.boss-ranking-row--top3 { --medal: #e0a267; }
+/* 1등만 왕관 */
+.boss-ranking-row--top1 .boss-ranking-name::after { content: " 👑"; }
+
 .boss-ranking-name { flex: 1; font-size: 14px; color: #e5fff8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .boss-ranking-mine { border-top: 1px solid #ffffff1a; padding-top: 10px; }
 .boss-ranking-mine-label { margin: 0 0 6px; font-size: 12px; color: var(--ink-dim); }
