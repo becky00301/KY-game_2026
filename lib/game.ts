@@ -57,7 +57,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
   ku: {
     id: "ku",
     name: "진홍과 여명의 검법",
-    short: "고대",
+    short: "노아",
     slogan: "타오르는 노을과 진리의 여정",
     spirit: "염원의 힘",
     emblem: "/images/emblems/emblem-ku.webp",
@@ -101,7 +101,7 @@ export const TEAMS: Record<TeamId, TeamTheme> = {
   yu: {
     id: "yu",
     name: "천청과 비상의 검법",
-    short: "연대",
+    short: "연",
     slogan: "비상하는 진리와 자유의 여정",
     spirit: "데이터베이스",
     emblem: "/images/emblems/emblem-yu.webp",
