@@ -1041,3 +1041,108 @@ grant execute on function public.enhance_register(text, uuid, text) to anon, aut
 grant execute on function public.enhance_report(uuid, text, int)    to anon, authenticated;
 grant execute on function public.enhance_top(int, text)             to anon, authenticated;
 grant execute on function public.enhance_mine(text, text)           to anon, authenticated;
+
+-- ---------- 랭킹 채팅 (보스 랭킹 등록자 전용) ----------
+--
+-- 서휘령 보스전 랭킹모드(boss_rankings)에 닉네임을 등록한 사람들끼리만 보낼 수 있는
+-- 전체 채팅 — 노아·연 구분 없이 모두가 같은 채팅방을 본다. 강화 단계(enhance_level)는
+-- "보내는 순간 그 기기가 보고 있던 팀에서의 강화 진행도"를 그대로 신뢰해서 같이 저장한다
+-- (다른 강화 수치들과 동일한 클라이언트 신뢰 모델 — 채팅 말풍선 오오라 연출에만 쓰이는
+-- 장식 정보라 서버에서 따로 검증하지 않는다).
+
+create table if not exists public.ranking_chat_messages (
+  id            bigint generated always as identity primary key,
+  device_id     uuid        not null,
+  nickname      text        not null,
+  text          text        not null check (char_length(trim(text)) between 1 and 120),
+  enhance_team  text        not null default 'ku' check (enhance_team in ('ku', 'yu')),
+  enhance_level int         not null default 0 check (enhance_level between 0 and 30),
+  created_at    timestamptz not null default now()
+);
+
+create index if not exists ranking_chat_messages_created_at_idx
+  on public.ranking_chat_messages (created_at desc);
+
+-- 이 기기가 보스 랭킹에 등록한 닉네임(없으면 null) — 채팅을 보낼 수 있는지, 내가 보낸
+-- 메시지인지(닉네임 비교) 판단하는 데 쓰인다.
+create or replace function public.boss_ranking_my_nickname(p_device uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select nickname from public.boss_rankings where device_id = p_device limit 1;
+$$;
+
+-- 채팅 전송 — 이 기기가 보스 랭킹에 등록돼 있어야만 보낼 수 있다(아니면 ok:false,
+-- reason:'not_registered'). 닉네임은 요청으로 받지 않고 서버가 boss_rankings에서
+-- 직접 찾아 붙인다 — 다른 사람 이름으로 보내는 걸 원천 차단한다.
+create or replace function public.ranking_chat_send(
+  p_device uuid, p_text text, p_enhance_team text default 'ku', p_enhance_level int default 0
+)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_nickname text;
+  v_text     text := trim(p_text);
+  v_row      public.ranking_chat_messages;
+begin
+  select nickname into v_nickname from public.boss_rankings where device_id = p_device limit 1;
+  if v_nickname is null then
+    return jsonb_build_object('ok', false, 'reason', 'not_registered');
+  end if;
+  if char_length(v_text) < 1 or char_length(v_text) > 120 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  insert into public.ranking_chat_messages (device_id, nickname, text, enhance_team, enhance_level)
+  values (
+    p_device, v_nickname, v_text,
+    case when p_enhance_team = 'yu' then 'yu' else 'ku' end,
+    greatest(0, least(30, coalesce(p_enhance_level, 0)))
+  )
+  returning * into v_row;
+
+  return jsonb_build_object(
+    'ok', true,
+    'id', v_row.id,
+    'nickname', v_row.nickname,
+    'text', v_row.text,
+    'enhance_team', v_row.enhance_team,
+    'enhance_level', v_row.enhance_level,
+    'created_at', (extract(epoch from v_row.created_at) * 1000)::bigint
+  );
+end;
+$$;
+
+-- 최근 메시지 목록 — 채팅창을 처음 열 때 한 번 불러온다. 최신 p_limit개를 시간순(오름차순)으로.
+create or replace function public.ranking_chat_recent(p_limit int default 50)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row order by created_at asc), '[]'::jsonb) from (
+    select
+      jsonb_build_object(
+        'id', id, 'nickname', nickname, 'text', text,
+        'enhance_team', enhance_team, 'enhance_level', enhance_level,
+        'created_at', (extract(epoch from created_at) * 1000)::bigint
+      ) as row,
+      created_at
+    from public.ranking_chat_messages
+    order by created_at desc
+    limit greatest(1, least(coalesce(p_limit, 50), 100))
+  ) t;
+$$;
+
+-- 직접 테이블 접근은 select만 허용(쓰기는 ranking_chat_send로만) — shouts와 같은 패턴.
+alter table public.ranking_chat_messages enable row level security;
+drop policy if exists "ranking chat readable" on public.ranking_chat_messages;
+create policy "ranking chat readable" on public.ranking_chat_messages for select using (true);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'ranking_chat_messages'
+  ) then
+    alter publication supabase_realtime add table public.ranking_chat_messages;
+  end if;
+end
+$$;
+
+grant execute on function public.boss_ranking_my_nickname(uuid)        to anon, authenticated;
+grant execute on function public.ranking_chat_send(uuid, text, text, int) to anon, authenticated;
+grant execute on function public.ranking_chat_recent(int)              to anon, authenticated;

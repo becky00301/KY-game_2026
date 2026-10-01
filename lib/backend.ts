@@ -389,6 +389,96 @@ export async function postShout(
   return data as ShoutResult;
 }
 
+export interface RankingChatMessage {
+  id: number;
+  nickname: string;
+  text: string;
+  /** 보낸 기기가 그 순간 보고 있던 팀의 강화 진행도 — 채팅 말풍선 오오라 연출에만 쓴다. */
+  enhanceTeam: TeamId;
+  enhanceLevel: number;
+  createdAt: number;
+}
+
+function normalizeChatMessage(row: Record<string, unknown>): RankingChatMessage {
+  const num = (v: unknown) => (typeof v === "number" ? v : Number(v ?? 0));
+  const time = (v: unknown) => {
+    if (v == null) return Date.now();
+    if (typeof v === "number") return v;
+    const t = Date.parse(String(v));
+    return Number.isNaN(t) ? Date.now() : t;
+  };
+  return {
+    id: num(row.id),
+    nickname: String(row.nickname ?? ""),
+    text: String(row.text ?? ""),
+    enhanceTeam: row.enhance_team === "yu" ? "yu" : "ku",
+    enhanceLevel: num(row.enhance_level),
+    createdAt: time(row.created_at),
+  };
+}
+
+/**
+ * 랭킹 채팅 — 새 메시지 INSERT를 구독한다(shouts와 같은 패턴). 지금 접속 중인 사람에게만
+ * 실시간으로 뜨고, 과거 기록은 fetchRankingChatRecent로 한 번 따로 불러온다.
+ */
+export function subscribeRankingChat(onMessage: (msg: RankingChatMessage) => void): () => void {
+  if (backendMode !== "supabase") return () => {};
+  let channel: RealtimeChannel | null = supabase()
+    .channel("ranking_chat")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "ranking_chat_messages" },
+      (payload) => onMessage(normalizeChatMessage(payload.new as Record<string, unknown>))
+    )
+    .subscribe();
+  return () => {
+    if (channel) supabase().removeChannel(channel);
+    channel = null;
+  };
+}
+
+/** 채팅창을 처음 열 때 한 번 — 최근 메시지 목록(오래된 것부터)을 불러온다. */
+export async function fetchRankingChatRecent(limit = 50): Promise<RankingChatMessage[]> {
+  if (backendMode !== "supabase") return [];
+  const { data, error } = await supabase().rpc("ranking_chat_recent", { p_limit: limit });
+  if (error) return [];
+  return ((data as Record<string, unknown>[]) ?? []).map(normalizeChatMessage);
+}
+
+/** 이 기기가 보스 랭킹(서휘령 랭킹모드)에 등록한 닉네임 — 없으면 null(채팅을 보낼 수 없다). */
+export async function fetchMyBossRankingNickname(device: string): Promise<string | null> {
+  if (backendMode !== "supabase") return null;
+  const { data, error } = await supabase().rpc("boss_ranking_my_nickname", { p_device: device });
+  if (error) return null;
+  return (data as string | null) ?? null;
+}
+
+export interface RankingChatSendResult {
+  ok: boolean;
+  reason?: string;
+  message?: RankingChatMessage;
+}
+
+/** 랭킹 채팅 메시지 전송 — 보스 랭킹 미등록 기기는 서버가 reason:'not_registered'로 거절한다. */
+export async function sendRankingChatMessage(
+  device: string,
+  text: string,
+  enhanceTeam: TeamId,
+  enhanceLevel: number
+): Promise<RankingChatSendResult> {
+  if (backendMode !== "supabase") return { ok: false, reason: "local-mode" };
+  const { data, error } = await supabase().rpc("ranking_chat_send", {
+    p_device: device,
+    p_text: text,
+    p_enhance_team: enhanceTeam,
+    p_enhance_level: enhanceLevel,
+  });
+  if (error) throw new Error(error.message);
+  const result = data as Record<string, unknown>;
+  if (!result.ok) return { ok: false, reason: String(result.reason ?? "") };
+  return { ok: true, message: normalizeChatMessage(result) };
+}
+
 /** 기기 식별값 — 계정이 아니라 연타 제한 용도로만 쓴다. */
 export function clientId(): string {
   const KEY = "kyg.client";

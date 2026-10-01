@@ -56,19 +56,26 @@ import {
 import { TEAMS, emblemSrc, formatNumber, formatRate, hasSeenEvolveCutscene, hexToRgbString, markEvolveCutsceneSeen } from "@/lib/game";
 import {
   EnhanceMilestone,
+  RankingChatMessage,
   Shout,
   backendMode,
   buyUpgrade,
   clientId,
   fetchEnhanceResetAt,
+  fetchMyBossRankingNickname,
+  fetchRankingChatRecent,
   fetchSword,
   sendTaps,
   subscribeAnnouncement,
   subscribeEnhanceMilestones,
   subscribePresence,
+  subscribeRankingChat,
   subscribeShouts,
   subscribeSword,
 } from "@/lib/backend";
+import { CHAT_HISTORY_LIMIT } from "@/lib/chat";
+import { ChatTicker } from "./ChatTicker";
+import { ChatSheet } from "./ChatSheet";
 import { isSfxEnabled, playFeverStartSound, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
 import {
   bgmGroupSuffix,
@@ -187,13 +194,14 @@ export default function GameScreen({
   const [milestoneQueue, setMilestoneQueue] = useState<EnhanceMilestone[]>([]);
   const [currentMilestone, setCurrentMilestone] = useState<EnhanceMilestone | null>(null);
   /**
-   * 랭킹 채팅 — 보스 랭킹(서휘령 랭킹모드)에 닉네임을 등록한 사람들끼리만 쓸 수 있는
-   * 채팅을 만들 예정이라, 일단 자리만 잡아두는 임시 UI다. 아직 서버에 연결되어 있지
-   * 않아 메시지는 이 기기(이 탭)에만 보이고 새로고침하면 사라진다.
+   * 랭킹 채팅 — 보스 랭킹(서휘령 랭킹모드)에 닉네임을 등록한 사람들끼리만 보낼 수 있는
+   * 전체 채팅. myRankingNickname이 null이면 이 기기는 아직 미등록(읽기는 누구나 가능,
+   * 쓰기만 막힌다). 평소엔 보스전 입장 버튼 옆에 최신 메시지 한 줄만(ChatTicker) 보이고,
+   * 눌러야 전체 대화창(ChatSheet)이 펼쳐진다.
    */
-  const [chatDraft, setChatDraft] = useState("");
-  const [chatLog, setChatLog] = useState<{ id: number; text: string }[]>([]);
-  const chatIdRef = useRef(0);
+  const [chatMessages, setChatMessages] = useState<RankingChatMessage[]>([]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [myRankingNickname, setMyRankingNickname] = useState<string | null>(null);
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -450,6 +458,29 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setCurrentMilestone(null), 7000);
     return () => window.clearTimeout(timer);
   }, [currentMilestone]);
+
+  // 랭킹 채팅 — 접속 시 최근 기록을 한 번 불러오고, 그 뒤로는 새 메시지 INSERT만
+  // 실시간으로 받아서 이어붙인다(과거 기록 재전송 없음, shouts와 같은 패턴). 이 기기가
+  // 보스 랭킹에 등록한 닉네임도 한 번 같이 조회해서, 있어야만 채팅을 보낼 수 있게 한다.
+  useEffect(() => {
+    let alive = true;
+    fetchRankingChatRecent(CHAT_HISTORY_LIMIT).then((recent) => {
+      if (alive) setChatMessages(recent);
+    });
+    fetchMyBossRankingNickname(clientId()).then((nickname) => {
+      if (alive) setMyRankingNickname(nickname);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(
+    () =>
+      subscribeRankingChat((msg) =>
+        setChatMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg])
+      ),
+    []
+  );
 
   // 운영자가 강화 기록을 전부 초기화했으면(game_config.enhance_reset_at), 이 기기에 남은
   // 강화 관련 로컬 데이터(개인 재화·기기별 점수·닉네임 캐시)를 전부 지운다. 서버 쪽
@@ -866,13 +897,10 @@ export default function GameScreen({
     ? theme.copy.stageHintMax ?? "모든 별을 다 모았습니다."
     : `${theme.copy.stageHintNext ?? "다음 단계까지"} ${formatNumber(Math.max(progress.to - sword.lifetime, 0))}`;
 
-  const sendChatMessage = () => {
-    const trimmed = chatDraft.trim();
-    if (!trimmed) return;
-    chatIdRef.current += 1;
-    setChatLog((prev) => [...prev.slice(-19), { id: chatIdRef.current, text: trimmed }]);
-    setChatDraft("");
-  };
+  // 채팅 전송 시 같이 보낼 "지금 이 기기가 이 팀에서 도달한 강화 단계" — 오오라 연출용.
+  const myEnhanceLevel =
+    typeof window !== "undefined" ? Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0) : 0;
+  const latestChatMessage = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
 
   return (
     <div className={`game ${feverActive && !bossActive ? "is-fever" : ""}`} style={gameBgStyle}>
@@ -968,44 +996,16 @@ export default function GameScreen({
             <div className="fill" style={{ width: `${Math.min(progress.ratio * 100, 100)}%` }} />
           </div>
           <div className="stage-hint">{stageHintText}</div>
-          <button ref={bossEntryRef} className={`boss-entry-btn ${bossUnlocked ? "" : "locked"}`} onClick={enterBoss} disabled={!ready}>
-            <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
-          </button>
-
-          {/* 랭킹 채팅 — 보스 랭킹 등록자 전용 채팅을 만들 예정이라 자리만 임시로 잡아둔 UI.
-              아직 서버에 연결돼 있지 않아 메시지는 이 기기에서만 보인다. */}
-          <div className="ranking-chat">
-            <div className="ranking-chat-head">
-              <span className="ranking-chat-title">랭킹 채팅</span>
-              <span className="ranking-chat-note">보스 랭킹 등록자 전용 · 준비 중</span>
-            </div>
-            <ol className="ranking-chat-log">
-              {chatLog.length === 0 ? (
-                <li className="ranking-chat-empty">아직 메시지가 없습니다.</li>
-              ) : (
-                chatLog.map((m) => (
-                  <li key={m.id} className="ranking-chat-line">
-                    {m.text}
-                  </li>
-                ))
-              )}
-            </ol>
-            <div className="ranking-chat-input-row">
-              <input
-                className="ranking-chat-input"
-                value={chatDraft}
-                onChange={(e) => setChatDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") sendChatMessage();
-                }}
-                maxLength={60}
-                placeholder="메시지를 입력하세요"
-                aria-label="랭킹 채팅 메시지 입력"
-              />
-              <button className="ranking-chat-send" onClick={sendChatMessage} aria-label="전송">
-                전송
-              </button>
-            </div>
+          <div className="boss-chat-row">
+            <button
+              ref={bossEntryRef}
+              className={`boss-entry-btn ${bossUnlocked ? "" : "locked"}`}
+              onClick={enterBoss}
+              disabled={!ready}
+            >
+              <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
+            </button>
+            <ChatTicker latest={latestChatMessage} onOpen={() => setChatOpen(true)} />
           </div>
         </div>
       </header>
@@ -1138,6 +1138,18 @@ export default function GameScreen({
           spirit={theme.spirit}
           clientId={clientId()}
           onClose={() => setShoutOpen(false)}
+        />
+      )}
+
+      {chatOpen && (
+        <ChatSheet
+          team={team}
+          clientId={clientId()}
+          myNickname={myRankingNickname}
+          myEnhanceLevel={myEnhanceLevel}
+          messages={chatMessages}
+          onSent={(msg) => setChatMessages((prev) => [...prev.slice(-(CHAT_HISTORY_LIMIT - 1)), msg])}
+          onClose={() => setChatOpen(false)}
         />
       )}
 
