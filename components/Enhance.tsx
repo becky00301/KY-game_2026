@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatNumber, TeamId, TeamTheme } from "@/lib/game";
 import {
   ENHANCE_DESTROY_FROM_LEVEL,
+  ENHANCE_LEVEL_CACHE_KEY,
   ENHANCE_MAX_LEVEL,
   enhanceCost,
   enhanceDestroyRate,
@@ -24,7 +25,7 @@ import { playCardRevealSound, playEnhanceDestroySound, playEnhanceFailSound } fr
 
 const RANKING_SLOTS = 10;
 const NICKNAME_KEY = "kyg.enhanceNickname";
-const LEVEL_KEY = "kyg.enhanceLevel";
+const LEVEL_KEY = ENHANCE_LEVEL_CACHE_KEY;
 /** 성공 이펙트 — 이미지 주변에 튀는 스파크 각도(14방향으로 고르게). */
 const SPARK_ANGLES = Array.from({ length: 14 }, (_, i) => Math.round((i * 360) / 14));
 /** 파괴 이펙트 — 아이템이 깨지며 튀는 파편 각도(10방향). */

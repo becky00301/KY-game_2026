@@ -17,7 +17,7 @@ import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
 import Enhance from "./Enhance";
-import { enhanceEnabledFor } from "@/lib/enhance";
+import { ENHANCE_LEVEL_CACHE_KEY, enhanceEnabledFor, enhanceScoreMultiplier } from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -110,6 +110,8 @@ const FLUSH_INTERVAL_MS = 1_000;
 const CONTRIB_KEY = "kyg.contrib";
 /** 강화에 쓴 개인 재화 누적치 (이 기기에만 저장) */
 const ENHANCE_SPENT_KEY = "kyg.enhanceSpent";
+/** 강화 배율이 적용된 "기기별 추가 점수" 누적치 — 공용 재산과 무관한 이 기기만의 점수. */
+const DEVICE_SCORE_KEY = "kyg.deviceScore";
 
 /** "염원의 힘" → "염원의 힘이", "데이터베이스" → "데이터베이스가" */
 function withSubjectParticle(word: string) {
@@ -145,6 +147,8 @@ export default function GameScreen({
   /** 강화에 쓴 개인 재화 — contrib(기기별 누적치)에서 이만큼을 뺀 값이 실제 잔액이다. */
   const [enhanceSpent, setEnhanceSpent] = useState(0);
   const [enhanceOpen, setEnhanceOpen] = useState(false);
+  /** 강화 단계 배율이 적용된 기기별 추가 점수 — 공용 재산과 무관, 이 기기에만 저장. */
+  const [deviceScore, setDeviceScore] = useState(0);
   const [online, setOnline] = useState(0);
   const [rivalSword, setRivalSword] = useState<SwordState | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -454,6 +458,7 @@ export default function GameScreen({
     setReady(false);
     setContrib(Number(window.localStorage.getItem(`${CONTRIB_KEY}.${team}`) ?? 0));
     setEnhanceSpent(Number(window.localStorage.getItem(`${ENHANCE_SPENT_KEY}.${team}`) ?? 0));
+    setDeviceScore(Number(window.localStorage.getItem(`${DEVICE_SCORE_KEY}.${team}`) ?? 0));
 
     fetchSword(team)
       .then((state) => {
@@ -614,6 +619,16 @@ export default function GameScreen({
       setContrib((c) => {
         const next = c + 1;
         window.localStorage.setItem(`${CONTRIB_KEY}.${team}`, String(next));
+        return next;
+      });
+
+      // 기기별 추가 점수 — 강화 단계(이 기기의 캐시값)에 따른 배율만큼 쌓인다. 공용 칼의
+      // 점수·재화와는 완전히 별개라 서버에는 전혀 보내지 않는다.
+      const enhanceLevel = Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0);
+      const scoreGain = enhanceScoreMultiplier(enhanceLevel);
+      setDeviceScore((s) => {
+        const next = s + scoreGain;
+        window.localStorage.setItem(`${DEVICE_SCORE_KEY}.${team}`, String(next));
         return next;
       });
 
@@ -940,6 +955,7 @@ export default function GameScreen({
             : "칼을 불러오는 중…"}
         </p>
         <p className="contrib">{theme.copy.contribLine?.(formatNumber(contrib)) ?? `내가 보탠 ${formatNumber(contrib)}번`}</p>
+        {deviceScore > 0 && <p className="device-score">기기별 추가 점수 : {formatNumber(deviceScore)}</p>}
       </main>
 
       <footer className="dock">

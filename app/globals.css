@@ -1566,6 +1566,15 @@ button {
   animation: breathe 2.6s ease-in-out infinite;
 }
 
+.device-score {
+  position: relative;
+  z-index: 3;
+  margin-top: 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
 .upgrade-btn.pulse {
   animation: btnPulse 1.6s ease-in-out infinite;
 }

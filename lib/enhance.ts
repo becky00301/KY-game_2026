@@ -12,6 +12,9 @@ import type { TeamId } from "./game";
 export const ENHANCE_MAX_LEVEL = 30;
 /** 이 단계부터 실패 시 파괴 판정이 섞여 들어간다(0-index 기준 — "16단계" 시도). */
 export const ENHANCE_DESTROY_FROM_LEVEL = 15;
+/** 기기별 현재 강화 단계 캐시 키(팀 접미사 붙여서 사용) — Enhance.tsx가 쓰고,
+ *  GameScreen.tsx가 터치 점수 배율을 계산할 때 읽기 전용으로 같이 참조한다. */
+export const ENHANCE_LEVEL_CACHE_KEY = "kyg.enhanceLevel";
 
 export interface EnhanceLevelData {
   /** 이 단계에서 1단계 강화를 시도하는 데 드는 비용. */
@@ -103,4 +106,32 @@ export function enhanceTable(): EnhanceTableRow[] {
 /** 팀별로 강화 기능이 열려 있는지 — 지금은 노아만, 연은 준비중. */
 export function enhanceEnabledFor(team: TeamId): boolean {
   return team === "ku";
+}
+
+/**
+ * "기기별 터치 점수" 배율 — 강화 단계가 오를수록 터치 한 번당 쌓이는 개인 점수가 커진다.
+ * 공동 칼의 점수·재화(energy/lifetime)에는 전혀 영향을 주지 않는, 순수하게 이 기기에만
+ * 쌓이는 보너스다. 레벨 1단계마다 붙는 보너스(%)가 구간별로 달라진다 — 16단계까지는
+ * 1%씩, 17~19단계는 3%씩, 20~22단계는 8%씩, 23~24단계는 20%씩, 25단계부터는 50%씩
+ * 누적된다(전부 더하는 방식 — 복리 아님).
+ */
+function enhanceScoreLevelBonusPercent(level: number): number {
+  if (level <= 16) return 1;
+  if (level <= 19) return 3;
+  if (level <= 22) return 8;
+  if (level <= 24) return 20;
+  return 50;
+}
+
+/** 0단계부터 level단계까지 레벨당 보너스(%)를 전부 더한 값. */
+export function enhanceScoreBonusPercent(level: number): number {
+  const clamped = Math.max(0, Math.min(ENHANCE_MAX_LEVEL, level));
+  let total = 0;
+  for (let lv = 1; lv <= clamped; lv++) total += enhanceScoreLevelBonusPercent(lv);
+  return total;
+}
+
+/** 터치 1회당 "기기별 추가 점수"에 곱해지는 배율 — 0단계면 1.0(보너스 없음). */
+export function enhanceScoreMultiplier(level: number): number {
+  return 1 + enhanceScoreBonusPercent(level) / 100;
 }
