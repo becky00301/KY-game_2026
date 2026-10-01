@@ -34,7 +34,7 @@ export interface SwordState {
  * 시뮬레이션으로 다시 맞춘 값이다(초당 2회 연타 기준). 강화 비용(UPGRADE_NUMBERS의
  * baseCost)도 같은 비율로 같이 낮춰뒀다 — 여기 수치를 또 바꾸면 그쪽도 같이 맞춰야 한다.
  */
-export const STAGE_THRESHOLDS = [0, 2_400, 75_000, 2_400_000, 75_000_000];
+export const STAGE_THRESHOLDS = [0, 2_400, 75_000, 12_000_000, 375_000_000];
 
 export const STAGE_GROWTH = 1.85;
 
