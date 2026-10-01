@@ -71,6 +71,13 @@ export const RATE_BONUS_CAP = 20;
  */
 export const TAP_CURRENCY_RATIO = 0.5;
 
+/** "함성" — 재화를 써서 화면 전체에 문구를 띄우는 기능의 가격(보유 재화 기준). */
+export const SHOUT_COST = 100_000;
+/** 같은 기기가 "함성"을 다시 쓸 수 있을 때까지 기다려야 하는 시간(분). */
+export const SHOUT_DEVICE_COOLDOWN_MIN = 10;
+/** 누가 "함성"을 쓰면, 그 뒤 몇 초 동안은 아무도 다시 못 쓴다(겹쳐 보이지 않게). */
+export const SHOUT_GLOBAL_COOLDOWN_SEC = 10;
+
 /** 크리티컬 — 터치마다 이 확률로 발동하며, 발동하면 그 터치의 획득량이 이 배수가 된다. */
 export const CRITICAL_CHANCE = 0.1;
 export const CRITICAL_MULTIPLIER = 10;

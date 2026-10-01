@@ -15,6 +15,7 @@ import VolumeButton from "./VolumeButton";
 import FeverPop from "./FeverPop";
 import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
+import { ShoutBanner, ShoutSheet } from "./Shout";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -51,6 +52,7 @@ import {
   sendTaps,
   subscribeAnnouncement,
   subscribePresence,
+  subscribeShouts,
   subscribeSword,
 } from "@/lib/backend";
 import { isSfxEnabled, playFeverStartSound, playHit, setSfxEnabled, unlockAudio } from "@/lib/sfx";
@@ -147,6 +149,9 @@ export default function GameScreen({
   const [bossGuideOpen, setBossGuideOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  const [shoutOpen, setShoutOpen] = useState(false);
+  const [shoutQueue, setShoutQueue] = useState<{ nickname: string; text: string }[]>([]);
+  const [currentShout, setCurrentShout] = useState<{ nickname: string; text: string } | null>(null);
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -351,6 +356,20 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setAnnouncement(""), 2000);
     return () => window.clearTimeout(timer);
   }, [announcement]);
+
+  // 누군가 "함성"을 쓰면 큐에 쌓고, 하나씩 순서대로 5초간 띄운다(겹쳐 보이지 않게).
+  useEffect(() => subscribeShouts((shout) => setShoutQueue((q) => [...q, shout])), []);
+  useEffect(() => {
+    if (currentShout || shoutQueue.length === 0) return;
+    const [next, ...rest] = shoutQueue;
+    setCurrentShout(next);
+    setShoutQueue(rest);
+  }, [shoutQueue, currentShout]);
+  useEffect(() => {
+    if (!currentShout) return;
+    const timer = window.setTimeout(() => setCurrentShout(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [currentShout]);
 
   // If final evolution and the first star arrive together, finish the earlier story first.
   useEffect(() => {
@@ -856,16 +875,33 @@ export default function GameScreen({
           </span>
         </div>
 
-        <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
-          <span className="upgrade-btn-label">{theme.copy.upgradeBtnLabel ?? "함께 강화하기"}</span>
-          {/* 재화 = 강화(스킬)를 사면 줄어드는 값. 점수와 헷갈리지 않게 구매 버튼 옆에 따로 둔다. */}
-          <span className="currency-chip">
-            <span className="currency-chip-name">보유 {theme.spirit}</span>
-            <span className="currency-chip-value">{formatNumber(sword.energy)}</span>
-          </span>
-        </button>
+        <div className="dock-row">
+          <button className="shout-btn" onClick={() => setShoutOpen(true)} disabled={!ready} aria-label="함성">
+            <span className="shout-btn-icon">📣</span>
+            <span>함성</span>
+          </button>
+          <button className="upgrade-btn" onClick={() => setSheetOpen(true)} disabled={!ready}>
+            <span className="upgrade-btn-label">{theme.copy.upgradeBtnLabel ?? "함께 강화하기"}</span>
+            {/* 재화 = 강화(스킬)를 사면 줄어드는 값. 점수와 헷갈리지 않게 구매 버튼 옆에 따로 둔다. */}
+            <span className="currency-chip">
+              <span className="currency-chip-name">보유 {theme.spirit}</span>
+              <span className="currency-chip-value">{formatNumber(sword.energy)}</span>
+            </span>
+          </button>
+        </div>
       </footer>
       </div>
+
+      {currentShout && <ShoutBanner nickname={currentShout.nickname} text={currentShout.text} />}
+
+      {shoutOpen && (
+        <ShoutSheet
+          team={team}
+          spirit={theme.spirit}
+          clientId={clientId()}
+          onClose={() => setShoutOpen(false)}
+        />
+      )}
 
       {sheetOpen && (
         <UpgradeSheet

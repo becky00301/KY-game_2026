@@ -103,6 +103,26 @@ alter table public.game_config add column if not exists admin_key text not null 
 alter table public.game_config add column if not exists notice_text text not null default '';
 alter table public.game_config add column if not exists notice_at   timestamptz not null default 'epoch';
 
+-- "함성" — 재화를 써서 화면 전체에 문구를 띄우는 기능의 가격.
+alter table public.game_config add column if not exists shout_cost numeric not null default 100000;
+
+-- "함성"을 쓸 때마다 기기별 마지막 사용 시각을 남긴다 — 10분에 한 번만 쓸 수 있게 막는 데 쓴다.
+create table if not exists public.shout_log (
+  client_id     uuid primary key,
+  last_shout_at timestamptz not null default 'epoch'
+);
+
+-- 실제로 화면에 뜬 "함성" 기록. 클라이언트는 이 테이블의 INSERT를 Realtime으로 받아
+-- 화면에 띄운다 — 지금 접속 중인 사람에게만, 새로고침해서 들어온 사람에게는 과거 함성이
+-- 다시 뜨지 않는다(swords/game_config와 같은 이유).
+create table if not exists public.shouts (
+  id         bigint generated always as identity primary key,
+  team       text not null check (team in ('ku', 'yu')),
+  nickname   text not null,
+  text       text not null,
+  created_at timestamptz not null default now()
+);
+
 -- 매크로로 판단된 기기. 여기 들어오면 터치가 하나도 인정되지 않는다(화면은 그대로 돌아간다).
 create table if not exists public.tap_blocklist (
   client_id  uuid primary key,
@@ -112,8 +132,8 @@ create table if not exists public.tap_blocklist (
 
 -- ---------- 초기값 ----------
 
-insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max, tap_currency_ratio)
-values (1, array[0, 15000, 400000, 56000000, 525000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000, 0.5)
+insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max, tap_currency_ratio, shout_cost)
+values (1, array[0, 15000, 400000, 56000000, 525000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000, 0.5, 100000)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
@@ -122,7 +142,8 @@ on conflict (id) do update set
   critical_chance = excluded.critical_chance,
   critical_multiplier = excluded.critical_multiplier,
   fever_max = excluded.fever_max,
-  tap_currency_ratio = excluded.tap_currency_ratio;
+  tap_currency_ratio = excluded.tap_currency_ratio,
+  shout_cost = excluded.shout_cost;
 
 insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort, max_level, linear_cost, crit_chance_per_level, crit_mult_per_level) values
   ('wrist',    'tap',      105, 1.14,    0.5, 1, null, false, 0,    0),
@@ -514,6 +535,59 @@ begin
 end;
 $$;
 
+-- "함성" — 재화를 써서 화면 전체에 문구를 띄운다. 기기당 10분에 한 번, 전역으로는
+-- 마지막 함성 이후 10초가 지나야 한다(겹쳐 보이지 않게). pg_advisory_xact_lock으로
+-- 동시 요청이 쿨다운 체크를 동시에 통과하는 경합을 막는다 — 그래서 거의 동시에 여러
+-- 명이 쓰려 해도 한 명만 성공하고, 나머지는 10초 뒤에나 다시 시도해 자연히 순차적으로
+-- 화면에 뜬다.
+create or replace function public.shout_post(p_team text, p_client uuid, p_nickname text, p_text text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  cfg      public.game_config;
+  s        public.swords;
+  last_dev   timestamptz;
+  last_any   timestamptz;
+  v_nickname text := trim(coalesce(p_nickname, ''));
+  v_text     text := trim(coalesce(p_text, ''));
+begin
+  perform pg_advisory_xact_lock(hashtext('shout_post'));
+
+  if v_nickname = '' or char_length(v_nickname) > 14 or v_text = '' or char_length(v_text) > 30 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  select * into cfg from public.game_config where id = 1;
+
+  select last_shout_at into last_dev from public.shout_log where client_id = p_client;
+  if last_dev is not null and now() - last_dev < interval '10 minutes' then
+    return jsonb_build_object('ok', false, 'reason', 'device-cooldown');
+  end if;
+
+  select max(created_at) into last_any from public.shouts;
+  if last_any is not null and now() - last_any < interval '10 seconds' then
+    return jsonb_build_object('ok', false, 'reason', 'global-cooldown');
+  end if;
+
+  s := public.sword_accrue(p_team);
+  if s.energy < cfg.shout_cost then
+    return jsonb_build_object('ok', false, 'reason', 'insufficient');
+  end if;
+
+  update public.swords
+     set energy = energy - cfg.shout_cost,
+         updated_at = now(),
+         version = version + 1
+   where team = p_team;
+
+  insert into public.shout_log (client_id, last_shout_at) values (p_client, now())
+    on conflict (client_id) do update set last_shout_at = excluded.last_shout_at;
+
+  insert into public.shouts (team, nickname, text) values (p_team, v_nickname, v_text);
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
 -- ---------- 권한 ----------
 
 alter table public.swords       enable row level security;
@@ -522,6 +596,8 @@ alter table public.upgrade_defs enable row level security;
 alter table public.tap_budget   enable row level security;
 alter table public.tap_log      enable row level security;
 alter table public.tap_blocklist enable row level security;
+alter table public.shout_log    enable row level security;
+alter table public.shouts       enable row level security;
 
 -- 읽기만 열어 준다. 쓰기는 위 security definer 함수로만 가능하다.
 drop policy if exists "swords readable" on public.swords;
@@ -532,13 +608,17 @@ create policy "config readable" on public.game_config for select using (true);
 
 drop policy if exists "defs readable" on public.upgrade_defs;
 create policy "defs readable" on public.upgrade_defs for select using (true);
--- tap_budget은 정책을 두지 않는다 = 클라이언트에서 접근 불가.
+-- tap_budget·shout_log는 정책을 두지 않는다 = 클라이언트에서 직접 접근 불가.
+
+drop policy if exists "shouts readable" on public.shouts;
+create policy "shouts readable" on public.shouts for select using (true);
 
 grant execute on function public.sword_get(text)                          to anon, authenticated;
 grant execute on function public.sword_tap(text, uuid, int, numeric)      to anon, authenticated;
 grant execute on function public.sword_buy(text, text)                    to anon, authenticated;
 grant execute on function public.admin_tap_stats(text, int)               to anon, authenticated;
 grant execute on function public.admin_set_notice(text, text)             to anon, authenticated;
+grant execute on function public.shout_post(text, uuid, text, text)       to anon, authenticated;
 
 -- 다른 사람이 두드린 결과를 실시간으로 받기 위해 swords 테이블을 Realtime에 올린다.
 do $$
@@ -548,6 +628,19 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'swords'
   ) then
     alter publication supabase_realtime add table public.swords;
+  end if;
+end
+$$;
+
+-- "함성" 기록(shouts)을 실시간으로 받기 위해 올린다 — INSERT만 쓰므로 클라이언트는
+-- 새로 추가되는 행만 받아본다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'shouts'
+  ) then
+    alter publication supabase_realtime add table public.shouts;
   end if;
 end
 $$;
