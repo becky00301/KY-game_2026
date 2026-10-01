@@ -340,7 +340,16 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <p className="boss-ranking-verify-note">
-          TOP 5에 기록된 검사님들은 설정탭의 오픈카톡방으로 인증을 부탁드립니다.
+          TOP 5에 기록된 검사님들은{" "}
+          <a
+            className="boss-ranking-verify-link"
+            href="https://www.instagram.com/eveofvictory2026/?hl=ko"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            공식 인스타그램
+          </a>
+          에서 인증해 주시면 소정의 상품을 드립니다.
         </p>
       </section>
     </div>
