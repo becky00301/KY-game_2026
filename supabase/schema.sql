@@ -900,12 +900,17 @@ $$;
 
 -- 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새로 보낸
 -- 닉네임은 무시하고 기존 기록을 그대로 돌려준다(중복 등록 방지 겸 재입장 처리).
+-- 사전 exists() 체크와 별개로, 두 기기가 같은 닉네임을 동시에 등록하는 경합까지
+-- 막기 위해 insert 자체도 "on conflict do nothing"으로 유니크 인덱스에 기대어
+-- 한 번 더 걸러낸다(경합에서 진 쪽은 예외 대신 ok:false,'taken'을 받는다).
+drop function if exists public.enhance_register(text, uuid, text);
 create or replace function public.enhance_register(p_nickname text, p_device uuid, p_team text default 'ku')
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_nickname text := trim(p_nickname);
   v_team     text := coalesce(p_team, 'ku');
   v_existing public.enhance_players;
+  v_inserted public.enhance_players;
 begin
   select * into v_existing from public.enhance_players where device_id = p_device and team = v_team;
   if found then
@@ -920,9 +925,15 @@ begin
   end if;
 
   insert into public.enhance_players (device_id, team, nickname, level)
-  values (p_device, v_team, v_nickname, 0);
+  values (p_device, v_team, v_nickname, 0)
+  on conflict (team, lower(nickname)) do nothing
+  returning * into v_inserted;
 
-  return jsonb_build_object('ok', true, 'nickname', v_nickname, 'level', 0);
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'taken');
+  end if;
+
+  return jsonb_build_object('ok', true, 'nickname', v_inserted.nickname, 'level', 0);
 end;
 $$;
 

@@ -20,6 +20,7 @@ import { EnhanceMilestoneBanner } from "./EnhanceMilestone";
 import Enhance from "./Enhance";
 import {
   ENHANCE_LEVEL_CACHE_KEY,
+  ENHANCE_MAX_LEVEL_CACHE_KEY,
   ENHANCE_NICKNAME_CACHE_KEY,
   PERSONAL_CURRENCY_PER_TAP,
   enhanceCurrencyMultiplier,
@@ -454,6 +455,7 @@ export default function GameScreen({
       for (const t of ["ku", "yu"] as const) {
         window.localStorage.removeItem(`${ENHANCE_NICKNAME_CACHE_KEY}.${t}`);
         window.localStorage.removeItem(`${ENHANCE_LEVEL_CACHE_KEY}.${t}`);
+        window.localStorage.removeItem(`${ENHANCE_MAX_LEVEL_CACHE_KEY}.${t}`);
         window.localStorage.removeItem(`${PERSONAL_EARNED_KEY}.${t}`);
         window.localStorage.removeItem(`${ENHANCE_SPENT_KEY}.${t}`);
         window.localStorage.removeItem(`${DEVICE_SCORE_KEY}.${t}`);

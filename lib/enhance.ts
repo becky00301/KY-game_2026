@@ -27,15 +27,36 @@ export const ENHANCE_LEVEL_CACHE_KEY = "kyg.enhanceLevel";
 /** 기기별 강화 닉네임 캐시 키(팀 접미사 붙여서 사용) — Enhance.tsx가 쓰고,
  *  GameScreen.tsx가 전체 초기화 때 같이 지운다. */
 export const ENHANCE_NICKNAME_CACHE_KEY = "kyg.enhanceNickname";
+/** 기기별 "역대 최고 강화 단계" 캐시 키(팀 접미사 붙여서 사용) — 파괴로 현재 단계가
+ *  내려가도 이 값은 내려가지 않는다. 확정강화(아래 GUARANTEED_ENHANCE_*)의 해금
+ *  조건으로 쓰인다. Enhance.tsx가 쓰고, GameScreen.tsx가 전체 초기화 때 같이 지운다. */
+export const ENHANCE_MAX_LEVEL_CACHE_KEY = "kyg.enhanceMaxLevel";
 
 /**
  * 터치 1회당 쌓이는 개인 재화(염원의 빛/데이터로그)의 기준량 — 실제로는 여기에
  * enhanceCurrencyMultiplier(강화 단계가 오를수록 커지는 배율)가 곱해져서 지급된다.
  * 처음엔 하루 10분 플레이로 22단계 기댓값 정도를 모으게 잡았더니(10,000/타) 너무
- * 쉽게 쌓여서, 1/6로 줄였다. 10분(초당 5회 × 600초 = 3,000타) 플레이 시 0단계
- * 기준으로 약 500만 정도가 쌓인다(강화할수록 더 빨리 쌓인다).
+ * 쉽게 쌓여서 1/6로 줄였다가(1,667/타), 너무 적다는 피드백에 45% 늘렸다. 10분(초당
+ * 5회 × 600초 = 3,000타) 플레이 시 0단계 기준으로 약 725만 정도가 쌓인다(강화할수록
+ * 더 빨리 쌓인다).
  */
-export const PERSONAL_CURRENCY_PER_TAP = 1_667;
+export const PERSONAL_CURRENCY_PER_TAP = 2_417;
+
+/**
+ * "확정강화" — 0단계부터 해당 단계까지 확률 없이 확정으로 올려주는 대신, 평균(기댓값)
+ * 비용의 2배를 받는다. 파괴로 공들인 단계를 잃었을 때의 "보험"에 가까운 기능이라, 아무나
+ * 바로 쓸 수 있게 하면 확률 자체의 의미가 없어진다 — 그래서 해당 단계보다 "한 단계 더
+ * 위"까지 실제로 도달해본 적이 있어야만(=ENHANCE_MAX_LEVEL_CACHE_KEY 기준) 잠금이
+ * 풀린다. 비용은 Markov 체인(파괴로 인한 0단계 리셋 포함)으로 계산한 기댓값의 2배를
+ * 반올림한 값이다 — 15단계: 기댓값 ≈37,178 → 비용 75,000 / 20단계: 기댓값
+ * ≈5,920,551 → 비용 11,800,000 / 22단계: 기댓값 ≈27,898,767 → 비용 55,800,000.
+ */
+export const GUARANTEED_ENHANCE_TARGETS = [15, 20, 22] as const;
+export const GUARANTEED_ENHANCE_COST: Record<number, number> = {
+  15: 75_000,
+  20: 11_800_000,
+  22: 55_800_000,
+};
 
 export interface EnhanceLevelData {
   /** 이 단계에서 1단계 강화를 시도하는 데 드는 비용. */

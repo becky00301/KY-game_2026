@@ -7,7 +7,10 @@ import {
   ENHANCE_ITEM,
   ENHANCE_LEVEL_CACHE_KEY,
   ENHANCE_MAX_LEVEL,
+  ENHANCE_MAX_LEVEL_CACHE_KEY,
   ENHANCE_NICKNAME_CACHE_KEY,
+  GUARANTEED_ENHANCE_COST,
+  GUARANTEED_ENHANCE_TARGETS,
   enhanceCost,
   enhanceCurrencyBonusPercent,
   enhanceCurrencyMultiplier,
@@ -32,26 +35,29 @@ import { playCardRevealSound, playEnhanceDestroySound, playEnhanceFailSound } fr
 const RANKING_SLOTS = 10;
 const NICKNAME_KEY = ENHANCE_NICKNAME_CACHE_KEY;
 const LEVEL_KEY = ENHANCE_LEVEL_CACHE_KEY;
+const MAX_LEVEL_KEY = ENHANCE_MAX_LEVEL_CACHE_KEY;
 /** 성공 이펙트 — 이미지 주변에 튀는 스파크 각도(14방향으로 고르게). */
 const SPARK_ANGLES = Array.from({ length: 14 }, (_, i) => Math.round((i * 360) / 14));
 /** 파괴 이펙트 — 아이템이 깨지며 튀는 파편 각도(10방향). */
 const SHARD_ANGLES = Array.from({ length: 10 }, (_, i) => Math.round((i * 360) / 10));
 
-type Step = "loading" | "nickname" | "main" | "probability" | "ranking";
+type Step = "loading" | "nickname" | "main" | "probability" | "ranking" | "guaranteed";
 
-function loadCache(team: TeamId): { nickname: string; level: number } | null {
+function loadCache(team: TeamId): { nickname: string; level: number; maxLevel: number } | null {
   if (typeof window === "undefined") return null;
   const nickname = window.localStorage.getItem(`${NICKNAME_KEY}.${team}`);
   if (!nickname) return null;
   const level = Number(window.localStorage.getItem(`${LEVEL_KEY}.${team}`) ?? 0);
-  return { nickname, level };
+  const storedMax = Number(window.localStorage.getItem(`${MAX_LEVEL_KEY}.${team}`) ?? 0);
+  return { nickname, level, maxLevel: Math.max(storedMax, level) };
 }
 
-function saveCache(team: TeamId, nickname: string, level: number) {
+function saveCache(team: TeamId, nickname: string, level: number, maxLevel: number) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(`${NICKNAME_KEY}.${team}`, nickname);
     window.localStorage.setItem(`${LEVEL_KEY}.${team}`, String(level));
+    window.localStorage.setItem(`${MAX_LEVEL_KEY}.${team}`, String(maxLevel));
   } catch {
     /* 저장 실패해도 진행에는 지장 없다 */
   }
@@ -79,6 +85,7 @@ export default function Enhance({
   const [step, setStep] = useState<Step>("loading");
   const [nickname, setNickname] = useState("");
   const [level, setLevel] = useState(0);
+  const [maxLevel, setMaxLevel] = useState(0);
   const [nicknameInput, setNicknameInput] = useState("");
   const [nicknameError, setNicknameError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -125,15 +132,18 @@ export default function Enhance({
     if (cached) {
       setNickname(cached.nickname);
       setLevel(cached.level);
+      setMaxLevel(cached.maxLevel);
       setStep("main");
     }
     fetchMyEnhance(team)
       .then((me) => {
         if (!alive) return;
         if (me.registered) {
+          const nextMax = Math.max(cached?.maxLevel ?? 0, me.level);
           setNickname(me.nickname);
           setLevel(me.level);
-          saveCache(team, me.nickname, me.level);
+          setMaxLevel(nextMax);
+          saveCache(team, me.nickname, me.level, nextMax);
           setStep("main");
         } else if (!cached) {
           setStep("nickname");
@@ -173,7 +183,8 @@ export default function Enhance({
       const finalLevel = registered.level ?? 0;
       setNickname(finalNickname);
       setLevel(finalLevel);
-      saveCache(team, finalNickname, finalLevel);
+      setMaxLevel(finalLevel);
+      saveCache(team, finalNickname, finalLevel, finalLevel);
       setStep("main");
     } catch {
       setNicknameError("확인 중 문제가 발생했어요. 다시 시도해주세요.");
@@ -199,19 +210,41 @@ export default function Enhance({
     const outcome = rollEnhanceOutcome(level);
     if (outcome === "success") {
       const next = level + 1;
+      const nextMax = Math.max(maxLevel, next);
       setLevel(next);
-      saveCache(team, nickname, next);
+      setMaxLevel(nextMax);
+      saveCache(team, nickname, next, nextMax);
       void reportEnhanceLevel(next, team).catch(() => {});
       setResult("success");
     } else if (outcome === "destroy") {
       setLevel(0);
-      saveCache(team, nickname, 0);
+      saveCache(team, nickname, 0, maxLevel);
       void reportEnhanceLevel(0, team).catch(() => {});
       setResult("destroy");
     } else {
       setResult("fail");
     }
     setAttemptId((id) => id + 1);
+  };
+
+  /**
+   * 확정강화 — 0단계부터 target단계까지 확률 없이 바로 올려준다(기댓값의 2배 비용).
+   * target단계보다 한 단계 더 위까지 실제로 도달해본 적이 있어야(maxLevel 기준) 쓸 수
+   * 있고, 이미 target단계 이상이면 의미가 없으니 막는다. 성공 이펙트를 그대로 재사용한다.
+   */
+  const confirmEnhance = (target: number) => {
+    const guaranteedCost = GUARANTEED_ENHANCE_COST[target];
+    const unlocked = maxLevel >= target + 1;
+    if (!guaranteedCost || !unlocked || level >= target || balance < guaranteedCost) return;
+    onSpend(guaranteedCost);
+    const nextMax = Math.max(maxLevel, target);
+    setLevel(target);
+    setMaxLevel(nextMax);
+    saveCache(team, nickname, target, nextMax);
+    void reportEnhanceLevel(target, team).catch(() => {});
+    setResult("success");
+    setAttemptId((id) => id + 1);
+    setStep("main");
   };
 
   const openRanking = () => {
@@ -342,6 +375,10 @@ export default function Enhance({
               {maxed ? "강화 완료" : "강화하기"}
             </button>
 
+            <button className="enhance-guaranteed-toggle" onClick={() => setStep("guaranteed")}>
+              확정강화
+            </button>
+
             <div className="enhance-sub-actions">
               <button className="enhance-sub-btn" onClick={() => setStep("probability")}>
                 확률표
@@ -384,6 +421,49 @@ export default function Enhance({
                 </li>
               ))}
             </ol>
+          </>
+        )}
+
+        {step === "guaranteed" && (
+          <>
+            <header className="enhance-head">
+              <button className="icon-btn" onClick={() => setStep("main")} aria-label="뒤로">
+                ‹
+              </button>
+              <p className="enhance-title">확정강화</p>
+              <button className="icon-btn" onClick={onClose} aria-label="닫기">
+                ✕
+              </button>
+            </header>
+            <p className="enhance-note">
+              기댓값의 2배를 내고 0단계에서 해당 단계로 확정으로 강화합니다. 그 단계보다 한 단계 더 위까지 실제로
+              도달해본 적이 있어야 사용할 수 있습니다.
+            </p>
+            <div className="enhance-guaranteed-list">
+              {GUARANTEED_ENHANCE_TARGETS.map((target) => {
+                const guaranteedCost = GUARANTEED_ENHANCE_COST[target];
+                const unlocked = maxLevel >= target + 1;
+                const alreadyThere = level >= target;
+                const short = unlocked && !alreadyThere && balance < guaranteedCost;
+                const usable = unlocked && !alreadyThere && balance >= guaranteedCost;
+                return (
+                  <button
+                    key={target}
+                    className="enhance-guaranteed-btn"
+                    onClick={() => confirmEnhance(target)}
+                    disabled={!usable}
+                  >
+                    <span className="enhance-guaranteed-target">0 → {target}단계</span>
+                    <span className="enhance-guaranteed-cost">비용 {formatNumber(guaranteedCost)}</span>
+                    {!unlocked && <span className="enhance-guaranteed-lock">{target + 1}단계 도달 필요</span>}
+                    {unlocked && alreadyThere && (
+                      <span className="enhance-guaranteed-lock">이미 {target}단계 이상입니다</span>
+                    )}
+                    {short && <span className="enhance-guaranteed-lock">{theme.personalCurrency} 부족</span>}
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
 
