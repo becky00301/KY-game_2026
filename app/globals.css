@@ -2341,7 +2341,12 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .boss-guide-demo--vanish .bb-zone, .boss-guide-tap { animation: none; }
 }
-.boss-map-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #175a53, #092824); color: #e5fff8; font-weight: 800; }
+/* 입장하기 — 이 화면의 주 버튼. 밝은 청록에 은은한 발광. */
+.boss-map-enter-btn {
+  flex: 1; border: 1px solid #8fe0d4; color: #effffb; font-weight: 800;
+  background: linear-gradient(135deg, #1e7d72, #0b3b35);
+  box-shadow: 0 0 18px -4px #36bbae88, inset 0 1px 0 #ffffff22;
+}
 /* 랭킹 보기 / 랭킹모드 도전 — 나가기·입장하기와 거의 같은 크기로, 그 위에 한 줄 더
    얹은 버튼 한 쌍. 왼쪽 열(랭킹 보기 → 나가기), 오른쪽 열(랭킹모드 도전 → 입장하기)이
    서로 위아래로 짝을 이루도록 boss-map-actions 자체를 세로 flex로 바꾸고, 그 안에
@@ -2361,7 +2366,12 @@ button {
 }
 .boss-map-circles .boss-map-circle-btn:active { transform: scale(0.95); }
 .boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd355; background: #0009; color: #d2dfdc; font-weight: 700; }
-.boss-map-ranking-enter-btn { flex: 1; border: 1px solid #67b0a7; background: linear-gradient(135deg, #14453f, #0a201d); color: #e5fff8; font-weight: 800; transition: opacity 0.3s ease; }
+/* 랭킹모드 도전 — 상품이 걸린 도전이라 금색 계열로 확실히 구분한다. */
+.boss-map-ranking-enter-btn {
+  flex: 1; border: 1px solid #d9a441; color: #ffe6b0; font-weight: 800;
+  background: linear-gradient(135deg, #3a2a0d, #150f04);
+  transition: opacity 0.3s ease;
+}
 /* 일반 모드 클리어 전에는 흐리게 — 눌러서 안내 문구는 볼 수 있다(boss-entry-btn.locked와 같은 패턴). */
 .boss-map-ranking-enter-btn.locked { opacity: 0.5; }
 
