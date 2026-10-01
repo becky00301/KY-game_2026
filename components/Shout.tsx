@@ -163,11 +163,22 @@ export function ShoutSheet({
  * 화면 상단에 크게 번쩍이며 뜨는 함성 배너 — 부모가 5초 뒤 unmount한다. 색은 보는 사람의
  * 팀이 아니라 "보낸" 팀 색으로 고정한다 — 연이 보내면 노아 화면에서도 파란색으로 보인다.
  */
-export function ShoutBanner({ team, nickname, text }: { team: TeamId; nickname: string; text: string }) {
+export function ShoutBanner({
+  team,
+  nickname,
+  text,
+  below = false,
+}: {
+  team: TeamId;
+  nickname: string;
+  text: string;
+  /** 운영자 공지가 떠 있으면 그 아래로 내려간다(겹치지 않게). */
+  below?: boolean;
+}) {
   const colors = TEAMS[team].colors;
   return (
     <div
-      className="shout-banner"
+      className={`shout-banner ${below ? "shout-banner--below" : ""}`}
       role="status"
       style={
         {

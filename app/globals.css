@@ -922,6 +922,11 @@ button {
   animation: shoutFlash 0.5s ease, shoutFadeOut 0.6s ease 4.4s forwards;
 }
 
+/* 운영자 공지가 떠 있을 때는 그 아래로 내려간다 — 공지 높이는 GameScreen이 재서 알려준다. */
+.shout-banner--below {
+  top: calc(14px + env(safe-area-inset-top) + var(--announcement-height, 60px) + 10px);
+}
+
 .shout-banner-name {
   display: block;
   font-size: 12px;

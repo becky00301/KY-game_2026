@@ -151,6 +151,8 @@ export default function GameScreen({
   const [bossGuideOpen, setBossGuideOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  /** 공지 높이를 재서 함성 배너를 그만큼 아래로 내린다(두 줄 공지도 안 겹치게). */
+  const announcementRef = useRef<HTMLDivElement>(null);
   const [shoutOpen, setShoutOpen] = useState(false);
   const [shoutQueue, setShoutQueue] = useState<Shout[]>([]);
   const [currentShout, setCurrentShout] = useState<Shout | null>(null);
@@ -363,6 +365,24 @@ export default function GameScreen({
     if (!announcement) return;
     const timer = window.setTimeout(() => setAnnouncement(""), 5000);
     return () => window.clearTimeout(timer);
+  }, [announcement]);
+
+  // 공지가 뜨거나 길이가 바뀌면 그 높이를 CSS 변수로 알려준다 — 함성 배너가 그 아래로 내려간다.
+  useEffect(() => {
+    const root = document.documentElement;
+    const el = announcementRef.current;
+    if (!announcement || !el) {
+      root.style.removeProperty("--announcement-height");
+      return;
+    }
+    const apply = () => root.style.setProperty("--announcement-height", `${el.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--announcement-height");
+    };
   }, [announcement]);
 
   // 누군가 "함성"을 쓰면 큐에 쌓고, 하나씩 순서대로 5초간 띄운다(겹쳐 보이지 않게).
@@ -948,7 +968,12 @@ export default function GameScreen({
       </div>
 
       {currentShout && (
-        <ShoutBanner team={currentShout.team} nickname={currentShout.nickname} text={currentShout.text} />
+        <ShoutBanner
+          team={currentShout.team}
+          nickname={currentShout.nickname}
+          text={currentShout.text}
+          below={!!announcement}
+        />
       )}
 
       {shoutOpen && (
@@ -1078,7 +1103,7 @@ export default function GameScreen({
       {bossRankingBoardOpen && <BossRankingBoard onClose={() => setBossRankingBoardOpen(false)} />}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
       {announcement && (
-        <div className="announcement-toast" role="status">
+        <div className="announcement-toast" role="status" ref={announcementRef}>
           {announcement}
         </div>
       )}
