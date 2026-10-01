@@ -8,7 +8,11 @@ import {
   ENHANCE_LEVEL_CACHE_KEY,
   ENHANCE_MAX_LEVEL,
   enhanceCost,
+  enhanceCurrencyBonusPercent,
+  enhanceCurrencyMultiplier,
   enhanceDestroyRate,
+  enhanceScoreBonusPercent,
+  enhanceScoreMultiplier,
   enhanceSuccessRate,
   enhanceTable,
   rollEnhanceOutcome,
@@ -183,6 +187,10 @@ export default function Enhance({
   const maxed = level >= ENHANCE_MAX_LEVEL;
   const insufficient = !maxed && cost !== null && balance < cost;
   const risky = level >= ENHANCE_DESTROY_FROM_LEVEL;
+  const currencyMultiplier = enhanceCurrencyMultiplier(level);
+  const currencyBonusPercent = enhanceCurrencyBonusPercent(level);
+  const scoreMultiplier = enhanceScoreMultiplier(level);
+  const scoreBonusPercent = enhanceScoreBonusPercent(level);
 
   const attempt = () => {
     if (maxed || cost === null || balance < cost) return;
@@ -297,6 +305,11 @@ export default function Enhance({
               <span className="enhance-currency-name">{theme.personalCurrency}</span>
               <span className="enhance-currency-value">{formatNumber(balance)}</span>
             </div>
+
+            <p className="enhance-multipliers">
+              재화 배율 <strong>×{currencyMultiplier.toFixed(2)}</strong> (+{currencyBonusPercent}%) · 터치 배율{" "}
+              <strong>×{scoreMultiplier.toFixed(2)}</strong> (+{scoreBonusPercent}%)
+            </p>
 
             {!maxed && cost !== null && rate !== null && destroyRate !== null && (
               <p className="enhance-odds">

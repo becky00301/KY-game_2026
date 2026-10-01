@@ -1020,6 +1020,18 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.enhance-multipliers {
+  margin: 2px 0 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.enhance-multipliers strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .enhance-odds {
   margin-bottom: 10px;
   text-align: center;
