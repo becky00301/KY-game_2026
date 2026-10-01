@@ -49,20 +49,35 @@ export const PERSONAL_CURRENCY_PER_TAP = 2_417;
 
 /**
  * "확정강화" — 0단계부터 해당 단계까지 확률 없이 확정으로 올려주는 대신, 평균(기댓값)
- * 비용의 2배를 받는다. 파괴로 공들인 단계를 잃었을 때의 "보험"에 가까운 기능이라, 아무나
- * 바로 쓸 수 있게 하면 확률 자체의 의미가 없어진다 — 그래서 해당 단계보다 "한 단계 더
- * 위"까지 실제로 도달해본 적이 있어야만(=ENHANCE_MAX_LEVEL_CACHE_KEY 기준) 잠금이
- * 풀린다. 비용은 Markov 체인(파괴로 인한 0단계 리셋 포함)으로 계산한 기댓값의 2배를
+ * 비용의 배수를 받는다. 파괴로 공들인 단계를 잃었을 때의 "보험"에 가까운 기능이라, 아무나
+ * 바로 쓸 수 있게 하면 확률 자체의 의미가 없어진다 — 그래서 15/20/22단계는 해당 단계보다
+ * "한 단계 더 위"까지 실제로 도달해본 적이 있어야만(=ENHANCE_MAX_LEVEL_CACHE_KEY 기준)
+ * 잠금이 풀린다. 23단계는 예외로, 한 번도 23단계를 찍어본 적이 없어도 바로 쓸 수 있는
+ * 대신(=GUARANTEED_ENHANCE_NO_PRIOR_REQUIRED) 배수를 2.5배로 더 비싸게 받는다 —
+ * guaranteedEnhanceUnlockLevel이 이 예외를 처리한다.
+ *
+ * 비용은 Markov 체인(파괴로 인한 0단계 리셋 포함)으로 계산한 기댓값에 배수를 곱해
  * 반올림한 값이다(1~21단계 70% 할인이 반영된 ENHANCE_DATA 기준) — 15단계: 기댓값
- * ≈26,024 → 비용 52,000 / 20단계: 기댓값 ≈3,474,177 → 비용 6,950,000 / 22단계:
- * 기댓값 ≈15,523,645 → 비용 31,000,000.
+ * ≈26,024 × 2배 → 비용 52,000 / 20단계: 기댓값 ≈3,474,177 × 2배 → 비용 6,950,000 /
+ * 22단계: 기댓값 ≈15,523,645 × 2배 → 비용 31,000,000 / 23단계: 기댓값 ≈44,618,049 ×
+ * 2.5배 → 비용 111,500,000.
  */
-export const GUARANTEED_ENHANCE_TARGETS = [15, 20, 22] as const;
+export const GUARANTEED_ENHANCE_TARGETS = [15, 20, 22, 23] as const;
 export const GUARANTEED_ENHANCE_COST: Record<number, number> = {
   15: 52_000,
   20: 6_950_000,
   22: 31_000_000,
+  23: 111_500_000,
 };
+
+/** 확정강화 중 "한 단계 더 위까지 도달해본 적" 요구를 면제받는 단계 — 23단계는 대신 비용이 더 비싸다. */
+const GUARANTEED_ENHANCE_NO_PRIOR_REQUIRED = new Set<number>([23]);
+
+/** target 확정강화를 쓰려면 ENHANCE_MAX_LEVEL_CACHE_KEY 기준 이 단계 이상 도달해본 적이
+ *  있어야 한다 — null이면 그 조건 자체가 없다(언제든 쓸 수 있음). */
+export function guaranteedEnhanceUnlockLevel(target: number): number | null {
+  return GUARANTEED_ENHANCE_NO_PRIOR_REQUIRED.has(target) ? null : target + 1;
+}
 
 export interface EnhanceLevelData {
   /** 이 단계에서 1단계 강화를 시도하는 데 드는 비용. */

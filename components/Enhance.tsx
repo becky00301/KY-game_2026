@@ -19,6 +19,7 @@ import {
   enhanceScoreMultiplier,
   enhanceSuccessRate,
   enhanceTable,
+  guaranteedEnhanceUnlockLevel,
   rollEnhanceOutcome,
 } from "@/lib/enhance";
 import {
@@ -232,13 +233,16 @@ export default function Enhance({
   };
 
   /**
-   * 확정강화 — 0단계부터 target단계까지 확률 없이 바로 올려준다(기댓값의 2배 비용).
-   * target단계보다 한 단계 더 위까지 실제로 도달해본 적이 있어야(maxLevel 기준) 쓸 수
-   * 있고, 이미 target단계 이상이면 의미가 없으니 막는다. 성공 이펙트를 그대로 재사용한다.
+   * 확정강화 — 0단계부터 target단계까지 확률 없이 바로 올려준다(기댓값의 배수 비용).
+   * 대부분은 target단계보다 한 단계 더 위까지 실제로 도달해본 적이 있어야(maxLevel
+   * 기준) 쓸 수 있지만, 23단계는 예외로 도달 이력 없이도 바로 쓸 수 있다(대신 더
+   * 비싸다) — guaranteedEnhanceUnlockLevel이 이 차이를 안다. 이미 target단계 이상이면
+   * 의미가 없으니 막는다. 성공 이펙트를 그대로 재사용한다.
    */
   const confirmEnhance = (target: number) => {
     const guaranteedCost = GUARANTEED_ENHANCE_COST[target];
-    const unlocked = maxLevel >= target + 1;
+    const requiredLevel = guaranteedEnhanceUnlockLevel(target);
+    const unlocked = requiredLevel === null || maxLevel >= requiredLevel;
     if (!guaranteedCost || !unlocked || level >= target || balance < guaranteedCost) return;
     onSpend(guaranteedCost);
     const nextMax = Math.max(maxLevel, target);
@@ -446,13 +450,15 @@ export default function Enhance({
               </button>
             </header>
             <p className="enhance-note">
-              기댓값의 2배를 내고 0단계에서 해당 단계로 확정으로 강화합니다. 그 단계보다 한 단계 더 위까지 실제로
-              도달해본 적이 있어야 사용할 수 있습니다.
+              기댓값의 배수를 내고 0단계에서 해당 단계로 확정으로 강화합니다. 대부분은 그 단계보다 한 단계 더 위까지
+              실제로 도달해본 적이 있어야 사용할 수 있지만, 23단계는 도달 이력 없이도 바로 쓸 수 있는 대신 기댓값의
+              2.5배로 더 비쌉니다.
             </p>
             <div className="enhance-guaranteed-list">
               {GUARANTEED_ENHANCE_TARGETS.map((target) => {
                 const guaranteedCost = GUARANTEED_ENHANCE_COST[target];
-                const unlocked = maxLevel >= target + 1;
+                const requiredLevel = guaranteedEnhanceUnlockLevel(target);
+                const unlocked = requiredLevel === null || maxLevel >= requiredLevel;
                 const alreadyThere = level >= target;
                 const short = unlocked && !alreadyThere && balance < guaranteedCost;
                 const usable = unlocked && !alreadyThere && balance >= guaranteedCost;
@@ -465,7 +471,9 @@ export default function Enhance({
                   >
                     <span className="enhance-guaranteed-target">0 → {target}단계</span>
                     <span className="enhance-guaranteed-cost">비용 {formatNumber(guaranteedCost)}</span>
-                    {!unlocked && <span className="enhance-guaranteed-lock">{target + 1}단계 도달 필요</span>}
+                    {!unlocked && requiredLevel !== null && (
+                      <span className="enhance-guaranteed-lock">{requiredLevel}단계 도달 필요</span>
+                    )}
                     {unlocked && alreadyThere && (
                       <span className="enhance-guaranteed-lock">이미 {target}단계 이상입니다</span>
                     )}
