@@ -319,6 +319,40 @@ export function subscribeShouts(onShout: (shout: Shout) => void): () => void {
   };
 }
 
+export interface EnhanceMilestone {
+  team: TeamId;
+  nickname: string;
+  level: number;
+}
+
+/**
+ * 누군가 강화 23단계 이상에 성공하면(enhance_report가 enhance_milestones에 기록) 받아본다.
+ * shouts와 같은 방식 — INSERT만 구독하므로 지금 접속 중인 사람에게만 뜨고, 노아·연
+ * 어느 팀에서 일어난 일이든 양쪽 화면 모두에 똑같이 뜬다.
+ */
+export function subscribeEnhanceMilestones(onMilestone: (milestone: EnhanceMilestone) => void): () => void {
+  if (backendMode !== "supabase") return () => {};
+  let channel: RealtimeChannel | null = supabase()
+    .channel("enhance_milestones")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "enhance_milestones" },
+      (payload) => {
+        const row = payload.new as Record<string, unknown>;
+        onMilestone({
+          team: row.team === "yu" ? "yu" : "ku",
+          nickname: String(row.nickname ?? ""),
+          level: Number(row.level ?? 0),
+        });
+      }
+    )
+    .subscribe();
+  return () => {
+    if (channel) supabase().removeChannel(channel);
+    channel = null;
+  };
+}
+
 export interface ShoutResult {
   ok: boolean;
   reason?: string;

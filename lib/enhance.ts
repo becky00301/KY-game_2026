@@ -19,19 +19,18 @@ export const ENHANCE_ITEM: Record<TeamId, { name: string; image: string }> = {
 export const ENHANCE_MAX_LEVEL = 30;
 /** 이 단계부터 실패 시 파괴 판정이 섞여 들어간다(0-index 기준 — "16단계" 시도). */
 export const ENHANCE_DESTROY_FROM_LEVEL = 15;
+/** 이 단계 이상으로 성공할 때마다 전체 공지급으로 화면 최상단에 웅장하게 알려준다. */
+export const ENHANCE_ANNOUNCE_FROM_LEVEL = 23;
 /** 기기별 현재 강화 단계 캐시 키(팀 접미사 붙여서 사용) — Enhance.tsx가 쓰고,
  *  GameScreen.tsx가 터치 점수 배율을 계산할 때 읽기 전용으로 같이 참조한다. */
 export const ENHANCE_LEVEL_CACHE_KEY = "kyg.enhanceLevel";
 
 /**
- * 터치 1회당 쌓이는 개인 재화(염원의 빛/데이터로그) 양 — 하루 10분 정도만 적극적으로
- * 두드려도 22단계 기댓값(약 2,790만) 정도는 모을 수 있게 잡은 값이다. 초당 5회 ×
- * 600초 = 3,000타 기준으로 약 3,000만이 모이도록 역산했다(초당 5회는 이 레포의
- * 다른 주석에서도 "사람이 보통 내는 속도"로 쓰는 기준). 실제 재화 차감·확률 굴림은
- * contrib와 같은 신뢰 모델로 클라이언트에서 계산하므로, 이 값도 서버 검증 없이
- * 그대로 적용된다.
+ * 터치 1회당 쌓이는 개인 재화(염원의 빛/데이터로그) 양. 처음엔 하루 10분 플레이로
+ * 22단계 기댓값 정도를 모으게 잡았더니(10,000/타) 너무 쉽게 쌓여서, 1/6로 줄였다.
+ * 10분(초당 5회 × 600초 = 3,000타) 플레이 시 이제 약 500만 정도가 쌓인다.
  */
-export const PERSONAL_CURRENCY_PER_TAP = 10_000;
+export const PERSONAL_CURRENCY_PER_TAP = 1_667;
 
 export interface EnhanceLevelData {
   /** 이 단계에서 1단계 강화를 시도하는 데 드는 비용. */

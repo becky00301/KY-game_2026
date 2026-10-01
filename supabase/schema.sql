@@ -912,26 +912,62 @@ begin
 end;
 $$;
 
+-- 23단계 이상으로 성공할 때마다(파괴로 내려가는 건 당연히 제외) 전체 공지급으로
+-- 화면 최상단에 뜨는 웅장한 알림 — enhance_report가 성공을 반영할 때 같이 기록한다.
+-- 클라이언트는 이 테이블의 INSERT를 구독해서 함성보다 훨씬 위, 화면 맨 위에 띄운다.
+create table if not exists public.enhance_milestones (
+  id         bigint generated always as identity primary key,
+  team       text        not null check (team in ('ku', 'yu')),
+  nickname   text        not null,
+  level      int         not null,
+  created_at timestamptz not null default now()
+);
+
+drop policy if exists "milestones readable" on public.enhance_milestones;
+create policy "milestones readable" on public.enhance_milestones for select using (true);
+alter table public.enhance_milestones enable row level security;
+
+-- 웅장한 강화 알림을 실시간으로 받기 위해 올린다 — INSERT만 쓰므로 클라이언트는
+-- 새로 추가되는 행만 받아본다(shouts와 같은 방식).
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'enhance_milestones'
+  ) then
+    alter publication supabase_realtime add table public.enhance_milestones;
+  end if;
+end
+$$;
+
 -- 강화를 시도할 때마다 호출 — 성공하면 레벨이 오르고, 16단계 이상에서 파괴가 뜨면
 -- 0단계로 완전히 초기화된다. 그래서 "greatest"가 아니라 보낸 값을 그대로 반영한다
 -- (파괴로 내려가는 것도 정상적인 상태 변화다). updated_at은 항상 지금 시각으로 — 랭킹
--- 동점자는 "마지막으로 그 단계였던" 시점이 빠른 쪽이 위로 오도록 한다.
+-- 동점자는 "마지막으로 그 단계였던" 시점이 빠른 쪽이 위로 오도록 한다. 23단계 이상에
+-- 도달하면(파괴로 0단계가 된 경우는 제외) enhance_milestones에도 같이 기록한다.
 drop function if exists public.enhance_report(uuid, int);
 create or replace function public.enhance_report(p_device uuid, p_team text, p_level int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_level  int := least(30, greatest(0, coalesce(p_level, 0)));
-  v_result int;
+  v_level    int := least(30, greatest(0, coalesce(p_level, 0)));
+  v_team     text := coalesce(p_team, 'ku');
+  v_result   int;
+  v_nickname text;
 begin
   update public.enhance_players
      set level = v_level,
          updated_at = now()
-   where device_id = p_device and team = coalesce(p_team, 'ku')
-  returning level into v_result;
+   where device_id = p_device and team = v_team
+  returning level, nickname into v_result, v_nickname;
 
   if v_result is null then
     return jsonb_build_object('ok', false);
   end if;
+
+  if v_result >= 23 then
+    insert into public.enhance_milestones (team, nickname, level) values (v_team, v_nickname, v_result);
+  end if;
+
   return jsonb_build_object('ok', true, 'level', v_result);
 end;
 $$;

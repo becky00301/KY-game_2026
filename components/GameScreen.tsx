@@ -16,6 +16,7 @@ import FeverPop from "./FeverPop";
 import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
+import { EnhanceMilestoneBanner } from "./EnhanceMilestone";
 import Enhance from "./Enhance";
 import { ENHANCE_LEVEL_CACHE_KEY, PERSONAL_CURRENCY_PER_TAP, enhanceScoreMultiplier } from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
@@ -47,6 +48,7 @@ import {
 } from "@/lib/engine";
 import { TEAMS, emblemSrc, formatNumber, formatRate, hasSeenEvolveCutscene, hexToRgbString, markEvolveCutsceneSeen } from "@/lib/game";
 import {
+  EnhanceMilestone,
   Shout,
   backendMode,
   buyUpgrade,
@@ -54,6 +56,7 @@ import {
   fetchSword,
   sendTaps,
   subscribeAnnouncement,
+  subscribeEnhanceMilestones,
   subscribePresence,
   subscribeShouts,
   subscribeSword,
@@ -171,6 +174,8 @@ export default function GameScreen({
   const [shoutOpen, setShoutOpen] = useState(false);
   const [shoutQueue, setShoutQueue] = useState<Shout[]>([]);
   const [currentShout, setCurrentShout] = useState<Shout | null>(null);
+  const [milestoneQueue, setMilestoneQueue] = useState<EnhanceMilestone[]>([]);
+  const [currentMilestone, setCurrentMilestone] = useState<EnhanceMilestone | null>(null);
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -413,6 +418,20 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setCurrentShout(null), 5000);
     return () => window.clearTimeout(timer);
   }, [currentShout]);
+
+  // 누군가 강화 23단계 이상에 성공하면 큐에 쌓고, 하나씩 순서대로 7초간 웅장하게 띄운다.
+  useEffect(() => subscribeEnhanceMilestones((milestone) => setMilestoneQueue((q) => [...q, milestone])), []);
+  useEffect(() => {
+    if (currentMilestone || milestoneQueue.length === 0) return;
+    const [next, ...rest] = milestoneQueue;
+    setCurrentMilestone(next);
+    setMilestoneQueue(rest);
+  }, [milestoneQueue, currentMilestone]);
+  useEffect(() => {
+    if (!currentMilestone) return;
+    const timer = window.setTimeout(() => setCurrentMilestone(null), 7000);
+    return () => window.clearTimeout(timer);
+  }, [currentMilestone]);
 
   // If final evolution and the first star arrive together, finish the earlier story first.
   useEffect(() => {
@@ -1003,6 +1022,14 @@ export default function GameScreen({
         </div>
       </footer>
       </div>
+
+      {currentMilestone && (
+        <EnhanceMilestoneBanner
+          team={currentMilestone.team}
+          nickname={currentMilestone.nickname}
+          level={currentMilestone.level}
+        />
+      )}
 
       {currentShout && (
         <ShoutBanner

@@ -1864,8 +1864,106 @@ button {
   color: rgba(255, 255, 255, 0.45);
 }
 
+/* 강화 23단계 이상 성공 — 화면 맨 위를 가로지르는 웅장한 리본 배너. 운영자 공지(100)·
+   함성(95)보다도 위, 이 파일에서 가장 높은 z-index. 화면 폭 전체를 가로지르는 모양 자체로도
+   토스트들과 확실히 구분된다. */
+.milestone-banner {
+  position: fixed;
+  inset: 0 0 auto 0;
+  top: 0;
+  z-index: 120;
+  padding: calc(10px + env(safe-area-inset-top)) 20px 14px;
+  text-align: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #3a2208, #1a0f03 55%, #3a2208);
+  border-bottom: 2px solid #ffd45a;
+  box-shadow: 0 10px 40px -6px rgba(255, 212, 90, 0.55), 0 4px 20px rgba(0, 0, 0, 0.6);
+  animation: milestoneSlideIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1), milestoneFadeOut 0.7s ease 6.3s forwards;
+}
+
+.milestone-banner-rays {
+  position: absolute;
+  inset: -40% -10% auto -10%;
+  height: 220%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 212, 90, 0.25) 10deg, transparent 20deg);
+  animation: milestoneRaySpin 10s linear infinite;
+  pointer-events: none;
+}
+
+.milestone-banner-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(60% 140% at 50% 0%, rgba(255, 212, 90, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+  animation: milestonePulse 1.8s ease-in-out infinite;
+}
+
+.milestone-banner-text {
+  position: relative;
+  margin: 0 auto;
+  max-width: 460px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #ffe9b8;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.milestone-banner-name,
+.milestone-banner-level {
+  font-size: 18px;
+  font-weight: 900;
+  color: #ffd45a;
+  text-shadow: 0 0 14px rgba(255, 212, 90, 0.7);
+}
+
+@keyframes milestoneSlideIn {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes milestoneFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12%);
+  }
+}
+
+@keyframes milestoneRaySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes milestonePulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .milestone-banner,
+  .milestone-banner-rays,
+  .milestone-banner-glow {
+    animation: none;
+  }
+}
+
 /* 운영자 전체 공지 — 여러 문장일 수 있어 줄바꿈을 허용하고, 다른 토스트와 안 겹치게 위쪽에 띄운다.
-   함성 배너(z-index 95)보다도 위, 이 파일에서 가장 높은 z-index — 운영자 공지는 항상 최상단. */
+   함성 배너(z-index 95)보다도 위, 강화 웅장 배너(120) 다음으로 이 파일에서 두 번째로 높은 z-index. */
 .announcement-toast {
   position: fixed;
   left: 50%;
