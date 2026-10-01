@@ -3,7 +3,12 @@
  *
  * app/api/sword/store.ts와 같은 이유로 프로세스 메모리에 둔다. 운영에서는 반드시
  * Supabase(boss_ranking_* RPC)를 쓴다.
+ *
+ * 닉네임은 더 이상 여기서 직접 입력받지 않는다 — "장비 강화"에 등록한 닉네임을
+ * 그대로 쓴다(getByDeviceAnyTeam). 강화 등록이 없으면 랭킹모드에 들어올 수 없다.
  */
+
+import { getByDeviceAnyTeam } from "../enhance/store";
 
 interface RankingEntry {
   nickname: string;
@@ -19,7 +24,6 @@ interface RankingSession {
   deviceId?: string;
 }
 
-const NICKNAME_MAX_LEN = 14;
 /** 전투 시작(boss_ranking_start) 후 이만큼 지나야 격파 등록을 받아준다 — Supabase RPC와 동일한 값. */
 const MIN_SESSION_MS = 60_000;
 
@@ -52,37 +56,37 @@ export function isNicknameAvailable(nickname: string): boolean {
 
 export interface StartOutcome {
   ok: boolean;
-  reason?: "invalid" | "device_taken";
+  reason?: "enhance_not_registered" | "device_taken" | "nickname_conflict";
   token?: string;
+  nickname?: string;
 }
 
-/** 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급한다. */
-export function startSession(nickname: string, deviceId?: string): StartOutcome {
-  const trimmed = nickname.trim();
-  if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
-    return { ok: false, reason: "invalid" };
+/** 랭킹모드 전투를 실제로 시작할 때 한 번 호출 — 강화 닉네임을 그대로 써서 1회용 토큰을 발급한다. */
+export function startSession(deviceId?: string): StartOutcome {
+  const enhance = deviceId ? getByDeviceAnyTeam(deviceId) : null;
+  if (!enhance) {
+    return { ok: false, reason: "enhance_not_registered" };
   }
   if (isDeviceRegistered(deviceId)) {
     return { ok: false, reason: "device_taken" };
   }
+  if (rankings.some((r) => norm(r.nickname) === norm(enhance.nickname) && r.deviceId !== deviceId)) {
+    return { ok: false, reason: "nickname_conflict" };
+  }
   const token = crypto.randomUUID();
-  sessions.set(token, { token, nickname: trimmed, startedAt: Date.now(), used: false, deviceId });
-  return { ok: true, token };
+  sessions.set(token, { token, nickname: enhance.nickname, startedAt: Date.now(), used: false, deviceId });
+  return { ok: true, token, nickname: enhance.nickname };
 }
 
 export interface SubmitOutcome {
   ok: boolean;
-  reason?: "invalid" | "taken" | "device_taken" | "no_session" | "session_used" | "too_fast";
+  reason?: "taken" | "device_taken" | "no_session" | "session_used" | "too_fast";
   rank?: number;
 }
 
-export function submitClear(nickname: string, token: string): SubmitOutcome {
-  const trimmed = nickname.trim();
-  if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
-    return { ok: false, reason: "invalid" };
-  }
+export function submitClear(deviceId: string | undefined, token: string): SubmitOutcome {
   const session = sessions.get(token);
-  if (!session || norm(session.nickname) !== norm(trimmed)) {
+  if (!session || session.deviceId !== deviceId) {
     return { ok: false, reason: "no_session" };
   }
   if (session.used) {
@@ -91,15 +95,15 @@ export function submitClear(nickname: string, token: string): SubmitOutcome {
   if (Date.now() - session.startedAt < MIN_SESSION_MS) {
     return { ok: false, reason: "too_fast" };
   }
-  if (!isNicknameAvailable(trimmed)) {
+  if (!isNicknameAvailable(session.nickname)) {
     return { ok: false, reason: "taken" };
   }
   if (isDeviceRegistered(session.deviceId)) {
     return { ok: false, reason: "device_taken" };
   }
   session.used = true;
-  rankings.push({ nickname: trimmed, clearedAt: Date.now(), deviceId: session.deviceId });
-  const rank = sorted().findIndex((r) => norm(r.nickname) === norm(trimmed)) + 1;
+  rankings.push({ nickname: session.nickname, clearedAt: Date.now(), deviceId: session.deviceId });
+  const rank = sorted().findIndex((r) => norm(r.nickname) === norm(session.nickname)) + 1;
   return { ok: true, rank };
 }
 

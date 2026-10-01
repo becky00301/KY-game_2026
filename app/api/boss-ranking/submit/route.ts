@@ -8,8 +8,8 @@ export async function POST(req: NextRequest) {
   const blocked = blockedInProduction();
   if (blocked) return blocked;
 
-  const body = (await req.json().catch(() => null)) as { nickname?: string; token?: string } | null;
-  const nickname = typeof body?.nickname === "string" ? body.nickname : "";
+  const body = (await req.json().catch(() => null)) as { deviceId?: string; token?: string } | null;
+  const deviceId = typeof body?.deviceId === "string" ? body.deviceId : undefined;
   const token = typeof body?.token === "string" ? body.token : "";
-  return NextResponse.json(submitClear(nickname, token));
+  return NextResponse.json(submitClear(deviceId, token));
 }

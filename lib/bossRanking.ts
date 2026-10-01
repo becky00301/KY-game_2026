@@ -5,12 +5,15 @@
  *
  * lib/backend.ts와 같은 방식 — Supabase 자격증명이 있으면 Supabase RPC를,
  * 없으면 개발용 로컬 백엔드(app/api/boss-ranking)를 쓴다. 순위는 "클리어한 순서"
- * (cleared_at 오름차순) 기준이며, 닉네임은 대소문자 구분 없이 전역에서 유일해야 한다.
+ * (cleared_at 오름차순) 기준이다.
  *
- * 로그인이 없는 만큼 완벽한 부정 방지는 아니지만("격파 신고" API를 직접 호출하면
- * 이론적으로는 흉내 낼 수 있다), startBossRankingSession으로 발급받은 1회용 토큰과
- * 최소 경과시간(서버에서 강제) 없이는 등록 자체가 안 되게 막아뒀다 — 최소한 "닉네임
- * 하나만 보내서 즉시 등록"하는 건 막는다.
+ * 닉네임은 더 이상 여기서 따로 입력받지 않는다 — "장비 강화"에 등록한 닉네임을
+ * 서버가 device_id로 직접 찾아 그대로 쓴다(enhance_identity). 강화에 닉네임을
+ * 등록하지 않은 기기는 랭킹모드에 들어올 수 없다(reason:'enhance_not_registered').
+ *
+ * 로그인이 없는 만큼 완벽한 부정 방지는 아니지만, startBossRankingSession으로
+ * 발급받은 1회용 토큰과 최소 경과시간(서버에서 강제) 없이는 등록 자체가 안 되게
+ * 막아뒀다 — 최소한 "즉시 등록"하는 건 막는다.
  */
 
 import { backendMode, supabase } from "./supabaseClient";
@@ -24,23 +27,16 @@ export interface RankingEntry {
 
 export interface SubmitResult {
   ok: boolean;
-  reason?: "invalid" | "taken" | "no_session" | "session_used" | "too_fast" | string;
+  reason?: "taken" | "device_taken" | "no_session" | "session_used" | "too_fast" | string;
   rank?: number;
 }
 
 export interface StartResult {
   ok: boolean;
-  reason?: "invalid" | "device_taken" | string;
+  reason?: "enhance_not_registered" | "device_taken" | "nickname_conflict" | string;
   token?: string;
+  nickname?: string;
 }
-
-/** 입장 가능 여부 — 닉네임 형식·중복과 "이 기기가 이미 등록했는지"를 함께 본다. */
-export interface CanEnterResult {
-  ok: boolean;
-  reason?: "invalid" | "taken" | "device_taken" | string;
-}
-
-const NICKNAME_MAX_LEN = 14;
 
 async function localJson(path: string, body?: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(path, {
@@ -65,67 +61,30 @@ function normalizeList(rows: unknown): RankingEntry[] {
   return Array.isArray(rows) ? rows.map((r) => normalizeEntry(r as Record<string, unknown>)) : [];
 }
 
-/** 닉네임 형식이 유효한지(길이) — 서버에도 같은 제한이 있지만, 입력창에서 먼저 걸러준다. */
-export function isNicknameFormatValid(nickname: string): boolean {
-  const trimmed = nickname.trim();
-  return trimmed.length >= 1 && trimmed.length <= NICKNAME_MAX_LEN;
-}
-
-export async function checkNicknameAvailable(nickname: string): Promise<boolean> {
-  if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_check", { p_nickname: nickname });
-    if (error) throw new Error(error.message);
-    return Boolean(data);
-  }
-  const data = await localJson("/api/boss-ranking/check", { nickname });
-  return Boolean(data.available);
-}
-
 /**
- * 입장 전 확인 — 닉네임이 쓸 수 있는지, 이 기기가 이미 한 자리를 차지했는지.
- * 기기 하나당 한 번만 등록할 수 있다(닉네임만 바꿔 순위를 독식하는 걸 막는다).
+ * 랭킹모드 전투를 실제로 시작할 때 한 번 호출 — 1회용 토큰을 발급받는다. 이 기기가
+ * "장비 강화"에 등록한 닉네임을 서버가 그대로 가져다 쓰므로 닉네임을 보내지 않는다.
+ * 강화 미등록이면 reason:'enhance_not_registered'.
  */
-export async function canEnterRanking(nickname: string): Promise<CanEnterResult> {
+export async function startBossRankingSession(): Promise<StartResult> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_can_enter", {
-      p_nickname: nickname,
-      p_device: clientId(),
-    });
-    if (error) throw new Error(error.message);
-    return data as CanEnterResult;
-  }
-  return (await localJson("/api/boss-ranking/check", {
-    nickname,
-    deviceId: clientId(),
-  })) as unknown as CanEnterResult;
-}
-
-/** 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급받는다. */
-export async function startBossRankingSession(nickname: string): Promise<StartResult> {
-  if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_start", {
-      p_nickname: nickname,
-      p_device: clientId(),
-    });
+    const { data, error } = await supabase().rpc("boss_ranking_start", { p_device: clientId() });
     if (error) throw new Error(error.message);
     return data as StartResult;
   }
-  return (await localJson("/api/boss-ranking/start", {
-    nickname,
-    deviceId: clientId(),
-  })) as unknown as StartResult;
+  return (await localJson("/api/boss-ranking/start", { deviceId: clientId() })) as unknown as StartResult;
 }
 
 /** 서휘령(2페이즈) 격파 시 한 번 호출 — startBossRankingSession에서 받은 토큰이 필요하다.
  *  토큰이 없거나·이미 썼거나·시작한 지 너무 얼마 안 됐거나·닉네임이 이미 등록돼 있으면
  *  (경합 포함) ok:false. */
-export async function submitBossClear(nickname: string, token: string): Promise<SubmitResult> {
+export async function submitBossClear(token: string): Promise<SubmitResult> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_submit", { p_nickname: nickname, p_token: token });
+    const { data, error } = await supabase().rpc("boss_ranking_submit", { p_device: clientId(), p_token: token });
     if (error) throw new Error(error.message);
     return data as SubmitResult;
   }
-  return (await localJson("/api/boss-ranking/submit", { nickname, token })) as unknown as SubmitResult;
+  return (await localJson("/api/boss-ranking/submit", { deviceId: clientId(), token })) as unknown as SubmitResult;
 }
 
 export async function fetchRankings(
@@ -150,25 +109,4 @@ export async function fetchRankings(
     top: normalizeList(data.top),
     mine: data.mine ? normalizeEntry(data.mine as Record<string, unknown>) : null,
   };
-}
-
-/** 이 기기에서 마지막으로 랭킹모드에 쓴 닉네임 — 재입력 편의 + "내 순위" 조회용. */
-const NICKNAME_STORAGE_KEY = "kyg.bossRankingNickname";
-
-export function loadSavedNickname(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-export function saveNickname(nickname: string) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(NICKNAME_STORAGE_KEY, nickname);
-  } catch {
-    /* 저장 실패해도 게임 진행에는 지장 없다 */
-  }
 }

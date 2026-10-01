@@ -713,77 +713,58 @@ returns jsonb language sql stable security definer set search_path = public as $
   where r.id = p_id;
 $$;
 
--- 닉네임이 아직 아무도 안 쓰고 있는지(대소문자 무시).
-create or replace function public.boss_ranking_check(p_nickname text)
-returns boolean language sql stable security definer set search_path = public as $$
-  select coalesce(char_length(trim(p_nickname)), 0) between 1 and 14
-     and not exists (
-       select 1 from public.boss_rankings where lower(nickname) = lower(trim(p_nickname))
-     );
-$$;
-
--- 입장 전 확인 — 닉네임 형식·중복과 "이 기기가 이미 등록했는지"를 한 번에 본다.
-create or replace function public.boss_ranking_can_enter(p_nickname text, p_device uuid)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare v_nickname text := trim(p_nickname);
-begin
-  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
-    return jsonb_build_object('ok', false, 'reason', 'invalid');
-  end if;
-  if p_device is not null and exists (select 1 from public.boss_rankings where device_id = p_device) then
-    return jsonb_build_object('ok', false, 'reason', 'device_taken');
-  end if;
-  if exists (select 1 from public.boss_rankings where lower(nickname) = lower(v_nickname)) then
-    return jsonb_build_object('ok', false, 'reason', 'taken');
-  end if;
-  return jsonb_build_object('ok', true);
-end;
-$$;
-
--- 기기 식별값을 같이 받도록 바뀌었으니 옛 시그니처는 지운다(두면 기기 제한을 우회할 수 있다).
+-- 이전 버전(닉네임 직접 입력)에서 쓰던 함수들 — 더 이상 쓰지 않는다. 지금은 "장비
+-- 강화"에 등록한 닉네임을 그대로 쓴다(enhance_identity, 아래).
+drop function if exists public.boss_ranking_check(text);
+drop function if exists public.boss_ranking_can_enter(text, uuid);
 drop function if exists public.boss_ranking_start(text);
+drop function if exists public.boss_ranking_start(text, uuid);
+drop function if exists public.boss_ranking_submit(text);
+drop function if exists public.boss_ranking_submit(text, uuid);
 
--- 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급한다.
-create or replace function public.boss_ranking_start(p_nickname text, p_device uuid)
+-- 랭킹모드 전투를 실제로 시작할 때 한 번 호출 — 이 기기가 "장비 강화"에 등록한
+-- 닉네임(enhance_players, 팀 무관 — 한 기기는 한 진영에서만 강화할 수 있어 하나뿐이다)을
+-- 그대로 써서 1회용 토큰을 발급한다. 강화 미등록이면 reason:'enhance_not_registered'.
+-- 강화 닉네임은 팀별로만 유일해서(enhance_players_team_nickname_lower_idx), 서로 다른
+-- 진영의 두 사람이 같은 이름을 쓰고 있었을 경우에만 reason:'nickname_conflict'.
+create or replace function public.boss_ranking_start(p_device uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_nickname text := trim(p_nickname);
+  v_nickname text;
   v_token    uuid;
 begin
-  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
-    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  select nickname into v_nickname from public.enhance_players where device_id = p_device limit 1;
+  if v_nickname is null then
+    return jsonb_build_object('ok', false, 'reason', 'enhance_not_registered');
   end if;
-  if p_device is not null and exists (select 1 from public.boss_rankings where device_id = p_device) then
+  if exists (select 1 from public.boss_rankings where device_id = p_device) then
     return jsonb_build_object('ok', false, 'reason', 'device_taken');
+  end if;
+  if exists (
+    select 1 from public.boss_rankings
+    where lower(nickname) = lower(v_nickname) and device_id is distinct from p_device
+  ) then
+    return jsonb_build_object('ok', false, 'reason', 'nickname_conflict');
   end if;
 
   insert into public.boss_ranking_sessions (nickname, device_id)
   values (v_nickname, p_device)
   returning token into v_token;
 
-  return jsonb_build_object('ok', true, 'token', v_token);
+  return jsonb_build_object('ok', true, 'token', v_token, 'nickname', v_nickname);
 end;
 $$;
 
--- 이전 시그니처(토큰 없음)가 남아있으면 그대로 호출 가능해 방어가 무의미해지므로 명시적으로 지운다.
-drop function if exists public.boss_ranking_submit(text);
-
--- 격파 순간 한 번 호출 — 발급받은 토큰이 그 닉네임의 것이고, 아직 안 쓴 채로,
--- 시작한 지 최소 60초는 지나야 등록된다. 이미 등록된(경합 포함) 닉네임이면
--- ok:false, reason:'taken'.
-create or replace function public.boss_ranking_submit(p_nickname text, p_token uuid)
+-- 격파 순간 한 번 호출 — 토큰이 이 기기(p_device) 것이고, 아직 안 쓴 채로, 시작한 지
+-- 최소 60초는 지나야 등록된다. 닉네임은 세션에 이미 저장돼 있어 다시 받지 않는다.
+create or replace function public.boss_ranking_submit(p_device uuid, p_token uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
-  v_nickname text := trim(p_nickname);
-  v_id       bigint;
-  v_session  public.boss_ranking_sessions;
+  v_id      bigint;
+  v_session public.boss_ranking_sessions;
 begin
-  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
-    return jsonb_build_object('ok', false, 'reason', 'invalid');
-  end if;
-
   select * into v_session from public.boss_ranking_sessions
-   where token = p_token and lower(nickname) = lower(v_nickname)
+   where token = p_token and device_id = p_device
    for update;
 
   if not found then
@@ -797,15 +778,14 @@ begin
   end if;
 
   -- 이 기기가 이미 한 자리를 차지하고 있으면 더 등록할 수 없다.
-  if v_session.device_id is not null
-     and exists (select 1 from public.boss_rankings where device_id = v_session.device_id) then
+  if exists (select 1 from public.boss_rankings where device_id = v_session.device_id) then
     return jsonb_build_object('ok', false, 'reason', 'device_taken');
   end if;
 
   update public.boss_ranking_sessions set used = true where token = p_token;
 
   insert into public.boss_rankings (nickname, device_id)
-  values (v_nickname, v_session.device_id)
+  values (v_session.nickname, v_session.device_id)
   on conflict do nothing
   returning id into v_id;
 
@@ -843,10 +823,8 @@ $$;
 alter table public.boss_rankings enable row level security;
 alter table public.boss_ranking_sessions enable row level security;
 
-grant execute on function public.boss_ranking_check(text)       to anon, authenticated;
-grant execute on function public.boss_ranking_can_enter(text, uuid) to anon, authenticated;
-grant execute on function public.boss_ranking_start(text, uuid) to anon, authenticated;
-grant execute on function public.boss_ranking_submit(text, uuid) to anon, authenticated;
+grant execute on function public.boss_ranking_start(uuid)        to anon, authenticated;
+grant execute on function public.boss_ranking_submit(uuid, uuid) to anon, authenticated;
 grant execute on function public.boss_ranking_top(int)           to anon, authenticated;
 grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;
 
@@ -942,6 +920,18 @@ begin
   return jsonb_build_object('ok', true, 'nickname', v_inserted.nickname, 'level', 0);
 end;
 $$;
+
+-- 이 기기의 강화 신원(팀 무관) — 한 기기는 한 진영에서만 강화할 수 있어 있어도 하나뿐이다.
+-- 서휘령 랭킹모드 입장 가능 여부 판단, "내 순위" 조회 등 팀을 모르는 상황에서 쓴다.
+create or replace function public.enhance_identity(p_device uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('team', team, 'nickname', nickname, 'level', level)
+  from public.enhance_players
+  where device_id = p_device
+  limit 1;
+$$;
+
+grant execute on function public.enhance_identity(uuid) to anon, authenticated;
 
 -- 23단계 이상으로 성공할 때마다(파괴로 내려가는 건 당연히 제외) 전체 공지급으로
 -- 화면 최상단에 뜨는 웅장한 알림 — enhance_report가 성공을 반영할 때 같이 기록한다.

@@ -53,7 +53,7 @@ import {
   BOSS_PHASE2_ASSETS,
 } from "@/lib/boss";
 import { setBossBgmPhase2, stopBossBgm } from "@/lib/bgm";
-import { startBossRankingSession, submitBossClear } from "@/lib/bossRanking";
+import { submitBossClear } from "@/lib/bossRanking";
 import { setBusy } from "@/lib/busy";
 import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 
@@ -125,6 +125,7 @@ export default function BossBattle({
   onExit,
   onVictoryEpilogueDone,
   rankingNickname = null,
+  rankingToken = null,
   debugStartPhase2 = false,
   debugLowHp = false,
   debugStartEpilogue = false,
@@ -137,6 +138,10 @@ export default function BossBattle({
    * 실제로 격파하는 순간 이 닉네임으로 순위표에 한 번 기록된다. 그 외 로직/패턴은
    * 일반 모드와 완전히 동일하다. */
   rankingNickname?: string | null;
+  /** 랭킹모드 1회용 토큰 — GameScreen이 전투 진입 전에 boss_ranking_start로 미리
+   * 발급받아 넘겨준다(닉네임이 이제 강화 닉네임을 그대로 쓰므로, 여기서 따로 세션을
+   * 시작하지 않는다). rankingNickname이 있는데 이게 없으면 등록 없이 전투만 진행된다. */
+  rankingToken?: string | null;
   /** 개발용 — 전투를 건너뛰고 바로 2페이즈 등장 연출부터 보여준다(연출 후 자동으로 2페이즈 전투 진입). */
   debugStartPhase2?: boolean;
   /** 개발용 — 2페이즈 진입 시 HP를 10%로 시작해서 발악(HP 0%)까지 금방 도달하게 한다.
@@ -195,9 +200,11 @@ export default function BossBattle({
   onVictoryEpilogueDoneRef.current = onVictoryEpilogueDone;
   const rankingNicknameRef = useRef(rankingNickname);
   rankingNicknameRef.current = rankingNickname;
-  // 랭킹모드 격파 신고 위조 방지용 1회용 토큰 — 전투 시작 시 발급받아 두었다가,
-  // 실제로 격파했을 때만 함께 제출한다(서버가 최소 경과시간도 같이 검증한다).
-  const rankingTokenRef = useRef<string | null>(null);
+  // 랭킹모드 격파 신고 위조 방지용 1회용 토큰 — GameScreen이 전투 진입 전에 미리
+  // 발급받아 넘겨준 값을 그대로 들고 있다가, 실제로 격파했을 때만 함께 제출한다
+  // (서버가 최소 경과시간도 같이 검증한다).
+  const rankingTokenRef = useRef<string | null>(rankingToken);
+  rankingTokenRef.current = rankingToken;
 
   // 2페이즈 격파 후일담 — 지금 보여주고 있는 대사 인덱스, 그리고 후일담을 이미 한 번
   // 끝냈는지(엔딩 이미지까지 봤는지) 여부. 후자는 blackout이 다시 한 번 더(엔딩 이미지
@@ -359,7 +366,7 @@ export default function BossBattle({
       // 없거나(발급 실패) 경합으로 닉네임이 이미 쓰였거나 네트워크 오류가 나도, 전투
       // 결과 자체에는 영향 없다.
       if (win && stageRef.current === 2 && rankingNicknameRef.current && rankingTokenRef.current) {
-        void submitBossClear(rankingNicknameRef.current, rankingTokenRef.current).catch(() => {});
+        void submitBossClear(rankingTokenRef.current).catch(() => {});
       }
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);
@@ -963,21 +970,6 @@ export default function BossBattle({
     if (debugStartEpilogue) stopBossBgm(false);
   }, [debugStartEpilogue]);
 
-  // 랭킹모드로 입장한 경우 — 전투가 시작되는 이 시점에 1회용 토큰을 미리 받아 둔다.
-  // 실패해도(네트워크 오류 등) 조용히 넘어간다 — 토큰이 없으면 격파해도 그냥 순위표
-  // 등록만 안 될 뿐, 전투 자체에는 영향이 없다.
-  useEffect(() => {
-    if (!rankingNickname) return;
-    let alive = true;
-    startBossRankingSession(rankingNickname)
-      .then((result) => {
-        if (alive && result.ok && result.token) rankingTokenRef.current = result.token;
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [rankingNickname]);
 
   // 입장 암전 3초 후 전투 시작.
   useEffect(() => {

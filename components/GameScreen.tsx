@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import SwordFx from "./SwordFx";
-import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingEntry, BossRankingBoard } from "./BossEncounter";
+import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingBoard } from "./BossEncounter";
+import { startBossRankingSession } from "@/lib/bossRanking";
 import BossBattle from "./BossBattle";
 import { claimBossGuide, claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
@@ -206,10 +207,12 @@ export default function GameScreen({
   const [debugBossPhase2, setDebugBossPhase2] = useState(false);
   const [debugBossLowHp, setDebugBossLowHp] = useState(false);
   const [debugBossEpilogue, setDebugBossEpilogue] = useState(false);
-  // 랭킹모드 — null이면 방금 "입장하기"로 들어간 일반 모드. 닉네임 입력 시트를 통해
-  // 값이 채워지면 그 닉네임으로 BossBattle에 전달되어, 2페이즈 격파 시 순위표에 기록된다.
+  // 랭킹모드 — null이면 방금 "입장하기"로 들어간 일반 모드. "랭킹모드 도전"을 누르면
+  // 전투에 들어가기 전에 바로 boss_ranking_start를 호출해 닉네임(=강화 닉네임)과
+  // 1회용 토큰을 받아둔다 — 토큰이 있어야 BossBattle이 랭킹모드로 동작한다.
   const [bossRankingNickname, setBossRankingNickname] = useState<string | null>(null);
-  const [bossRankingEntryOpen, setBossRankingEntryOpen] = useState(false);
+  const [bossRankingToken, setBossRankingToken] = useState<string | null>(null);
+  const [bossRankingEntering, setBossRankingEntering] = useState(false);
   const [bossRankingBoardOpen, setBossRankingBoardOpen] = useState(false);
 
   // 개발용 지름길 — 실제 진행도(5단계+별1)를 만들지 않고도 ?debugBoss=1 로 바로
@@ -720,13 +723,21 @@ export default function GameScreen({
         return next;
       });
 
+      // 크리티컬은 공용 칼 낙관적 반영(아래)과 개인 재화 둘 다에 똑같이 적용되므로
+      // 먼저 굴려둔다 — 터치 1회당 한 번만 굴리고 그 결과를 그대로 같이 쓴다.
+      const current = swordStateRef.current;
+      const feverNow = isFeverActive(current, now);
+      const critical = rollCritical(criticalChanceOf(current));
+      const units = critical ? criticalMultiplierOf(current) : 1;
+
       // 강화 단계(이 기기의 캐시값) — 개인 재화와 기기별 추가 점수 둘 다 이 단계에 따른
       // 배율이 붙는다. 공용 칼의 점수·재화와는 완전히 별개라 서버에는 전혀 보내지 않는다.
       const enhanceLevel = Number(window.localStorage.getItem(`${ENHANCE_LEVEL_CACHE_KEY}.${team}`) ?? 0);
 
       // 개인 재화(염원의 빛/데이터로그) — contrib(두드린 횟수)와는 별개로 터치마다
-      // PERSONAL_CURRENCY_PER_TAP × 강화 배율만큼 쌓인다.
-      const currencyGain = PERSONAL_CURRENCY_PER_TAP * enhanceCurrencyMultiplier(enhanceLevel);
+      // PERSONAL_CURRENCY_PER_TAP × 강화 배율만큼 쌓이고, 크리티컬이 뜨면 공용 칼과
+      // 똑같이 그 배수만큼 더 들어온다.
+      const currencyGain = PERSONAL_CURRENCY_PER_TAP * enhanceCurrencyMultiplier(enhanceLevel) * units;
       setPersonalEarned((p) => {
         const next = p + currencyGain;
         window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
@@ -742,10 +753,6 @@ export default function GameScreen({
       });
 
       // 낙관적 반영 — 서버가 실제로 인정하는 값과 같은 공식을 쓴다.
-      const current = swordStateRef.current;
-      const feverNow = isFeverActive(current, now);
-      const critical = rollCritical(criticalChanceOf(current));
-      const units = critical ? criticalMultiplierOf(current) : 1;
       const gain =
         tapPower(current) * units * rateBonus(tapWindow.current.length, 1) * (feverNow ? FEVER_MULTIPLIER : 1);
       pendingGain.current += gain;
@@ -1232,6 +1239,7 @@ export default function GameScreen({
         onToggleSound={() => { const next = !sfxOn; setSfxOn(next); setSfxEnabled(next); }}
         onEnter={() => {
           setBossRankingNickname(null);
+          setBossRankingToken(null);
           setBossMode("battle");
         }}
         onEnterRanking={() => {
@@ -1239,7 +1247,28 @@ export default function GameScreen({
             setNotice("일반 모드를 클리어해야 랭킹모드에 도전할 수 있습니다.");
             return;
           }
-          setBossRankingEntryOpen(true);
+          if (bossRankingEntering) return;
+          setBossRankingEntering(true);
+          startBossRankingSession()
+            .then((result) => {
+              if (!result.ok || !result.token) {
+                setNotice(
+                  result.reason === "enhance_not_registered"
+                    ? "먼저 강화에서 닉네임을 등록해야 랭킹모드에 도전할 수 있습니다."
+                    : result.reason === "device_taken"
+                      ? "이 기기는 이미 순위표에 이름을 올렸습니다."
+                      : result.reason === "nickname_conflict"
+                        ? "같은 닉네임이 이미 랭킹에 등록되어 있습니다. 강화 닉네임을 바꾼 뒤 다시 시도해주세요."
+                        : "지금은 도전할 수 없습니다. 잠시 후 다시 시도해주세요."
+                );
+                return;
+              }
+              setBossRankingNickname(result.nickname ?? null);
+              setBossRankingToken(result.token);
+              setBossMode("battle");
+            })
+            .catch(() => setNotice("지금은 도전할 수 없습니다. 잠시 후 다시 시도해주세요."))
+            .finally(() => setBossRankingEntering(false));
         }}
         onOpenRanking={() => setBossRankingBoardOpen(true)}
         onGuide={() => setBossGuideOpen(true)}
@@ -1258,6 +1287,7 @@ export default function GameScreen({
           onExit={() => setBossMode("map")}
           onVictoryEpilogueDone={() => claimBossVictory(team)}
           rankingNickname={bossRankingNickname}
+          rankingToken={bossRankingToken}
           debugStartPhase2={debugBossPhase2}
           debugLowHp={debugBossLowHp}
           debugStartEpilogue={debugBossEpilogue}
@@ -1271,16 +1301,6 @@ export default function GameScreen({
           guideUnlocked={hasSeenBossGuide(team)}
           victoryUnlocked={hasSeenBossVictory(team)}
           onClose={() => setBossGalleryOpen(false)}
-        />
-      )}
-      {bossRankingEntryOpen && (
-        <BossRankingEntry
-          onSubmit={(nickname) => {
-            setBossRankingNickname(nickname);
-            setBossRankingEntryOpen(false);
-            setBossMode("battle");
-          }}
-          onClose={() => setBossRankingEntryOpen(false)}
         />
       )}
       {bossRankingBoardOpen && <BossRankingBoard onClose={() => setBossRankingBoardOpen(false)} />}

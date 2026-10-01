@@ -3,14 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BOSS_CARDS, BossCard, BOSS_EPILOGUE_PORTRAITS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
-import {
-  RankingEntry,
-  canEnterRanking,
-  fetchRankings,
-  isNicknameFormatValid,
-  loadSavedNickname,
-  saveNickname,
-} from "@/lib/bossRanking";
+import { RankingEntry, fetchRankings } from "@/lib/bossRanking";
+import { fetchMyEnhanceIdentity } from "@/lib/enhanceRanking";
 import { playCardRevealSound } from "@/lib/sfx";
 import VolumeButton from "./VolumeButton";
 
@@ -191,91 +185,7 @@ export function BossMap({
   );
 }
 
-/** 랭킹모드 입장 — 닉네임을 입력받는다(전역에서 대소문자 구분 없이 유일해야 함).
- *  성공하면 onSubmit(nickname)이 곧바로 일반 모드와 완전히 같은 전투로 이어진다. */
-export function BossRankingEntry({
-  onSubmit,
-  onClose,
-}: {
-  onSubmit: (nickname: string) => void;
-  onClose: () => void;
-}) {
-  const [value, setValue] = useState(() => loadSavedNickname());
-  const [error, setError] = useState("");
-  const [checking, setChecking] = useState(false);
-
-  const submit = async () => {
-    if (checking) return;
-    const trimmed = value.trim();
-    if (!isNicknameFormatValid(trimmed)) {
-      setError("닉네임은 1~14자까지 입력 가능합니다.");
-      return;
-    }
-    setChecking(true);
-    setError("");
-    try {
-      const result = await canEnterRanking(trimmed);
-      if (!result.ok) {
-        setError(
-          result.reason === "device_taken"
-            ? "이 기기는 이미 순위표에 이름을 올렸다. 한 기기당 한 번만 도전할 수 있다."
-            : result.reason === "invalid"
-              ? "닉네임은 1~14자까지 입력 가능합니다."
-              : "이미 누군가가 사용중인 닉네임이다."
-        );
-        return;
-      }
-      saveNickname(trimmed);
-      onSubmit(trimmed);
-    } catch {
-      setError("확인 중 문제가 발생했어요. 다시 시도해주세요.");
-    } finally {
-      setChecking(false);
-    }
-  };
-
-  return (
-    <div className="sheet-backdrop boss-theme" onClick={onClose}>
-      <section
-        className="sheet boss-ranking-entry"
-        role="dialog"
-        aria-modal="true"
-        aria-label="랭킹모드 닉네임 입력"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sheet-grip" />
-        <header className="sheet-head">
-          <p className="sheet-energy-label">랭킹모드 입장</p>
-          <button className="icon-btn" onClick={onClose} aria-label="닫기">✕</button>
-        </header>
-        <p className="sheet-note">
-          닉네임은 중복될 수 없습니다. 랭킹모드 서휘령을 격파하면 클리어한 순서대로 랭킹에 기록됩니다.
-        </p>
-        <input
-          className="boss-ranking-input"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError("");
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void submit();
-          }}
-          maxLength={14}
-          placeholder="닉네임을 입력하세요"
-          aria-label="닉네임"
-          autoFocus
-        />
-        {error && <p className="boss-ranking-error">{error}</p>}
-        <button className="boss-map-enter-btn boss-ranking-submit" onClick={submit} disabled={checking}>
-          {checking ? "확인 중.." : "입장하기"}
-        </button>
-      </section>
-    </div>
-  );
-}
-
-/** 순위표 — 1~10등, 그리고 맨 아래 "내 순위"(이 기기가 마지막으로 쓴 닉네임 기준). */
+/** 순위표 — 1~10등, 그리고 맨 아래 "내 순위"(이 기기의 강화 닉네임 기준). */
 export function BossRankingBoard({ onClose }: { onClose: () => void }) {
   const [top, setTop] = useState<RankingEntry[] | null>(null);
   const [mine, setMine] = useState<RankingEntry | null>(null);
@@ -283,7 +193,8 @@ export function BossRankingBoard({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     let alive = true;
-    fetchRankings(loadSavedNickname() || undefined)
+    fetchMyEnhanceIdentity()
+      .then((identity) => fetchRankings(identity?.nickname))
       .then((result) => {
         if (!alive) return;
         setTop(result.top);

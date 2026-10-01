@@ -28,6 +28,12 @@ export interface EnhanceMe {
   level: number;
 }
 
+export interface EnhanceIdentity {
+  team: TeamId;
+  nickname: string;
+  level: number;
+}
+
 export interface RegisterResult {
   ok: boolean;
   /** "other_team_registered" — 이 기기가 반대 진영에 이미 강화 닉네임을 등록해 둔 경우. */
@@ -85,6 +91,28 @@ export async function fetchMyEnhance(team: TeamId): Promise<EnhanceMe> {
   return data.registered
     ? { registered: true, nickname: String(data.nickname ?? ""), level: Number(data.level ?? 0) }
     : { registered: false, nickname: "", level: 0 };
+}
+
+/**
+ * 이 기기의 강화 신원을 팀 상관없이 찾는다(한 기기는 한 진영에서만 강화할 수 있어
+ * 있어도 하나뿐이다) — 서휘령 랭킹모드가 "강화 닉네임을 그대로 쓸 수 있는지" 판단할
+ * 때, 그리고 랭킹모드 "내 순위" 조회에 쓴다. 미등록이면 null.
+ */
+export async function fetchMyEnhanceIdentity(): Promise<EnhanceIdentity | null> {
+  if (backendMode === "supabase") {
+    const { data, error } = await supabase().rpc("enhance_identity", { p_device: clientId() });
+    if (error) return null;
+    const row = data as Record<string, unknown> | null;
+    if (!row || !row.nickname) return null;
+    return { team: row.team === "yu" ? "yu" : "ku", nickname: String(row.nickname), level: Number(row.level ?? 0) };
+  }
+  try {
+    const data = await localJson(`/api/enhance/identity?deviceId=${encodeURIComponent(clientId())}`);
+    if (!data || !data.nickname) return null;
+    return { team: data.team === "yu" ? "yu" : "ku", nickname: String(data.nickname), level: Number(data.level ?? 0) };
+  } catch {
+    return null;
+  }
 }
 
 /** 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */

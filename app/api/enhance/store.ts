@@ -49,6 +49,14 @@ export function getByDevice(deviceId: string, team: string): EnhanceRow | null {
   return players.get(key(deviceId, team)) ?? null;
 }
 
+/** 팀 상관없이 이 기기의 강화 등록 — 한 기기는 한 진영에서만 등록할 수 있으므로 있어도 하나뿐이다. */
+export function getByDeviceAnyTeam(deviceId: string): EnhanceRow | null {
+  for (const row of players.values()) {
+    if (row.deviceId === deviceId) return row;
+  }
+  return null;
+}
+
 /** 이 기기가 (다른 팀이든 무엇이든) 이미 강화 자리를 하나라도 갖고 있는지 — 반대 진영 등록 차단용. */
 function isRegisteredElsewhere(deviceId: string, team: string): boolean {
   for (const row of players.values()) {

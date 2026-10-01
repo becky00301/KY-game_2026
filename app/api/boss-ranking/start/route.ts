@@ -8,8 +8,7 @@ export async function POST(req: NextRequest) {
   const blocked = blockedInProduction();
   if (blocked) return blocked;
 
-  const body = (await req.json().catch(() => null)) as { nickname?: string; deviceId?: string } | null;
-  const nickname = typeof body?.nickname === "string" ? body.nickname : "";
+  const body = (await req.json().catch(() => null)) as { deviceId?: string } | null;
   const deviceId = typeof body?.deviceId === "string" ? body.deviceId : undefined;
-  return NextResponse.json(startSession(nickname, deviceId));
+  return NextResponse.json(startSession(deviceId));
 }

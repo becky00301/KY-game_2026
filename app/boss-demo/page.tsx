@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import BossBattle from "@/components/BossBattle";
-import { BossGallery, BossGuide, BossMap, BossRankingEntry, BossRankingBoard } from "@/components/BossEncounter";
+import { BossGallery, BossGuide, BossMap, BossRankingBoard } from "@/components/BossEncounter";
 import SettingsSheet from "@/components/SettingsSheet";
 import { startBossBgm, stopBossBgm } from "@/lib/bgm";
+import { startBossRankingSession } from "@/lib/bossRanking";
 import { isSfxEnabled, setSfxEnabled, unlockAudio } from "@/lib/sfx";
 
 type Mode = "map" | "battle" | "done";
@@ -23,7 +24,8 @@ export default function BossDemoPage() {
   const [debugLowHp, setDebugLowHp] = useState(false);
   const [debugEpilogue, setDebugEpilogue] = useState(false);
   const [rankingNickname, setRankingNickname] = useState<string | null>(null);
-  const [rankingEntryOpen, setRankingEntryOpen] = useState(false);
+  const [rankingToken, setRankingToken] = useState<string | null>(null);
+  const [rankingEntering, setRankingEntering] = useState(false);
   const [rankingBoardOpen, setRankingBoardOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   // 이 데모는 아무것도 서버에 저장하지 않으므로("승패는 저장되지 않아"), 랭킹모드
@@ -69,6 +71,7 @@ export default function BossDemoPage() {
             unlockAudio();
             startBossBgm();
             setRankingNickname(null);
+            setRankingToken(null);
             setMode("battle");
           }}
           onEnterRanking={() => {
@@ -76,7 +79,30 @@ export default function BossDemoPage() {
               setNotice("일반 모드를 클리어해야 랭킹모드에 도전할 수 있습니다.");
               return;
             }
-            setRankingEntryOpen(true);
+            if (rankingEntering) return;
+            setRankingEntering(true);
+            startBossRankingSession()
+              .then((result) => {
+                if (!result.ok || !result.token) {
+                  setNotice(
+                    result.reason === "enhance_not_registered"
+                      ? "먼저 강화에서 닉네임을 등록해야 랭킹모드에 도전할 수 있습니다."
+                      : result.reason === "device_taken"
+                        ? "이 기기는 이미 순위표에 이름을 올렸습니다."
+                        : result.reason === "nickname_conflict"
+                          ? "같은 닉네임이 이미 랭킹에 등록되어 있습니다."
+                          : "지금은 도전할 수 없습니다. 잠시 후 다시 시도해주세요."
+                  );
+                  return;
+                }
+                unlockAudio();
+                startBossBgm();
+                setRankingNickname(result.nickname ?? null);
+                setRankingToken(result.token);
+                setMode("battle");
+              })
+              .catch(() => setNotice("지금은 도전할 수 없습니다. 잠시 후 다시 시도해주세요."))
+              .finally(() => setRankingEntering(false));
           }}
           onOpenRanking={() => setRankingBoardOpen(true)}
           onGuide={() => setGuideOpen(true)}
@@ -91,6 +117,7 @@ export default function BossDemoPage() {
           debugLowHp={debugLowHp}
           debugStartEpilogue={debugEpilogue}
           rankingNickname={rankingNickname}
+          rankingToken={rankingToken}
           onVictoryEpilogueDone={() => {
             if (!rankingNickname) setHasClearedNormal(true);
           }}
@@ -117,18 +144,6 @@ export default function BossDemoPage() {
       )}
 
       {galleryOpen && <BossGallery unlocked onClose={() => setGalleryOpen(false)} />}
-      {rankingEntryOpen && (
-        <BossRankingEntry
-          onSubmit={(nickname) => {
-            unlockAudio();
-            startBossBgm();
-            setRankingNickname(nickname);
-            setRankingEntryOpen(false);
-            setMode("battle");
-          }}
-          onClose={() => setRankingEntryOpen(false)}
-        />
-      )}
       {rankingBoardOpen && <BossRankingBoard onClose={() => setRankingBoardOpen(false)} />}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
       {settingsOpen && (
