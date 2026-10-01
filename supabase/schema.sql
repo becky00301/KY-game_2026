@@ -81,6 +81,9 @@ create table if not exists public.tap_log (
 
 create index if not exists tap_log_minute_idx on public.tap_log (minute desc);
 
+-- 관리자 페이지(/admin)가 기기별 기록을 볼 때 쓰는 열쇠. 기본값은 반드시 바꿔서 쓴다.
+alter table public.game_config add column if not exists admin_key text not null default 'change-me';
+
 -- 매크로로 판단된 기기. 여기 들어오면 터치가 하나도 인정되지 않는다(화면은 그대로 돌아간다).
 create table if not exists public.tap_blocklist (
   client_id  uuid primary key,
@@ -388,6 +391,38 @@ begin
 end;
 $$;
 
+-- ---------- 관리자용 조회 ----------
+--
+-- tap_log는 밖에서 직접 읽을 수 없으므로(RLS), 열쇠를 아는 사람만 집계를 볼 수 있게 한다.
+-- 열쇠는 game_config.admin_key에 있다.
+create or replace function public.admin_tap_stats(p_key text, p_minutes int default 10)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_key text;
+begin
+  select admin_key into v_key from public.game_config where id = 1;
+  if p_key is null or v_key is null or p_key <> v_key then
+    return '[]'::jsonb;
+  end if;
+
+  return coalesce((
+    select jsonb_agg(row order by (row->>'taps')::int desc)
+    from (
+      select jsonb_build_object(
+        'client_id', l.client_id,
+        'taps', sum(l.taps),
+        'minutes', count(*),
+        'per_second', round(sum(l.taps)::numeric / greatest(count(*), 1) / 60, 1),
+        'blocked', exists (select 1 from public.tap_blocklist b where b.client_id = l.client_id)
+      ) as row
+      from public.tap_log l
+      where l.minute > now() - make_interval(mins => greatest(1, least(coalesce(p_minutes, 10), 180)))
+      group by l.client_id
+      limit 50
+    ) t
+  ), '[]'::jsonb);
+end;
+$$;
+
 -- ---------- 권한 ----------
 
 alter table public.swords       enable row level security;
@@ -411,6 +446,7 @@ create policy "defs readable" on public.upgrade_defs for select using (true);
 grant execute on function public.sword_get(text)                          to anon, authenticated;
 grant execute on function public.sword_tap(text, uuid, int, numeric)      to anon, authenticated;
 grant execute on function public.sword_buy(text, text)                    to anon, authenticated;
+grant execute on function public.admin_tap_stats(text, int)               to anon, authenticated;
 
 -- 다른 사람이 두드린 결과를 실시간으로 받기 위해 swords 테이블을 Realtime에 올린다.
 do $$

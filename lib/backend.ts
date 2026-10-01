@@ -193,6 +193,61 @@ export function subscribePresence(
   };
 }
 
+/**
+ * 관리자 화면용 — 접속자 수를 "보기만" 한다. subscribePresence와 달리 자기 자신을 등록하지
+ * 않아서, 관리자가 보고 있다는 이유로 숫자가 늘지 않는다.
+ */
+export function observePresence(team: TeamId, onCount: (count: number) => void): () => void {
+  if (backendMode === "supabase") {
+    const channel = supabase().channel(`presence:${team}`, { config: { presence: { key: `admin-${Math.random()}` } } });
+    const sync = () => onCount(Object.keys(channel.presenceState()).length);
+    channel
+      .on("presence", { event: "sync" }, sync)
+      .on("presence", { event: "join" }, sync)
+      .on("presence", { event: "leave" }, sync)
+      .subscribe();
+    return () => { void supabase().removeChannel(channel); };
+  }
+
+  let alive = true;
+  const beat = async () => {
+    if (!alive) return;
+    try {
+      const data = (await localJson("/api/sword/presence", { team, clientId: `admin-${Math.random()}` })) as { online?: number };
+      if (alive && typeof data.online === "number") onCount(data.online);
+    } catch { /* 다음 주기에 다시 */ }
+  };
+  void beat();
+  const timer = window.setInterval(beat, 5_000);
+  return () => { alive = false; window.clearInterval(timer); };
+}
+
+/** 관리자 화면용 — 기기별 터치 기록(최근 N분). 열쇠가 맞아야 서버가 돌려준다. */
+export interface TapStatRow {
+  clientId: string;
+  taps: number;
+  minutes: number;
+  perSecond: number;
+  blocked: boolean;
+}
+
+export async function fetchTapStats(key: string, minutes: number): Promise<TapStatRow[]> {
+  if (backendMode !== "supabase") return [];
+  const { data, error } = await supabase().rpc("admin_tap_stats", { p_key: key, p_minutes: minutes });
+  if (error) throw new Error(error.message);
+  const rows = Array.isArray(data) ? data : [];
+  return rows.map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      clientId: String(row.client_id ?? ""),
+      taps: Number(row.taps ?? 0),
+      minutes: Number(row.minutes ?? 0),
+      perSecond: Number(row.per_second ?? 0),
+      blocked: Boolean(row.blocked),
+    };
+  });
+}
+
 /** 기기 식별값 — 계정이 아니라 연타 제한 용도로만 쓴다. */
 export function clientId(): string {
   const KEY = "kyg.client";

@@ -2699,3 +2699,55 @@ button {
   backdrop-filter: blur(6px);
   animation: fadeIn 0.3s ease;
 }
+
+/* ---------------- 운영 현황판 (/admin) ---------------- */
+
+.admin {
+  min-height: 100dvh;
+  padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
+  background: #0b0e14;
+  color: #e8edf5;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-head h1 { font-size: 20px; font-weight: 900; }
+.admin-sub { margin-top: 4px; font-size: 13px; color: #9aa7bd; }
+.admin-sub strong { color: #e8edf5; }
+
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+
+.admin-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #141926;
+  border: 1px solid #2a3245;
+}
+.admin-card h2 { font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+.admin-card dl { display: flex; flex-direction: column; gap: 6px; }
+.admin-card dl > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.admin-card dt { color: #9aa7bd; }
+.admin-card dd { font-variant-numeric: tabular-nums; }
+
+.admin-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.admin-input {
+  flex: 1 1 140px; min-width: 0; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid #2a3245; background: #0b0e14; color: #e8edf5; font-size: 14px;
+}
+.admin-select { flex: 0 0 auto; }
+.admin-btn {
+  flex: 0 0 auto; padding: 9px 18px; border-radius: 9px; font-size: 14px; font-weight: 700;
+  border: 1px solid #3c5aa6; background: #1d2b4d; color: #cfe0ff;
+}
+.admin-error { font-size: 13px; color: #ff9c9c; margin-bottom: 8px; }
+.admin-warn { font-size: 13px; color: #ffd166; margin-bottom: 8px; }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.admin-table th, .admin-table td { padding: 7px 6px; text-align: right; border-bottom: 1px solid #222a3a; }
+.admin-table th:first-child, .admin-table td:first-child { text-align: left; }
+.admin-table th { color: #9aa7bd; font-weight: 600; }
+.admin-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.admin-suspect td { color: #ffd166; font-weight: 700; }
+.admin-note { margin-top: 10px; font-size: 11.5px; line-height: 1.7; color: #7c89a1; }
+.admin-note code { background: #0b0e14; padding: 2px 5px; border-radius: 5px; font-size: 11px; }
