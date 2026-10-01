@@ -6,6 +6,11 @@
  * 1~15단계는 실패해도 그 자리에 머문다(파괴 없음). 16~30단계부터는 실패의 일부가
  * "파괴"로 갈라져서, 파괴되면 재화만 날리는 게 아니라 0단계로 완전히 초기화된다.
  * 성공/실패/파괴 세 확률의 합은 항상 100%다 — ENHANCE_DATA가 그 절대값을 그대로 담는다.
+ *
+ * 1~21단계 구간은 너무 가혹하다는 피드백을 받아 비용과 파괴확률을 원래 실측값의 70%로
+ * 깎았다(파괴확률이 줄어든 만큼은 성공확률은 그대로 두고 실패확률로 넘어간다 — 파괴
+ * 확률만 뺀 나머지를 실패로 계산하는 구조라 destroyRate만 줄이면 자동으로 그렇게 된다).
+ * 22단계부터는 원래 실측값 그대로다.
  */
 
 import type { TeamId } from "./game";
@@ -48,14 +53,15 @@ export const PERSONAL_CURRENCY_PER_TAP = 2_417;
  * 바로 쓸 수 있게 하면 확률 자체의 의미가 없어진다 — 그래서 해당 단계보다 "한 단계 더
  * 위"까지 실제로 도달해본 적이 있어야만(=ENHANCE_MAX_LEVEL_CACHE_KEY 기준) 잠금이
  * 풀린다. 비용은 Markov 체인(파괴로 인한 0단계 리셋 포함)으로 계산한 기댓값의 2배를
- * 반올림한 값이다 — 15단계: 기댓값 ≈37,178 → 비용 75,000 / 20단계: 기댓값
- * ≈5,920,551 → 비용 11,800,000 / 22단계: 기댓값 ≈27,898,767 → 비용 55,800,000.
+ * 반올림한 값이다(1~21단계 70% 할인이 반영된 ENHANCE_DATA 기준) — 15단계: 기댓값
+ * ≈26,024 → 비용 52,000 / 20단계: 기댓값 ≈3,474,177 → 비용 6,950,000 / 22단계:
+ * 기댓값 ≈15,523,645 → 비용 31,000,000.
  */
 export const GUARANTEED_ENHANCE_TARGETS = [15, 20, 22] as const;
 export const GUARANTEED_ENHANCE_COST: Record<number, number> = {
-  15: 75_000,
-  20: 11_800_000,
-  22: 55_800_000,
+  15: 52_000,
+  20: 6_950_000,
+  22: 31_000_000,
 };
 
 export interface EnhanceLevelData {
@@ -67,29 +73,32 @@ export interface EnhanceLevelData {
   destroyRate: number;
 }
 
-/** index 0 = "1단계"(0→1 시도) ... index 29 = "30단계"(29→30 시도). 전부 실측 데이터. */
+/**
+ * index 0 = "1단계"(0→1 시도) ... index 29 = "30단계"(29→30 시도). 실측 데이터에
+ * 1~21단계(index 0~20) 70% 할인을 적용한 값 — 22단계(index 21)부터는 실측 그대로.
+ */
 const ENHANCE_DATA: EnhanceLevelData[] = [
-  { cost: 143, successRate: 0.95, destroyRate: 0 },
-  { cost: 285, successRate: 0.9, destroyRate: 0 },
-  { cost: 425, successRate: 0.85, destroyRate: 0 },
-  { cost: 563, successRate: 0.8, destroyRate: 0 },
-  { cost: 700, successRate: 0.75, destroyRate: 0 },
-  { cost: 835, successRate: 0.7, destroyRate: 0 },
-  { cost: 969, successRate: 0.65, destroyRate: 0 },
-  { cost: 1101, successRate: 0.6, destroyRate: 0 },
-  { cost: 1231, successRate: 0.55, destroyRate: 0 },
-  { cost: 1360, successRate: 0.5, destroyRate: 0 },
-  { cost: 1487, successRate: 0.45, destroyRate: 0 },
-  { cost: 1613, successRate: 0.4, destroyRate: 0 },
-  { cost: 1737, successRate: 0.35, destroyRate: 0 },
-  { cost: 1859, successRate: 0.3, destroyRate: 0 },
-  { cost: 1980, successRate: 0.3, destroyRate: 0 },
-  { cost: 67008, successRate: 0.3, destroyRate: 0.0205 },
-  { cost: 74908, successRate: 0.3, destroyRate: 0.0205 },
-  { cost: 166416, successRate: 0.15, destroyRate: 0.0674 },
-  { cost: 183816, successRate: 0.15, destroyRate: 0.08425 },
-  { cost: 101008, successRate: 0.3, destroyRate: 0.10275 },
-  { cost: 221016, successRate: 0.15, destroyRate: 0.1264 },
+  { cost: 100, successRate: 0.95, destroyRate: 0 },
+  { cost: 200, successRate: 0.9, destroyRate: 0 },
+  { cost: 298, successRate: 0.85, destroyRate: 0 },
+  { cost: 394, successRate: 0.8, destroyRate: 0 },
+  { cost: 490, successRate: 0.75, destroyRate: 0 },
+  { cost: 584, successRate: 0.7, destroyRate: 0 },
+  { cost: 678, successRate: 0.65, destroyRate: 0 },
+  { cost: 771, successRate: 0.6, destroyRate: 0 },
+  { cost: 862, successRate: 0.55, destroyRate: 0 },
+  { cost: 952, successRate: 0.5, destroyRate: 0 },
+  { cost: 1041, successRate: 0.45, destroyRate: 0 },
+  { cost: 1129, successRate: 0.4, destroyRate: 0 },
+  { cost: 1216, successRate: 0.35, destroyRate: 0 },
+  { cost: 1301, successRate: 0.3, destroyRate: 0 },
+  { cost: 1386, successRate: 0.3, destroyRate: 0 },
+  { cost: 46906, successRate: 0.3, destroyRate: 0.01435 },
+  { cost: 52436, successRate: 0.3, destroyRate: 0.01435 },
+  { cost: 116491, successRate: 0.15, destroyRate: 0.04718 },
+  { cost: 128671, successRate: 0.15, destroyRate: 0.058975 },
+  { cost: 70706, successRate: 0.3, destroyRate: 0.071925 },
+  { cost: 154711, successRate: 0.15, destroyRate: 0.08848 },
   { cost: 240816, successRate: 0.15, destroyRate: 0.1685 },
   { cost: 130708, successRate: 0.1, destroyRate: 0.179 },
   { cost: 141408, successRate: 0.1, destroyRate: 0.179 },

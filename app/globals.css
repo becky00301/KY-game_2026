@@ -3052,6 +3052,90 @@ button {
 /* 입장 조건(최종 단계 + 별 1개) 전에는 흐리게 — 눌러서 안내 문구는 볼 수 있다 */
 .boss-entry-btn { transition: opacity 0.3s ease; }
 .boss-entry-btn.locked { opacity: 0.5; }
+
+/* 랭킹 채팅(임시 UI) — 보스 랭킹 등록자 전용 채팅을 만들기 전, 자리만 잡아둔 자리표시자. */
+.ranking-chat {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--panel-line);
+}
+
+.ranking-chat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ranking-chat-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.ranking-chat-note {
+  font-size: 10px;
+  color: var(--ink-dim);
+  text-align: right;
+}
+
+.ranking-chat-log {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  max-height: 72px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ranking-chat-line {
+  font-size: 12px;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.ranking-chat-empty {
+  font-size: 11.5px;
+  color: var(--ink-dim);
+}
+
+.ranking-chat-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ranking-chat-input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-line);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.ranking-chat-send {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #000;
+  background: var(--accent);
+  border: none;
+}
+
+.ranking-chat-send:active {
+  transform: scale(0.96);
+}
 .boss-map-screen {
   position: fixed; inset: 0; z-index: 25; height: 100dvh;
   display: flex; flex-direction: column; isolation: isolate;
