@@ -54,6 +54,7 @@ import {
 } from "@/lib/boss";
 import { setBossBgmPhase2, stopBossBgm } from "@/lib/bgm";
 import { startBossRankingSession, submitBossClear } from "@/lib/bossRanking";
+import { setBusy } from "@/lib/busy";
 import { playHit, playBossPattern1AttackSound } from "@/lib/sfx";
 
 type Phase =
@@ -266,6 +267,12 @@ export default function BossBattle({
   // 새지 않도록 "이미 이긴 상태"로 맞춰둔다.
   const wonRef = useRef(debugStartEpilogue);
   const tapAreaRef = useRef<HTMLButtonElement>(null);
+
+  // 전투 중에는 새 배포가 떠도 자동 새로고침을 미룬다(components/VersionWatcher).
+  useEffect(() => {
+    setBusy(true);
+    return () => setBusy(false);
+  }, []);
   const pendingTimers = useRef<number[]>([]);
 
   const clearPendingTimers = useCallback(() => {

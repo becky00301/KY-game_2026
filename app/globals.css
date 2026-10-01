@@ -2680,3 +2680,22 @@ button {
     transform: translate(-50%, -50%) rotateX(74deg);
   }
 }
+
+/* 새 배포 안내 — 잠시 뒤 자동 새로고침된다 */
+.version-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 90;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.3s ease;
+}

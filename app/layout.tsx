@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import VersionWatcher from "@/components/VersionWatcher";
 import "./globals.css";
 
 const SITE_URL = "https://www.eveofvictory.com";
@@ -43,6 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <div className="app-frame">{children}</div>
+        {/* 새 배포가 나오면 접속 중인 화면을 자동으로 새로고침한다 */}
+        <VersionWatcher />
         {/* 방문자 수 집계 — Vercel 대시보드 Analytics 탭에서 확인한다. 개인정보는 수집하지 않는다. */}
         <Analytics />
       </body>
