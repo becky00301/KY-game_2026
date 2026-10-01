@@ -12,7 +12,7 @@
  */
 
 import { TeamId } from "./game";
-import { attachGain, resumeAudioContext } from "./audioContext";
+import { attachGain, getAudioContext, resumeAudioContext } from "./audioContext";
 import { getEffectiveTapVolume } from "./settings";
 
 let enabled = true;
@@ -124,4 +124,29 @@ export function playFeverStartSound() {
 /** 서휘령 전투 — 1·2페이즈 공통, 기본패턴(가로/세로/대각선 베기)이 실제로 발동하는 순간의 사운드. */
 export function playBossPattern1AttackSound() {
   playFile("/audio/boss-battle/pattern1-attack.wav");
+}
+
+/**
+ * 강화 실패 — 전용 사운드 파일이 없어서 오실레이터로 짧게 내려가는 "뚝" 소리를 즉석에서
+ * 합성한다(성공은 기존 카드 해금음을 그대로 재사용하면 되지만, 실패음은 새로 필요했다).
+ */
+export function playEnhanceFailSound() {
+  if (!enabled || typeof window === "undefined") return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  resumeAudioContext();
+  const volume = getEffectiveTapVolume() * 0.6;
+  if (volume <= 0) return;
+  const now = ctx.currentTime;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+  gain.connect(ctx.destination);
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.exponentialRampToValueAtTime(85, now + 0.3);
+  osc.connect(gain);
+  osc.start(now);
+  osc.stop(now + 0.32);
 }

@@ -1123,6 +1123,229 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+/* 강화 성공/실패 이펙트 — 전부 "클래스가 새로 붙는 순간"에만 재생되는 1회성 애니메이션이라,
+   Enhance.tsx가 매 시도마다 클래스를 떼었다 리플로우 후 다시 붙여서 반복 재생시킨다. */
+
+.enhance-backdrop-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.enhance-backdrop-flash--success {
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent) 55%, transparent) 0%, transparent 62%);
+  animation: enhanceBackdropFlash 0.6s ease-out;
+}
+
+.enhance-backdrop-flash--fail {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 40, 40, 0.5) 0%, transparent 65%);
+  animation: enhanceBackdropFlash 0.5s ease-out;
+}
+
+@keyframes enhanceBackdropFlash {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.enhance-modal--shake {
+  animation: enhanceModalShake 0.4s ease-in-out;
+}
+
+@keyframes enhanceModalShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-9px) rotate(-0.6deg);
+  }
+  40% {
+    transform: translateX(8px) rotate(0.6deg);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.enhance-fx {
+  position: absolute;
+  inset: -30px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.enhance-flash {
+  position: absolute;
+  inset: 24px;
+  border-radius: 999px;
+  opacity: 0;
+}
+
+.enhance-fx--success .enhance-flash {
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 85%, #fff) 0%, transparent 70%);
+  animation: enhanceFlashPop 0.55s ease-out;
+}
+
+.enhance-fx--fail .enhance-flash {
+  background: radial-gradient(circle, rgba(255, 60, 60, 0.7) 0%, transparent 70%);
+  animation: enhanceFlashPop 0.45s ease-out;
+}
+
+@keyframes enhanceFlashPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+.enhance-spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  opacity: 0;
+}
+
+.enhance-fx--success .enhance-spark {
+  animation: enhanceSparkOut 0.65s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+@keyframes enhanceSparkOut {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(85px) scale(0.4);
+  }
+}
+
+.enhance-image-wrap.enhance-pulse-success {
+  animation: enhancePulseSuccess 0.5s ease-out;
+}
+
+@keyframes enhancePulseSuccess {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(1.14);
+    filter: brightness(1.6) drop-shadow(0 0 24px var(--accent));
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.enhance-image-wrap.enhance-pulse-fail {
+  animation: enhanceShakeFail 0.45s ease-in-out;
+}
+
+@keyframes enhanceShakeFail {
+  0%,
+  100% {
+    transform: translateX(0) scale(1);
+    filter: grayscale(0) brightness(1);
+  }
+  15% {
+    transform: translateX(-10px) scale(0.96);
+    filter: grayscale(0.6) brightness(0.65);
+  }
+  30% {
+    transform: translateX(9px) scale(0.96);
+  }
+  45% {
+    transform: translateX(-7px);
+  }
+  60% {
+    transform: translateX(6px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+.enhance-level-badge {
+  animation: enhanceBadgePop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes enhanceBadgePop {
+  0% {
+    transform: scale(0.5);
+  }
+  60% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.enhance-result {
+  animation: enhanceResultPop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.enhance-result--success {
+  text-shadow: 0 0 12px rgba(140, 240, 176, 0.6);
+}
+
+@keyframes enhanceResultPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enhance-backdrop-flash--success,
+  .enhance-backdrop-flash--fail,
+  .enhance-modal--shake,
+  .enhance-fx--success .enhance-flash,
+  .enhance-fx--fail .enhance-flash,
+  .enhance-fx--success .enhance-spark,
+  .enhance-image-wrap.enhance-pulse-success,
+  .enhance-image-wrap.enhance-pulse-fail,
+  .enhance-level-badge,
+  .enhance-result {
+    animation: none;
+  }
+}
+
 /* 함성 배너 — 화면 위쪽에 번쩍이며 나타났다가 5초 뒤 스르륵 사라진다 */
 /* --shout-*는 보는 사람의 팀이 아니라 "보낸" 팀 색 — Shout.tsx가 엘리먼트에 직접 꽂는다. */
 .shout-banner {

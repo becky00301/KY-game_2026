@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatNumber, TeamId, TeamTheme } from "@/lib/game";
 import { ENHANCE_MAX_LEVEL, enhanceCost, enhanceSuccessRate, enhanceTable } from "@/lib/enhance";
 import {
@@ -12,10 +12,13 @@ import {
   registerEnhance,
   reportEnhanceLevel,
 } from "@/lib/enhanceRanking";
+import { playCardRevealSound, playEnhanceFailSound } from "@/lib/sfx";
 
 const RANKING_SLOTS = 10;
 const NICKNAME_KEY = "kyg.enhanceNickname";
 const LEVEL_KEY = "kyg.enhanceLevel";
+/** 성공 이펙트 — 이미지 주변에 튀는 스파크 각도(14방향으로 고르게). */
+const SPARK_ANGLES = Array.from({ length: 14 }, (_, i) => Math.round((i * 360) / 14));
 
 type Step = "loading" | "nickname" | "main" | "probability" | "ranking";
 
@@ -63,9 +66,37 @@ export default function Enhance({
   const [nicknameError, setNicknameError] = useState("");
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<"success" | "fail" | null>(null);
+  /** 시도할 때마다 +1 — 같은 결과(예: 연속 실패)가 나와도 이펙트를 처음부터 다시 재생시키는 용도. */
+  const [attemptId, setAttemptId] = useState(0);
   const [rankTop, setRankTop] = useState<EnhanceRankEntry[] | null>(null);
   const [rankMine, setRankMine] = useState<EnhanceRankEntry | null>(null);
   const [rankFailed, setRankFailed] = useState(false);
+
+  const modalRef = useRef<HTMLElement>(null);
+  const backdropFlashRef = useRef<HTMLDivElement>(null);
+  const imageWrapRef = useRef<HTMLDivElement>(null);
+  const fxRef = useRef<HTMLDivElement>(null);
+
+  // 강화 결과 이펙트 재생 — CSS 애니메이션은 클래스가 "새로 붙을 때"만 재생되므로, 같은
+  // 클래스가 이미 있어도 강제로 떼었다 다시 붙여서(중간에 리플로우 한 번) 매 시도마다
+  // 처음부터 다시 터지게 만든다.
+  useEffect(() => {
+    if (!result) return;
+    const restart = (el: Element | null, cls: string) => {
+      if (!el) return;
+      el.classList.remove(cls);
+      void (el as HTMLElement).offsetWidth;
+      el.classList.add(cls);
+    };
+    const modifier = result === "success" ? "success" : "fail";
+    restart(backdropFlashRef.current, `enhance-backdrop-flash--${modifier}`);
+    restart(fxRef.current, `enhance-fx--${modifier}`);
+    restart(imageWrapRef.current, result === "success" ? "enhance-pulse-success" : "enhance-pulse-fail");
+    if (result === "fail") restart(modalRef.current, "enhance-modal--shake");
+    if (result === "success") playCardRevealSound();
+    else playEnhanceFailSound();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
 
   useEffect(() => {
     let alive = true;
@@ -147,6 +178,7 @@ export default function Enhance({
     } else {
       setResult("fail");
     }
+    setAttemptId((id) => id + 1);
   };
 
   const openRanking = () => {
@@ -164,7 +196,15 @@ export default function Enhance({
 
   return (
     <div className="enhance-backdrop" onClick={onClose}>
-      <section className="enhance-modal" role="dialog" aria-modal="true" aria-label="강화" onClick={(e) => e.stopPropagation()}>
+      <div className="enhance-backdrop-flash" ref={backdropFlashRef} aria-hidden="true" />
+      <section
+        className="enhance-modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="강화"
+        onClick={(e) => e.stopPropagation()}
+      >
         {step === "loading" && <p className="enhance-loading">불러오는 중..</p>}
 
         {step === "nickname" && (
@@ -209,9 +249,17 @@ export default function Enhance({
               </button>
             </header>
 
-            <div className="enhance-image-wrap">
+            <div className="enhance-image-wrap" ref={imageWrapRef}>
               <img src="/images/enhance/yeouiboju.webp" alt="여의보주" className="enhance-image" />
-              <span className="enhance-level-badge">+{level}</span>
+              <span key={level} className="enhance-level-badge">
+                +{level}
+              </span>
+              <div className="enhance-fx" ref={fxRef} aria-hidden="true">
+                <span className="enhance-flash" />
+                {SPARK_ANGLES.map((angle) => (
+                  <span key={angle} className="enhance-spark" style={{ "--angle": `${angle}deg` } as React.CSSProperties} />
+                ))}
+              </div>
             </div>
 
             <p className="enhance-level-text">{maxed ? "최대 단계에 도달했습니다!" : `${level} → ${level + 1}단계`}</p>
@@ -227,8 +275,16 @@ export default function Enhance({
               </p>
             )}
 
-            {result === "success" && <p className="enhance-result enhance-result--success">강화 성공!</p>}
-            {result === "fail" && <p className="enhance-result enhance-result--fail">강화 실패..</p>}
+            {result === "success" && (
+              <p key={attemptId} className="enhance-result enhance-result--success">
+                강화 성공!
+              </p>
+            )}
+            {result === "fail" && (
+              <p key={attemptId} className="enhance-result enhance-result--fail">
+                강화 실패..
+              </p>
+            )}
             {result === null && insufficient && (
               <p className="enhance-result enhance-result--fail">{theme.personalCurrency}이(가) 부족합니다.</p>
             )}
