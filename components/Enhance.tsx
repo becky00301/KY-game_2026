@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatNumber, TeamId, TeamTheme } from "@/lib/game";
 import {
   ENHANCE_DESTROY_FROM_LEVEL,
+  ENHANCE_ITEM,
   ENHANCE_LEVEL_CACHE_KEY,
   ENHANCE_MAX_LEVEL,
   enhanceCost,
@@ -52,10 +53,10 @@ function saveCache(team: TeamId, nickname: string, level: number) {
 }
 
 /**
- * "강화" — 기기별 개인 재화로 아리아의 옥을 0~30단계까지 강화하는 미니게임.
- * 닉네임은 기기당 하나, 전역에서 유일하다(랭킹 식별자 겸용). 재화 차감·확률
- * 굴림은 contrib(개인 재화)와 같은 신뢰 모델로 전부 클라이언트에서 계산하고,
- * 서버에는 랭킹(닉네임·현재 단계)만 올라간다.
+ * "강화" — 기기별 개인 재화로 아이템(노아=아리아의 옥, 연=리버티 오브 페더)을
+ * 0~30단계까지 강화하는 미니게임. 닉네임은 기기당 팀별로 하나씩, 같은 팀 안에서만
+ * 유일하다(랭킹 식별자 겸용). 재화 차감·확률 굴림은 contrib(개인 재화)와 같은 신뢰
+ * 모델로 전부 클라이언트에서 계산하고, 서버에는 랭킹(닉네임·현재 단계)만 올라간다.
  */
 export default function Enhance({
   team,
@@ -121,7 +122,7 @@ export default function Enhance({
       setLevel(cached.level);
       setStep("main");
     }
-    fetchMyEnhance()
+    fetchMyEnhance(team)
       .then((me) => {
         if (!alive) return;
         if (me.registered) {
@@ -151,7 +152,7 @@ export default function Enhance({
     setChecking(true);
     setNicknameError("");
     try {
-      const available = await checkEnhanceNicknameAvailable(trimmed);
+      const available = await checkEnhanceNicknameAvailable(trimmed, team);
       if (!available) {
         setNicknameError("이미 누군가가 사용중인 닉네임입니다.");
         return;
@@ -191,12 +192,12 @@ export default function Enhance({
       const next = level + 1;
       setLevel(next);
       saveCache(team, nickname, next);
-      void reportEnhanceLevel(next).catch(() => {});
+      void reportEnhanceLevel(next, team).catch(() => {});
       setResult("success");
     } else if (outcome === "destroy") {
       setLevel(0);
       saveCache(team, nickname, 0);
-      void reportEnhanceLevel(0).catch(() => {});
+      void reportEnhanceLevel(0, team).catch(() => {});
       setResult("destroy");
     } else {
       setResult("fail");
@@ -209,7 +210,7 @@ export default function Enhance({
     setRankTop(null);
     setRankMine(null);
     setRankFailed(false);
-    fetchEnhanceRankings(nickname)
+    fetchEnhanceRankings(team, nickname)
       .then(({ top, mine }) => {
         setRankTop(top);
         setRankMine(mine);
@@ -268,14 +269,14 @@ export default function Enhance({
           <>
             <header className="enhance-head">
               <span className="icon-btn enhance-icon-spacer" aria-hidden="true" />
-              <p className="enhance-title">{nickname}님의 아리아의 옥</p>
+              <p className="enhance-title">{nickname}님의 {ENHANCE_ITEM[team].name}</p>
               <button className="icon-btn" onClick={onClose} aria-label="닫기">
                 ✕
               </button>
             </header>
 
             <div className="enhance-image-wrap" ref={imageWrapRef}>
-              <img src="/images/enhance/yeouiboju.webp" alt="아리아의 옥" className="enhance-image" />
+              <img src={ENHANCE_ITEM[team].image} alt={ENHANCE_ITEM[team].name} className="enhance-image" />
               <span key={level} className="enhance-level-badge">
                 +{level}
               </span>

@@ -9,7 +9,8 @@ export async function GET(req: NextRequest) {
   if (blocked) return blocked;
 
   const deviceId = req.nextUrl.searchParams.get("deviceId") ?? "";
-  const row = getByDevice(deviceId);
+  const team = req.nextUrl.searchParams.get("team") ?? "ku";
+  const row = getByDevice(deviceId, team);
   return NextResponse.json(
     row ? { registered: true, nickname: row.nickname, level: row.level } : { registered: false }
   );

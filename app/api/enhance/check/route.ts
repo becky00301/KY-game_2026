@@ -8,7 +8,8 @@ export async function POST(req: NextRequest) {
   const blocked = blockedInProduction();
   if (blocked) return blocked;
 
-  const body = (await req.json().catch(() => null)) as { nickname?: string } | null;
+  const body = (await req.json().catch(() => null)) as { nickname?: string; team?: string } | null;
   const nickname = typeof body?.nickname === "string" ? body.nickname : "";
-  return NextResponse.json({ available: isNicknameAvailable(nickname) });
+  const team = typeof body?.team === "string" ? body.team : "ku";
+  return NextResponse.json({ available: isNicknameAvailable(nickname, team) });
 }

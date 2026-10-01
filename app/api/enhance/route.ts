@@ -9,8 +9,9 @@ export async function GET(req: NextRequest) {
   if (blocked) return blocked;
 
   const nickname = req.nextUrl.searchParams.get("nickname");
+  const team = req.nextUrl.searchParams.get("team") ?? "ku";
   return NextResponse.json({
-    top: topRankings(10),
-    mine: nickname ? myRanking(nickname) : null,
+    top: topRankings(team, 10),
+    mine: nickname ? myRanking(nickname, team) : null,
   });
 }

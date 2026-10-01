@@ -4,10 +4,11 @@
  * "강화" 랭킹(닉네임·현재 단계)을 주고받는 통로.
  *
  * lib/bossRanking.ts와 같은 방식 — Supabase 자격증명이 있으면 Supabase RPC를,
- * 없으면 개발용 로컬 백엔드(app/api/enhance)를 쓴다. 닉네임은 대소문자 구분 없이
- * 전역에서 유일해야 하고, 기기당 하나만 등록할 수 있다. 실제 재화 차감·확률 굴림은
- * contrib(개인 재화)와 같은 신뢰 모델로 클라이언트에서 계산하고, 서버에는 랭킹에
- * 필요한 닉네임·단계만 올라간다.
+ * 없으면 개발용 로컬 백엔드(app/api/enhance)를 쓴다. 노아·연은 서로 다른 아이템을
+ * 강화하는 별개의 게임이라 전부 팀 단위로 나뉜다 — 닉네임은 대소문자 구분 없이
+ * "같은 팀 안에서만" 유일하고, 기기 하나가 팀별로 각각 한 자리씩 가질 수 있다.
+ * 실제 재화 차감·확률 굴림은 contrib(개인 재화)와 같은 신뢰 모델로 클라이언트에서
+ * 계산하고, 서버에는 랭킹에 필요한 닉네임·단계만 올라간다.
  */
 
 import { backendMode, supabase } from "./supabaseClient";
@@ -57,33 +58,35 @@ export function isEnhanceNicknameFormatValid(nickname: string): boolean {
   return trimmed.length >= 1 && trimmed.length <= NICKNAME_MAX_LEN;
 }
 
-export async function checkEnhanceNicknameAvailable(nickname: string): Promise<boolean> {
+export async function checkEnhanceNicknameAvailable(nickname: string, team: TeamId): Promise<boolean> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("enhance_nickname_check", { p_nickname: nickname });
+    const { data, error } = await supabase().rpc("enhance_nickname_check", { p_nickname: nickname, p_team: team });
     if (error) throw new Error(error.message);
     return Boolean(data);
   }
-  const data = await localJson("/api/enhance/check", { nickname });
+  const data = await localJson("/api/enhance/check", { nickname, team });
   return Boolean(data.available);
 }
 
-/** 이 기기가 이미 강화 기록을 갖고 있는지 — 있으면 닉네임 입력 단계를 건너뛴다. */
-export async function fetchMyEnhance(): Promise<EnhanceMe> {
+/** 이 기기가 이 팀으로 이미 강화 기록을 갖고 있는지 — 있으면 닉네임 입력 단계를 건너뛴다. */
+export async function fetchMyEnhance(team: TeamId): Promise<EnhanceMe> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("enhance_me", { p_device: clientId() });
+    const { data, error } = await supabase().rpc("enhance_me", { p_device: clientId(), p_team: team });
     if (error) throw new Error(error.message);
     const row = data as Record<string, unknown> | null;
     return row && row.nickname
       ? { registered: true, nickname: String(row.nickname), level: Number(row.level ?? 0) }
       : { registered: false, nickname: "", level: 0 };
   }
-  const data = await localJson(`/api/enhance/me?deviceId=${encodeURIComponent(clientId())}`);
+  const data = await localJson(
+    `/api/enhance/me?deviceId=${encodeURIComponent(clientId())}&team=${encodeURIComponent(team)}`
+  );
   return data.registered
     ? { registered: true, nickname: String(data.nickname ?? ""), level: Number(data.level ?? 0) }
     : { registered: false, nickname: "", level: 0 };
 }
 
-/** 닉네임 확정 시 한 번 호출 — 이 기기가 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
+/** 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
 export async function registerEnhance(nickname: string, team: TeamId): Promise<RegisterResult> {
   if (backendMode === "supabase") {
     const { data, error } = await supabase().rpc("enhance_register", {
@@ -101,14 +104,18 @@ export async function registerEnhance(nickname: string, team: TeamId): Promise<R
   })) as unknown as RegisterResult;
 }
 
-/** 레벨이 올랐을 때만 호출 — fire-and-forget으로 써도 된다(실패해도 로컬 진행에는 지장 없음). */
-export async function reportEnhanceLevel(level: number): Promise<ReportResult> {
+/** 레벨이 바뀔 때마다 호출 — fire-and-forget으로 써도 된다(실패해도 로컬 진행에는 지장 없음). */
+export async function reportEnhanceLevel(level: number, team: TeamId): Promise<ReportResult> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("enhance_report", { p_device: clientId(), p_level: level });
+    const { data, error } = await supabase().rpc("enhance_report", {
+      p_device: clientId(),
+      p_team: team,
+      p_level: level,
+    });
     if (error) throw new Error(error.message);
     return data as ReportResult;
   }
-  return (await localJson("/api/enhance/report", { deviceId: clientId(), level })) as unknown as ReportResult;
+  return (await localJson("/api/enhance/report", { deviceId: clientId(), team, level })) as unknown as ReportResult;
 }
 
 function normalizeEntry(row: Record<string, unknown>): EnhanceRankEntry {
@@ -125,13 +132,16 @@ function normalizeList(rows: unknown): EnhanceRankEntry[] {
 }
 
 export async function fetchEnhanceRankings(
+  team: TeamId,
   nickname?: string
 ): Promise<{ top: EnhanceRankEntry[]; mine: EnhanceRankEntry | null }> {
   if (backendMode === "supabase") {
     const client = supabase();
     const [topResult, mineResult] = await Promise.all([
-      client.rpc("enhance_top", { p_limit: 10 }),
-      nickname ? client.rpc("enhance_mine", { p_nickname: nickname }) : Promise.resolve({ data: null, error: null }),
+      client.rpc("enhance_top", { p_limit: 10, p_team: team }),
+      nickname
+        ? client.rpc("enhance_mine", { p_nickname: nickname, p_team: team })
+        : Promise.resolve({ data: null, error: null }),
     ]);
     if (topResult.error) throw new Error(topResult.error.message);
     if (mineResult.error) throw new Error(mineResult.error.message);
@@ -140,8 +150,8 @@ export async function fetchEnhanceRankings(
       mine: mineResult.data ? normalizeEntry(mineResult.data as Record<string, unknown>) : null,
     };
   }
-  const qs = nickname ? `?nickname=${encodeURIComponent(nickname)}` : "";
-  const data = await localJson(`/api/enhance${qs}`);
+  const qs = new URLSearchParams({ team, ...(nickname ? { nickname } : {}) });
+  const data = await localJson(`/api/enhance?${qs.toString()}`);
   return {
     top: normalizeList(data.top),
     mine: data.mine ? normalizeEntry(data.mine as Record<string, unknown>) : null,

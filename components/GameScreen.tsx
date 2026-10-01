@@ -17,12 +17,7 @@ import PipView, { PipFloater } from "./PipView";
 import EvolveCutscene, { EVOLVE_CUTSCENES } from "./EvolveCutscene";
 import { ShoutBanner, ShoutSheet } from "./Shout";
 import Enhance from "./Enhance";
-import {
-  ENHANCE_LEVEL_CACHE_KEY,
-  PERSONAL_CURRENCY_PER_TAP,
-  enhanceEnabledFor,
-  enhanceScoreMultiplier,
-} from "@/lib/enhance";
+import { ENHANCE_LEVEL_CACHE_KEY, PERSONAL_CURRENCY_PER_TAP, enhanceScoreMultiplier } from "@/lib/enhance";
 import { CardInfo, bonusCardFor, cardsFor } from "@/lib/cards";
 import { PIP_SUPPORTED, copyStylesInto } from "@/lib/pip";
 import {
@@ -991,12 +986,8 @@ export default function GameScreen({
             <span className="shout-btn-icon">📣</span>
             <span>함성</span>
           </button>
-          {/* 기기별·개인별 재화 — 노아만 강화 기능이 열려 있다. 연은 아직 준비중. */}
-          <button
-            className="personal-btn"
-            onClick={() => (enhanceEnabledFor(team) ? setEnhanceOpen(true) : setNotice("준비중입니다."))}
-            disabled={!ready}
-          >
+          {/* 기기별·개인별 재화 — 노아·연 둘 다 강화 기능이 열려 있다. */}
+          <button className="personal-btn" onClick={() => setEnhanceOpen(true)} disabled={!ready}>
             <span className="personal-btn-label">강화</span>
             <span className="personal-chip-value">{formatNumber(Math.max(0, personalEarned - enhanceSpent))}</span>
             <span className="personal-chip-name">{theme.personalCurrency}</span>

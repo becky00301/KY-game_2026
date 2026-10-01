@@ -2,7 +2,9 @@
  * 개발용 로컬 백엔드의 저장소 — "강화" 미니게임의 기기별 진행도 + 랭킹.
  *
  * app/api/boss-ranking/store.ts와 같은 이유로 프로세스 메모리에 둔다. 운영에서는
- * 반드시 Supabase(enhance_* RPC)를 쓴다.
+ * 반드시 Supabase(enhance_* RPC)를 쓴다. 노아·연은 서로 다른 아이템을 강화하는
+ * 별개의 게임이라, 기기 하나가 팀별로 각각 한 자리씩 가질 수 있고(키가 deviceId+team
+ * 복합값) 닉네임도 같은 팀 안에서만 유일하다.
  */
 
 const NICKNAME_MAX_LEN = 14;
@@ -21,26 +23,30 @@ const globalStore = globalThis as unknown as {
 };
 const players = (globalStore.__kygEnhancePlayers ??= new Map<string, EnhanceRow>());
 
+function key(deviceId: string, team: string): string {
+  return `${deviceId}:${team}`;
+}
+
 function norm(nickname: string): string {
   return nickname.trim().toLowerCase();
 }
 
-function isNicknameTaken(nickname: string): boolean {
+function isNicknameTaken(nickname: string, team: string): boolean {
   const n = norm(nickname);
   for (const row of players.values()) {
-    if (norm(row.nickname) === n) return true;
+    if (row.team === team && norm(row.nickname) === n) return true;
   }
   return false;
 }
 
-export function isNicknameAvailable(nickname: string): boolean {
+export function isNicknameAvailable(nickname: string, team: string): boolean {
   const n = norm(nickname);
   if (!n) return false;
-  return !isNicknameTaken(nickname);
+  return !isNicknameTaken(nickname, team);
 }
 
-export function getByDevice(deviceId: string): EnhanceRow | null {
-  return players.get(deviceId) ?? null;
+export function getByDevice(deviceId: string, team: string): EnhanceRow | null {
+  return players.get(key(deviceId, team)) ?? null;
 }
 
 export interface RegisterOutcome {
@@ -50,9 +56,9 @@ export interface RegisterOutcome {
   level?: number;
 }
 
-/** 이 기기가 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
+/** 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
 export function register(nickname: string, deviceId: string, team: string): RegisterOutcome {
-  const existing = players.get(deviceId);
+  const existing = players.get(key(deviceId, team));
   if (existing) {
     return { ok: true, nickname: existing.nickname, level: existing.level };
   }
@@ -60,10 +66,10 @@ export function register(nickname: string, deviceId: string, team: string): Regi
   if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
     return { ok: false, reason: "invalid" };
   }
-  if (isNicknameTaken(trimmed)) {
+  if (isNicknameTaken(trimmed, team)) {
     return { ok: false, reason: "taken" };
   }
-  players.set(deviceId, { deviceId, team, nickname: trimmed, level: 0, updatedAt: Date.now() });
+  players.set(key(deviceId, team), { deviceId, team, nickname: trimmed, level: 0, updatedAt: Date.now() });
   return { ok: true, nickname: trimmed, level: 0 };
 }
 
@@ -73,8 +79,8 @@ export interface ReportOutcome {
 }
 
 /** 보낸 값을 그대로 반영한다 — 파괴로 0단계까지 내려가는 것도 정상적인 상태 변화다. */
-export function reportLevel(deviceId: string, level: number): ReportOutcome {
-  const row = players.get(deviceId);
+export function reportLevel(deviceId: string, team: string, level: number): ReportOutcome {
+  const row = players.get(key(deviceId, team));
   if (!row) return { ok: false };
   row.level = Math.max(0, Math.min(MAX_LEVEL, Math.floor(level)));
   row.updatedAt = Date.now();
@@ -88,19 +94,21 @@ export interface RankRow {
   updatedAt: number;
 }
 
-function sorted(): EnhanceRow[] {
-  return [...players.values()].sort((a, b) => b.level - a.level || a.updatedAt - b.updatedAt);
+function sortedFor(team: string): EnhanceRow[] {
+  return [...players.values()]
+    .filter((r) => r.team === team)
+    .sort((a, b) => b.level - a.level || a.updatedAt - b.updatedAt);
 }
 
-export function topRankings(limit = 10): RankRow[] {
-  return sorted()
+export function topRankings(team: string, limit = 10): RankRow[] {
+  return sortedFor(team)
     .slice(0, limit)
     .map((r, i) => ({ nickname: r.nickname, level: r.level, rank: i + 1, updatedAt: r.updatedAt }));
 }
 
-export function myRanking(nickname: string): RankRow | null {
+export function myRanking(nickname: string, team: string): RankRow | null {
   const n = norm(nickname);
-  const list = sorted();
+  const list = sortedFor(team);
   const idx = list.findIndex((r) => norm(r.nickname) === n);
   if (idx === -1) return null;
   return { nickname: list[idx].nickname, level: list[idx].level, rank: idx + 1, updatedAt: list[idx].updatedAt };

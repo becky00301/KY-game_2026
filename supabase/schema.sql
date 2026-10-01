@@ -837,15 +837,16 @@ grant execute on function public.boss_ranking_top(int)           to anon, authen
 grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;
 
 --
--- "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 아리아의 옥을 0~30단계까지
--- 강화한다. 재화 차감·성공확률 굴림은 전부 클라이언트에서 계산한다(계정 시스템이
--- 없는 캐주얼 게임이라 contrib와 같은 신뢰 모델 — 완벽한 부정 방지는 하지 않는다).
--- 서버에는 랭킹에 필요한 닉네임·현재 단계만 올라간다. 지금은 노아(ku)만 플레이
--- 가능하고 연(yu)은 준비 중이다. 닉네임은 boss_rankings와 같이 대소문자 구분 없이
--- 전역에서 유일하고, 기기 하나당 한 자리만 가질 수 있다(device_id가 기본키).
+-- "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 노아는 아리아의 옥을,
+-- 연은 리버티 오브 페더를 0~30단계까지 강화한다. 재화 차감·성공확률 굴림은 전부
+-- 클라이언트에서 계산한다(계정 시스템이 없는 캐주얼 게임이라 contrib와 같은 신뢰
+-- 모델 — 완벽한 부정 방지는 하지 않는다). 서버에는 랭킹에 필요한 닉네임·현재 단계만
+-- 올라간다. 두 팀은 사실상 서로 다른 아이템을 강화하는 별개의 게임이라, 기기 하나가
+-- 팀별로 각각 한 자리씩 가질 수 있고(device_id+team 복합키), 닉네임도 "전역 유일"이
+-- 아니라 "같은 팀 안에서만 유일"하다 — 같은 사람이 양쪽 팀에 같은 닉네임을 써도 된다.
 
 create table if not exists public.enhance_players (
-  device_id  uuid        primary key,
+  device_id  uuid        not null,
   team       text        not null default 'ku' check (team in ('ku', 'yu')),
   nickname   text        not null check (char_length(trim(nickname)) between 1 and 14),
   level      int         not null default 0 check (level between 0 and 30),
@@ -853,36 +854,46 @@ create table if not exists public.enhance_players (
   updated_at timestamptz not null default now()
 );
 
-create unique index if not exists enhance_players_nickname_lower_idx
-  on public.enhance_players (lower(nickname));
+-- 예전엔 device_id 하나가 기본키라 기기당 팀 구분 없이 한 자리뿐이었다. 이제 노아·연
+-- 둘 다 강화가 가능해서, 같은 기기도 팀별로 따로 한 자리씩 가져야 한다.
+alter table public.enhance_players drop constraint if exists enhance_players_pkey;
+alter table public.enhance_players add primary key (device_id, team);
 
--- 닉네임이 아직 아무도 안 쓰고 있는지(대소문자 무시).
-create or replace function public.enhance_nickname_check(p_nickname text)
+drop index if exists enhance_players_nickname_lower_idx;
+create unique index if not exists enhance_players_team_nickname_lower_idx
+  on public.enhance_players (team, lower(nickname));
+
+-- 닉네임이 그 팀 안에서 아직 아무도 안 쓰고 있는지(대소문자 무시).
+drop function if exists public.enhance_nickname_check(text);
+create or replace function public.enhance_nickname_check(p_nickname text, p_team text default 'ku')
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce(char_length(trim(p_nickname)), 0) between 1 and 14
      and not exists (
-       select 1 from public.enhance_players where lower(nickname) = lower(trim(p_nickname))
+       select 1 from public.enhance_players
+       where team = coalesce(p_team, 'ku') and lower(nickname) = lower(trim(p_nickname))
      );
 $$;
 
--- 이 기기가 이미 강화 기록을 갖고 있는지 — 있으면 클라이언트가 닉네임 입력 단계를
--- 건너뛰고 바로 현재 단계를 불러온다.
-create or replace function public.enhance_me(p_device uuid)
+-- 이 기기가 이 팀으로 이미 강화 기록을 갖고 있는지 — 있으면 클라이언트가 닉네임 입력
+-- 단계를 건너뛰고 바로 현재 단계를 불러온다.
+drop function if exists public.enhance_me(uuid);
+create or replace function public.enhance_me(p_device uuid, p_team text default 'ku')
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object('nickname', nickname, 'level', level)
   from public.enhance_players
-  where device_id = p_device;
+  where device_id = p_device and team = coalesce(p_team, 'ku');
 $$;
 
--- 닉네임 확정 시 한 번 호출 — 이 기기가 이미 등록돼 있으면 새로 보낸 닉네임은
--- 무시하고 기존 기록을 그대로 돌려준다(중복 등록 방지 겸 재입장 처리).
+-- 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새로 보낸
+-- 닉네임은 무시하고 기존 기록을 그대로 돌려준다(중복 등록 방지 겸 재입장 처리).
 create or replace function public.enhance_register(p_nickname text, p_device uuid, p_team text default 'ku')
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_nickname text := trim(p_nickname);
+  v_team     text := coalesce(p_team, 'ku');
   v_existing public.enhance_players;
 begin
-  select * into v_existing from public.enhance_players where device_id = p_device;
+  select * into v_existing from public.enhance_players where device_id = p_device and team = v_team;
   if found then
     return jsonb_build_object('ok', true, 'nickname', v_existing.nickname, 'level', v_existing.level);
   end if;
@@ -890,12 +901,12 @@ begin
   if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
-  if exists (select 1 from public.enhance_players where lower(nickname) = lower(v_nickname)) then
+  if exists (select 1 from public.enhance_players where team = v_team and lower(nickname) = lower(v_nickname)) then
     return jsonb_build_object('ok', false, 'reason', 'taken');
   end if;
 
   insert into public.enhance_players (device_id, team, nickname, level)
-  values (p_device, coalesce(p_team, 'ku'), v_nickname, 0);
+  values (p_device, v_team, v_nickname, 0);
 
   return jsonb_build_object('ok', true, 'nickname', v_nickname, 'level', 0);
 end;
@@ -905,7 +916,8 @@ $$;
 -- 0단계로 완전히 초기화된다. 그래서 "greatest"가 아니라 보낸 값을 그대로 반영한다
 -- (파괴로 내려가는 것도 정상적인 상태 변화다). updated_at은 항상 지금 시각으로 — 랭킹
 -- 동점자는 "마지막으로 그 단계였던" 시점이 빠른 쪽이 위로 오도록 한다.
-create or replace function public.enhance_report(p_device uuid, p_level int)
+drop function if exists public.enhance_report(uuid, int);
+create or replace function public.enhance_report(p_device uuid, p_team text, p_level int)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_level  int := least(30, greatest(0, coalesce(p_level, 0)));
@@ -914,7 +926,7 @@ begin
   update public.enhance_players
      set level = v_level,
          updated_at = now()
-   where device_id = p_device
+   where device_id = p_device and team = coalesce(p_team, 'ku')
   returning level into v_result;
 
   if v_result is null then
@@ -924,7 +936,8 @@ begin
 end;
 $$;
 
-create or replace function public.enhance_top(p_limit int default 10)
+drop function if exists public.enhance_top(int);
+create or replace function public.enhance_top(p_limit int default 10, p_team text default 'ku')
 returns jsonb language sql stable security definer set search_path = public as $$
   select coalesce(jsonb_agg(row), '[]'::jsonb) from (
     select jsonb_build_object(
@@ -934,33 +947,36 @@ returns jsonb language sql stable security definer set search_path = public as $
       'updated_at', (extract(epoch from updated_at) * 1000)::bigint
     ) as row
     from public.enhance_players
+    where team = coalesce(p_team, 'ku')
     order by level desc, updated_at asc
     limit greatest(1, least(coalesce(p_limit, 10), 50))
   ) t;
 $$;
 
-create or replace function public.enhance_mine(p_nickname text)
+drop function if exists public.enhance_mine(text);
+create or replace function public.enhance_mine(p_nickname text, p_team text default 'ku')
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
     'nickname', nickname,
     'level', level,
     'rank', (
       select count(*) + 1 from public.enhance_players o
-      where o.level > r.level or (o.level = r.level and o.updated_at < r.updated_at)
+      where o.team = r.team
+        and (o.level > r.level or (o.level = r.level and o.updated_at < r.updated_at))
     ),
     'updated_at', (extract(epoch from updated_at) * 1000)::bigint
   )
   from public.enhance_players r
-  where lower(nickname) = lower(trim(p_nickname))
+  where r.team = coalesce(p_team, 'ku') and lower(r.nickname) = lower(trim(p_nickname))
   limit 1;
 $$;
 
 -- 직접 테이블 접근은 막는다(select 정책 없음) — 전부 위 함수로만 읽고 쓴다.
 alter table public.enhance_players enable row level security;
 
-grant execute on function public.enhance_nickname_check(text)       to anon, authenticated;
-grant execute on function public.enhance_me(uuid)                   to anon, authenticated;
+grant execute on function public.enhance_nickname_check(text, text) to anon, authenticated;
+grant execute on function public.enhance_me(uuid, text)              to anon, authenticated;
 grant execute on function public.enhance_register(text, uuid, text) to anon, authenticated;
-grant execute on function public.enhance_report(uuid, int)          to anon, authenticated;
-grant execute on function public.enhance_top(int)                   to anon, authenticated;
-grant execute on function public.enhance_mine(text)                 to anon, authenticated;
+grant execute on function public.enhance_report(uuid, text, int)    to anon, authenticated;
+grant execute on function public.enhance_top(int, text)             to anon, authenticated;
+grant execute on function public.enhance_mine(text, text)           to anon, authenticated;

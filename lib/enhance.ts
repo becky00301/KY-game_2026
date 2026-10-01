@@ -1,6 +1,7 @@
 /**
- * "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 아리아의 옥을
- * 0~30단계까지 강화한다.
+ * "강화" 미니게임 — 기기별 개인 재화(염원의 빛/데이터로그)로 노아는 아리아의 옥을,
+ * 연은 리버티 오브 페더를 0~30단계까지 강화한다. 두 팀은 서로 다른 아이템을 강화하는
+ * 별개의 게임이지만 확률·비용 테이블은 공용이다.
  *
  * 1~15단계는 실패해도 그 자리에 머문다(파괴 없음). 16~30단계부터는 실패의 일부가
  * "파괴"로 갈라져서, 파괴되면 재화만 날리는 게 아니라 0단계로 완전히 초기화된다.
@@ -8,6 +9,12 @@
  */
 
 import type { TeamId } from "./game";
+
+/** 팀별 강화 대상 아이템 — 이름과 일러스트. */
+export const ENHANCE_ITEM: Record<TeamId, { name: string; image: string }> = {
+  ku: { name: "아리아의 옥", image: "/images/enhance/yeouiboju.webp" },
+  yu: { name: "리버티 오브 페더", image: "/images/enhance/liberty-of-feather.webp" },
+};
 
 export const ENHANCE_MAX_LEVEL = 30;
 /** 이 단계부터 실패 시 파괴 판정이 섞여 들어간다(0-index 기준 — "16단계" 시도). */
@@ -111,11 +118,6 @@ export interface EnhanceTableRow {
 /** 확률표 UI용 — 0→1부터 29→30까지 전체 단계. */
 export function enhanceTable(): EnhanceTableRow[] {
   return ENHANCE_DATA.map((data, level) => ({ level, ...data }));
-}
-
-/** 팀별로 강화 기능이 열려 있는지 — 지금은 노아만, 연은 준비중. */
-export function enhanceEnabledFor(team: TeamId): boolean {
-  return team === "ku";
 }
 
 /**

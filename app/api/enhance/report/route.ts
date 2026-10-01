@@ -8,8 +8,9 @@ export async function POST(req: NextRequest) {
   const blocked = blockedInProduction();
   if (blocked) return blocked;
 
-  const body = (await req.json().catch(() => null)) as { deviceId?: string; level?: number } | null;
+  const body = (await req.json().catch(() => null)) as { deviceId?: string; team?: string; level?: number } | null;
   const deviceId = typeof body?.deviceId === "string" ? body.deviceId : "";
+  const team = typeof body?.team === "string" ? body.team : "ku";
   const level = typeof body?.level === "number" ? body.level : 0;
-  return NextResponse.json(reportLevel(deviceId, level));
+  return NextResponse.json(reportLevel(deviceId, team, level));
 }
