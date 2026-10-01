@@ -2574,12 +2574,12 @@ button {
 .boss-map-actions-row { display: flex; gap: 12px; }
 .boss-map-actions-row--small button { min-height: 46px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 
-/* 보조 버튼(랭킹·전언)은 동그랗게, 가운데 정렬해서 주 버튼 위에 둔다 */
-.boss-map-circles { display: flex; justify-content: center; gap: 16px; }
+/* 보조 버튼(랭킹·전언)은 알약 모양으로, 가운데 정렬해서 주 버튼 위에 둔다 */
+.boss-map-circles { display: flex; justify-content: center; gap: 12px; }
 .boss-map-circles .boss-map-circle-btn {
-  width: 68px; height: 68px; min-height: 0; padding: 0; border-radius: 50%;
+  min-width: 118px; height: 40px; min-height: 0; padding: 0 18px; border-radius: 999px;
   border: 1px solid #a0dfd366; background: #000a; color: #d2dfdc;
-  font-size: 12px; font-weight: 700; line-height: 1.25; text-align: center;
+  font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; white-space: nowrap;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }

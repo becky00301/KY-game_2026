@@ -172,9 +172,7 @@ export function BossMap({
           </button>
           {onGuide && (
             <button className="boss-map-circle-btn" onClick={onGuide} aria-label="전투 방법 보기">
-              누군가의
-              <br />
-              전언
+              누군가의 전언
             </button>
           )}
         </div>
