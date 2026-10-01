@@ -70,10 +70,28 @@ create table if not exists public.tap_budget (
 alter table public.tap_budget add column if not exists tokens      numeric;
 alter table public.tap_budget add column if not exists refilled_at timestamptz not null default now();
 
+-- 기기별 분당 터치 기록. 누가 얼마나 넣었는지 남겨둬야 이상한 기기를 찾아내고, 사고가 나도
+-- 전체를 날리는 대신 그 기기 몫만 빼낼 수 있다. 1분에 기기당 한 줄이라 부담이 적다.
+create table if not exists public.tap_log (
+  client_id uuid        not null,
+  minute    timestamptz not null,
+  taps      int         not null default 0,
+  primary key (client_id, minute)
+);
+
+create index if not exists tap_log_minute_idx on public.tap_log (minute desc);
+
+-- 매크로로 판단된 기기. 여기 들어오면 터치가 하나도 인정되지 않는다(화면은 그대로 돌아간다).
+create table if not exists public.tap_blocklist (
+  client_id  uuid primary key,
+  reason     text,
+  blocked_at timestamptz not null default now()
+);
+
 -- ---------- 초기값 ----------
 
 insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max)
-values (1, array[0, 2400, 75000, 12000000, 375000000]::numeric[], 1.85, 90, 30, 0.05, 10, 3000)
+values (1, array[0, 2400, 75000, 12000000, 375000000]::numeric[], 1.85, 45, 15, 0.05, 10, 3000)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
@@ -188,6 +206,12 @@ declare
   granted int;
 begin
   select * into cfg from public.game_config where id = 1;
+
+  -- 차단된 기기는 아무것도 인정하지 않는다.
+  if exists (select 1 from public.tap_blocklist where client_id = p_client) then
+    return 0;
+  end if;
+
   cap := greatest(cfg.max_taps_per_flush, cfg.max_taps_per_second);
 
   select * into b from public.tap_budget where client_id = p_client for update;
@@ -205,6 +229,13 @@ begin
   values (p_client, now(), granted, tokens - granted, now())
   on conflict (client_id) do update
     set tokens = excluded.tokens, refilled_at = excluded.refilled_at;
+
+  -- 기기별 분당 기록 — 이상 탐지와 사후 정정에 쓴다.
+  if granted > 0 then
+    insert into public.tap_log (client_id, minute, taps)
+    values (p_client, date_trunc('minute', now()), granted)
+    on conflict (client_id, minute) do update set taps = public.tap_log.taps + excluded.taps;
+  end if;
 
   return granted;
 end;
@@ -363,6 +394,8 @@ alter table public.swords       enable row level security;
 alter table public.game_config  enable row level security;
 alter table public.upgrade_defs enable row level security;
 alter table public.tap_budget   enable row level security;
+alter table public.tap_log      enable row level security;
+alter table public.tap_blocklist enable row level security;
 
 -- 읽기만 열어 준다. 쓰기는 위 security definer 함수로만 가능하다.
 drop policy if exists "swords readable" on public.swords;
