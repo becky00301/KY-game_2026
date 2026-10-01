@@ -2797,21 +2797,21 @@ button {
 .boss-map-actions-row { display: flex; gap: 12px; }
 .boss-map-actions-row--small button { min-height: 46px; padding: 12px 18px; border-radius: 10px; font-size: 16px; }
 
-/* 보조 버튼(랭킹·전언)은 동그랗게, 가운데 정렬해서 주 버튼 위에 둔다 */
-.boss-map-circles { display: flex; justify-content: center; gap: 16px; }
+/* 보조 버튼(랭킹·전언)은 알약 모양으로, 가운데 정렬해서 주 버튼 위에 둔다 */
+.boss-map-circles { display: flex; justify-content: center; gap: 12px; }
 .boss-map-circles .boss-map-circle-btn {
-  width: 68px; height: 68px; min-height: 0; padding: 0; border-radius: 50%;
+  min-width: 118px; height: 40px; min-height: 0; padding: 0 18px; border-radius: 999px;
   border: 1px solid #a0dfd366; background: #000a; color: #d2dfdc;
-  font-size: 12px; font-weight: 700; line-height: 1.25; text-align: center;
+  font-size: 13px; font-weight: 700; line-height: 1.1; text-align: center; white-space: nowrap;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .boss-map-circles .boss-map-circle-btn:active { transform: scale(0.95); }
 .boss-map-ranking-btn { flex: 0 0 auto; border: 1px solid #a0dfd355; background: #0009; color: #d2dfdc; font-weight: 700; }
-/* 랭킹모드 도전 — 상품이 걸린 도전이라 금색 계열로 확실히 구분한다. */
+/* 랭킹모드 도전 — 입장하기와 같은 청록 계열이되 한 단계 어둡게 해서 주 버튼과 구분한다. */
 .boss-map-ranking-enter-btn {
-  flex: 1; border: 1px solid #d9a441; color: #ffe6b0; font-weight: 800;
-  background: linear-gradient(135deg, #3a2a0d, #150f04);
+  flex: 1; border: 1px solid #3f7a73; color: #bfe6de; font-weight: 800;
+  background: linear-gradient(135deg, #0f3d38, #061d1a);
   transition: opacity 0.3s ease;
 }
 /* 일반 모드 클리어 전에는 흐리게 — 눌러서 안내 문구는 볼 수 있다(boss-entry-btn.locked와 같은 패턴). */
