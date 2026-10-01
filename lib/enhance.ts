@@ -24,6 +24,9 @@ export const ENHANCE_ANNOUNCE_FROM_LEVEL = 23;
 /** 기기별 현재 강화 단계 캐시 키(팀 접미사 붙여서 사용) — Enhance.tsx가 쓰고,
  *  GameScreen.tsx가 터치 점수·개인 재화 배율을 계산할 때 읽기 전용으로 같이 참조한다. */
 export const ENHANCE_LEVEL_CACHE_KEY = "kyg.enhanceLevel";
+/** 기기별 강화 닉네임 캐시 키(팀 접미사 붙여서 사용) — Enhance.tsx가 쓰고,
+ *  GameScreen.tsx가 전체 초기화 때 같이 지운다. */
+export const ENHANCE_NICKNAME_CACHE_KEY = "kyg.enhanceNickname";
 
 /**
  * 터치 1회당 쌓이는 개인 재화(염원의 빛/데이터로그)의 기준량 — 실제로는 여기에

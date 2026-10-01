@@ -7,6 +7,7 @@ import {
   ENHANCE_ITEM,
   ENHANCE_LEVEL_CACHE_KEY,
   ENHANCE_MAX_LEVEL,
+  ENHANCE_NICKNAME_CACHE_KEY,
   enhanceCost,
   enhanceCurrencyBonusPercent,
   enhanceCurrencyMultiplier,
@@ -29,7 +30,7 @@ import {
 import { playCardRevealSound, playEnhanceDestroySound, playEnhanceFailSound } from "@/lib/sfx";
 
 const RANKING_SLOTS = 10;
-const NICKNAME_KEY = "kyg.enhanceNickname";
+const NICKNAME_KEY = ENHANCE_NICKNAME_CACHE_KEY;
 const LEVEL_KEY = ENHANCE_LEVEL_CACHE_KEY;
 /** 성공 이펙트 — 이미지 주변에 튀는 스파크 각도(14방향으로 고르게). */
 const SPARK_ANGLES = Array.from({ length: 14 }, (_, i) => Math.round((i * 360) / 14));

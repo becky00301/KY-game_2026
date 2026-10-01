@@ -106,6 +106,20 @@ alter table public.game_config add column if not exists notice_at   timestamptz 
 -- "함성" — 재화를 써서 화면 전체에 문구를 띄우는 기능의 가격.
 alter table public.game_config add column if not exists shout_cost numeric not null default 100000;
 
+-- 운영자가 강화 기록을 전부 초기화하고 싶을 때(테스트 데이터 정리 등) 이 값을 now()로
+-- 올려두면, 접속하는 모든 기기가 자신의 강화 관련 로컬 데이터(개인 재화·기기별 점수·
+-- 닉네임 캐시)를 전부 지운다. 서버 쪽 enhance_players·enhance_milestones는 운영자가
+-- SQL로 직접 비워야 한다(delete from public.enhance_players; delete from
+-- public.enhance_milestones;).
+alter table public.game_config add column if not exists enhance_reset_at timestamptz not null default 'epoch';
+
+create or replace function public.enhance_reset_at()
+returns timestamptz language sql stable security definer set search_path = public as $$
+  select enhance_reset_at from public.game_config where id = 1;
+$$;
+
+grant execute on function public.enhance_reset_at() to anon, authenticated;
+
 -- "함성"을 쓸 때마다 기기별 마지막 사용 시각을 남긴다. 제한을 걸진 않지만, 나중에
 -- 기기별 사용 빈도를 들여다봐야 할 때를 위한 기록이다.
 create table if not exists public.shout_log (

@@ -20,6 +20,7 @@ import { EnhanceMilestoneBanner } from "./EnhanceMilestone";
 import Enhance from "./Enhance";
 import {
   ENHANCE_LEVEL_CACHE_KEY,
+  ENHANCE_NICKNAME_CACHE_KEY,
   PERSONAL_CURRENCY_PER_TAP,
   enhanceCurrencyMultiplier,
   enhanceScoreMultiplier,
@@ -58,6 +59,7 @@ import {
   backendMode,
   buyUpgrade,
   clientId,
+  fetchEnhanceResetAt,
   fetchSword,
   sendTaps,
   subscribeAnnouncement,
@@ -123,6 +125,8 @@ const ENHANCE_SPENT_KEY = "kyg.enhanceSpent";
 const PERSONAL_EARNED_KEY = "kyg.personalEarned";
 /** 강화 배율이 적용된 "기기별 추가 점수" 누적치 — 공용 재산과 무관한 이 기기만의 점수. */
 const DEVICE_SCORE_KEY = "kyg.deviceScore";
+/** 운영자가 강화 기록을 전부 초기화한 시각을 이 기기가 마지막으로 반영한 값(epoch ms). */
+const ENHANCE_RESET_APPLIED_KEY = "kyg.enhanceResetApplied";
 
 /** "염원의 힘" → "염원의 힘이", "데이터베이스" → "데이터베이스가" */
 function withSubjectParticle(word: string) {
@@ -437,6 +441,32 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setCurrentMilestone(null), 7000);
     return () => window.clearTimeout(timer);
   }, [currentMilestone]);
+
+  // 운영자가 강화 기록을 전부 초기화했으면(game_config.enhance_reset_at), 이 기기에 남은
+  // 강화 관련 로컬 데이터(개인 재화·기기별 점수·닉네임 캐시)를 전부 지운다. 서버 쪽
+  // enhance_players는 운영자가 SQL로 직접 비운다. 접속할 때마다 한 번만 확인한다.
+  useEffect(() => {
+    let alive = true;
+    fetchEnhanceResetAt().then((resetAt) => {
+      if (!alive || resetAt <= 0) return;
+      const applied = Number(window.localStorage.getItem(ENHANCE_RESET_APPLIED_KEY) ?? 0);
+      if (resetAt <= applied) return;
+      for (const t of ["ku", "yu"] as const) {
+        window.localStorage.removeItem(`${ENHANCE_NICKNAME_CACHE_KEY}.${t}`);
+        window.localStorage.removeItem(`${ENHANCE_LEVEL_CACHE_KEY}.${t}`);
+        window.localStorage.removeItem(`${PERSONAL_EARNED_KEY}.${t}`);
+        window.localStorage.removeItem(`${ENHANCE_SPENT_KEY}.${t}`);
+        window.localStorage.removeItem(`${DEVICE_SCORE_KEY}.${t}`);
+      }
+      window.localStorage.setItem(ENHANCE_RESET_APPLIED_KEY, String(resetAt));
+      setPersonalEarned(0);
+      setEnhanceSpent(0);
+      setDeviceScore(0);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // If final evolution and the first star arrive together, finish the earlier story first.
   useEffect(() => {

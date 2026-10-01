@@ -285,6 +285,19 @@ export async function sendAnnouncement(key: string, text: string): Promise<{ ok:
   return data as { ok: boolean; reason?: string };
 }
 
+/**
+ * 운영자가 강화 기록을 전부 초기화했는지(game_config.enhance_reset_at) 확인한다. 접속할
+ * 때마다 한 번 불러서, 이 기기가 마지막으로 반영한 시각보다 최신이면 강화 관련 로컬
+ * 데이터를 전부 지운다 — epoch(0)이면 아직 한 번도 초기화된 적이 없다는 뜻.
+ */
+export async function fetchEnhanceResetAt(): Promise<number> {
+  if (backendMode !== "supabase") return 0;
+  const { data, error } = await supabase().rpc("enhance_reset_at");
+  if (error) return 0;
+  const t = Date.parse(String(data ?? ""));
+  return Number.isNaN(t) ? 0 : t;
+}
+
 export interface Shout {
   team: TeamId;
   nickname: string;
