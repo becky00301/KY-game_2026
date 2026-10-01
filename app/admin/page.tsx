@@ -31,6 +31,16 @@ const TEAM_IDS: TeamId[] = ["ku", "yu"];
 const RATE_SAMPLE_MS = 5_000;
 const KEY_STORAGE = "kyg.adminKey";
 
+/** "3분 전"처럼 마지막 활동을 사람이 읽기 쉬운 말로 */
+function agoLabel(ms: number): string {
+  if (!ms) return "-";
+  const minutes = Math.max(0, Math.round((Date.now() - ms) / 60_000));
+  if (minutes < 1) return "방금";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}시간 ${minutes % 60}분 전`;
+}
+
 interface TeamView {
   sword: SwordState;
   online: number;
@@ -173,6 +183,8 @@ export default function AdminPage() {
             <option value={10}>최근 10분</option>
             <option value={30}>최근 30분</option>
             <option value={60}>최근 1시간</option>
+            <option value={360}>최근 6시간</option>
+            <option value={0}>전체 기간</option>
           </select>
           <button className="admin-btn" onClick={() => void loadStats()}>조회</button>
         </div>
@@ -186,15 +198,17 @@ export default function AdminPage() {
             )}
             <table className="admin-table">
               <thead>
-                <tr><th>기기</th><th>터치</th><th>활동(분)</th><th>초당</th><th>상태</th></tr>
+                <tr><th>기기</th><th>팀</th><th>터치</th><th>활동(분)</th><th>초당</th><th>마지막</th><th>상태</th></tr>
               </thead>
               <tbody>
                 {stats.map((row) => (
                   <tr key={row.clientId} className={row.perSecond >= MAX_TAPS_PER_SECOND * 0.7 && row.minutes >= 2 ? "admin-suspect" : ""}>
                     <td className="admin-id" title={row.clientId}>{row.clientId.slice(0, 8)}</td>
+                    <td>{row.team ? TEAMS[row.team as TeamId]?.short ?? row.team : "-"}</td>
                     <td>{formatNumber(row.taps)}</td>
                     <td>{row.minutes}</td>
                     <td>{row.perSecond.toFixed(1)}</td>
+                    <td>{agoLabel(row.lastSeen)}</td>
                     <td>{row.blocked ? "차단됨" : "-"}</td>
                   </tr>
                 ))}

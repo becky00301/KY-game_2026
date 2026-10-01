@@ -79,6 +79,9 @@ create table if not exists public.tap_log (
   primary key (client_id, minute)
 );
 
+-- 어느 팀에 넣었는지도 같이 남긴다(차단 판단과 사후 정정에 쓴다).
+alter table public.tap_log add column if not exists team text;
+
 create index if not exists tap_log_minute_idx on public.tap_log (minute desc);
 
 -- 관리자 페이지(/admin)가 기기별 기록을 볼 때 쓰는 열쇠. 기본값은 반드시 바꿔서 쓴다.
@@ -199,7 +202,7 @@ $$;
 -- 토큰 통 방식: 초당 max_taps_per_second 개씩 채워지고, 최대 max_taps_per_flush 개까지
 -- 쌓인다. 길게 보면 초당 상한은 그대로지만, 전송 간격이 조금 흔들리거나 구매 직전에
 -- 한 번 더 보내도 정상 터치가 버려지지 않는다.
-create or replace function public.sword_allow_taps(p_client uuid, p_taps int)
+create or replace function public.sword_allow_taps(p_client uuid, p_taps int, p_team text default null)
 returns int language plpgsql as $$
 declare
   cfg     public.game_config;
@@ -235,9 +238,11 @@ begin
 
   -- 기기별 분당 기록 — 이상 탐지와 사후 정정에 쓴다.
   if granted > 0 then
-    insert into public.tap_log (client_id, minute, taps)
-    values (p_client, date_trunc('minute', now()), granted)
-    on conflict (client_id, minute) do update set taps = public.tap_log.taps + excluded.taps;
+    insert into public.tap_log (client_id, minute, taps, team)
+    values (p_client, date_trunc('minute', now()), granted, p_team)
+    on conflict (client_id, minute) do update
+      set taps = public.tap_log.taps + excluded.taps,
+          team = coalesce(excluded.team, public.tap_log.team);
   end if;
 
   return granted;
@@ -290,7 +295,7 @@ declare
 begin
   select * into cfg from public.game_config where id = 1;
 
-  granted := public.sword_allow_taps(p_client, p_taps);
+  granted := public.sword_allow_taps(p_client, p_taps, p_team);
   s := public.sword_accrue(p_team);
 
   if granted <= 0 then
@@ -397,12 +402,20 @@ $$;
 -- 열쇠는 game_config.admin_key에 있다.
 create or replace function public.admin_tap_stats(p_key text, p_minutes int default 10)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare v_key text;
+declare
+  v_key   text;
+  v_since timestamptz;
 begin
   select admin_key into v_key from public.game_config where id = 1;
   if p_key is null or v_key is null or p_key <> v_key then
     return '[]'::jsonb;
   end if;
+
+  -- p_minutes가 0 이하면 전체 기간(행사 시작부터 지금까지)을 본다.
+  v_since := case
+    when coalesce(p_minutes, 10) <= 0 then '-infinity'::timestamptz
+    else now() - make_interval(mins => least(p_minutes, 10080))
+  end;
 
   return coalesce((
     select jsonb_agg(row order by (row->>'taps')::int desc)
@@ -412,12 +425,15 @@ begin
         'taps', sum(l.taps),
         'minutes', count(*),
         'per_second', round(sum(l.taps)::numeric / greatest(count(*), 1) / 60, 1),
+        'team', max(l.team),
+        'last_seen', (extract(epoch from max(l.minute)) * 1000)::bigint,
         'blocked', exists (select 1 from public.tap_blocklist b where b.client_id = l.client_id)
       ) as row
       from public.tap_log l
-      where l.minute > now() - make_interval(mins => greatest(1, least(coalesce(p_minutes, 10), 180)))
+      where l.minute > v_since
       group by l.client_id
-      limit 50
+      order by sum(l.taps) desc
+      limit 100
     ) t
   ), '[]'::jsonb);
 end;

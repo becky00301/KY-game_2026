@@ -229,6 +229,9 @@ export interface TapStatRow {
   minutes: number;
   perSecond: number;
   blocked: boolean;
+  team: string;
+  /** 마지막으로 두드린 시각(ms epoch) */
+  lastSeen: number;
 }
 
 export async function fetchTapStats(key: string, minutes: number): Promise<TapStatRow[]> {
@@ -244,6 +247,8 @@ export async function fetchTapStats(key: string, minutes: number): Promise<TapSt
       minutes: Number(row.minutes ?? 0),
       perSecond: Number(row.per_second ?? 0),
       blocked: Boolean(row.blocked),
+      team: String(row.team ?? ""),
+      lastSeen: Number(row.last_seen ?? 0),
     };
   });
 }
