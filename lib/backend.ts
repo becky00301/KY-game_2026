@@ -286,13 +286,15 @@ export async function sendAnnouncement(key: string, text: string): Promise<{ ok:
 }
 
 export interface Shout {
+  team: TeamId;
   nickname: string;
   text: string;
 }
 
 /**
  * 누군가 "함성"을 쓰면 받아본다. shouts 테이블의 INSERT만 구독하므로, 지금 접속 중인
- * 사람에게만 뜨고 새로고침해서 들어온 사람에게 과거 함성이 다시 뜨지는 않는다.
+ * 사람에게만 뜨고 새로고침해서 들어온 사람에게 과거 함성이 다시 뜨지는 않는다. team은
+ * 보낸 사람의 팀 — 받는 쪽 화면이 노아든 연이든, 배너 색은 보낸 팀 색으로 보인다.
  */
 export function subscribeShouts(onShout: (shout: Shout) => void): () => void {
   if (backendMode !== "supabase") return () => {};
@@ -303,7 +305,11 @@ export function subscribeShouts(onShout: (shout: Shout) => void): () => void {
       { event: "INSERT", schema: "public", table: "shouts" },
       (payload) => {
         const row = payload.new as Record<string, unknown>;
-        onShout({ nickname: String(row.nickname ?? ""), text: String(row.text ?? "") });
+        onShout({
+          team: row.team === "yu" ? "yu" : "ku",
+          nickname: String(row.nickname ?? ""),
+          text: String(row.text ?? ""),
+        });
       }
     )
     .subscribe();

@@ -905,6 +905,7 @@ button {
 }
 
 /* 함성 배너 — 화면 위쪽에 번쩍이며 나타났다가 5초 뒤 스르륵 사라진다 */
+/* --shout-*는 보는 사람의 팀이 아니라 "보낸" 팀 색 — Shout.tsx가 엘리먼트에 직접 꽂는다. */
 .shout-banner {
   position: fixed;
   left: 50%;
@@ -915,9 +916,9 @@ button {
   padding: 16px 20px;
   border-radius: 18px;
   text-align: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-deep));
-  border: 2px solid var(--accent);
-  box-shadow: 0 0 40px 6px color-mix(in srgb, var(--glow) 55%, transparent), 0 12px 32px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(135deg, var(--shout-color), var(--shout-color-deep));
+  border: 2px solid var(--shout-accent);
+  box-shadow: 0 0 40px 6px color-mix(in srgb, var(--shout-glow) 55%, transparent), 0 12px 32px rgba(0, 0, 0, 0.5);
   animation: shoutFlash 0.5s ease, shoutFadeOut 0.6s ease 4.4s forwards;
 }
 

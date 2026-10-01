@@ -45,6 +45,7 @@ import {
 } from "@/lib/engine";
 import { TEAMS, emblemSrc, formatNumber, formatRate, hasSeenEvolveCutscene, hexToRgbString, markEvolveCutsceneSeen } from "@/lib/game";
 import {
+  Shout,
   backendMode,
   buyUpgrade,
   clientId,
@@ -151,8 +152,8 @@ export default function GameScreen({
   const [notice, setNotice] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [shoutOpen, setShoutOpen] = useState(false);
-  const [shoutQueue, setShoutQueue] = useState<{ nickname: string; text: string }[]>([]);
-  const [currentShout, setCurrentShout] = useState<{ nickname: string; text: string } | null>(null);
+  const [shoutQueue, setShoutQueue] = useState<Shout[]>([]);
+  const [currentShout, setCurrentShout] = useState<Shout | null>(null);
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -946,7 +947,9 @@ export default function GameScreen({
       </footer>
       </div>
 
-      {currentShout && <ShoutBanner nickname={currentShout.nickname} text={currentShout.text} />}
+      {currentShout && (
+        <ShoutBanner team={currentShout.team} nickname={currentShout.nickname} text={currentShout.text} />
+      )}
 
       {shoutOpen && (
         <ShoutSheet

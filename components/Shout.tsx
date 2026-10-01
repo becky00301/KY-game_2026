@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { postShout } from "@/lib/backend";
 import { SHOUT_COST, SHOUT_GLOBAL_COOLDOWN_SEC } from "@/lib/engine";
-import { TeamId, formatNumber } from "@/lib/game";
+import { TEAMS, TeamId, formatNumber } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
 
 const NICKNAME_MAX = 14;
@@ -159,10 +159,25 @@ export function ShoutSheet({
   );
 }
 
-/** 화면 상단에 크게 번쩍이며 뜨는 함성 배너 — 부모가 5초 뒤 unmount한다. */
-export function ShoutBanner({ nickname, text }: { nickname: string; text: string }) {
+/**
+ * 화면 상단에 크게 번쩍이며 뜨는 함성 배너 — 부모가 5초 뒤 unmount한다. 색은 보는 사람의
+ * 팀이 아니라 "보낸" 팀 색으로 고정한다 — 연이 보내면 노아 화면에서도 파란색으로 보인다.
+ */
+export function ShoutBanner({ team, nickname, text }: { team: TeamId; nickname: string; text: string }) {
+  const colors = TEAMS[team].colors;
   return (
-    <div className="shout-banner" role="status">
+    <div
+      className="shout-banner"
+      role="status"
+      style={
+        {
+          "--shout-color": colors.primary,
+          "--shout-color-deep": colors.primaryDeep,
+          "--shout-glow": colors.glow,
+          "--shout-accent": colors.accent,
+        } as React.CSSProperties
+      }
+    >
       <span className="shout-banner-name">{nickname}</span>
       <span className="shout-banner-text">{text}</span>
     </div>
