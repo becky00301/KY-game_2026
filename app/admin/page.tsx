@@ -23,6 +23,7 @@ import {
   fetchSword,
   fetchTapStats,
   observePresence,
+  sendAnnouncement,
   subscribeSword,
 } from "@/lib/backend";
 
@@ -57,6 +58,9 @@ export default function AdminPage() {
   const [stats, setStats] = useState<TapStatRow[] | null>(null);
   const [statsError, setStatsError] = useState("");
   const [windowMinutes, setWindowMinutes] = useState(10);
+  const [noticeText, setNoticeText] = useState("");
+  const [noticeStatus, setNoticeStatus] = useState("");
+  const [sendingNotice, setSendingNotice] = useState(false);
   const lastSample = useRef<Record<TeamId, { taps: number; at: number } | null>>({ ku: null, yu: null });
 
   useEffect(() => {
@@ -119,6 +123,31 @@ export default function AdminPage() {
     }
   }, [adminKey, windowMinutes]);
 
+  const sendNotice = useCallback(async () => {
+    const text = noticeText.trim();
+    if (!text) return;
+    setSendingNotice(true);
+    setNoticeStatus("");
+    try {
+      const result = await sendAnnouncement(adminKey, text);
+      if (result.ok) {
+        setNoticeStatus("보냈습니다 — 지금 접속 중인 사람에게 떴습니다.");
+        setNoticeText("");
+        try {
+          window.localStorage.setItem(KEY_STORAGE, adminKey);
+        } catch {
+          /* noop */
+        }
+      } else {
+        setNoticeStatus("열쇠가 맞지 않습니다.");
+      }
+    } catch (e) {
+      setNoticeStatus((e as Error).message);
+    } finally {
+      setSendingNotice(false);
+    }
+  }, [adminKey, noticeText]);
+
   // 열쇠를 넣어 한 번 조회했으면 그 뒤로는 자동 갱신한다.
   useEffect(() => {
     if (stats === null) return;
@@ -162,6 +191,35 @@ export default function AdminPage() {
             </article>
           );
         })}
+      </section>
+
+      <section className="admin-card">
+        <h2>전체 공지</h2>
+        <p className="admin-note">지금 접속 중인 모든 사람에게 토스트로 8초간 뜹니다. 새로고침하고 들어온 사람에게는 다시 뜨지 않습니다.</p>
+        <div className="admin-row">
+          <input
+            className="admin-input"
+            type="password"
+            placeholder="관리자 열쇠"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+          />
+        </div>
+        <div className="admin-row">
+          <input
+            className="admin-input"
+            placeholder="공지 내용"
+            value={noticeText}
+            onChange={(e) => setNoticeText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void sendNotice();
+            }}
+          />
+          <button className="admin-btn" onClick={() => void sendNotice()} disabled={sendingNotice || !noticeText.trim()}>
+            {sendingNotice ? "보내는 중…" : "보내기"}
+          </button>
+        </div>
+        {noticeStatus && <p className="admin-note">{noticeStatus}</p>}
       </section>
 
       <section className="admin-card">

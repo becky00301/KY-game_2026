@@ -97,6 +97,12 @@ create index if not exists tap_log_minute_idx on public.tap_log (minute desc);
 -- 관리자 페이지(/admin)가 기기별 기록을 볼 때 쓰는 열쇠. 기본값은 반드시 바꿔서 쓴다.
 alter table public.game_config add column if not exists admin_key text not null default 'change-me';
 
+-- 운영자가 /admin에서 보내는 전체 공지. notice_at이 바뀔 때만 Realtime UPDATE 이벤트가
+-- 나가므로, 지금 접속 중인 사람에게만 한 번씩 토스트로 뜬다(새로고침해서 다시 들어온
+-- 사람에게 과거 공지가 다시 뜨지는 않는다).
+alter table public.game_config add column if not exists notice_text text not null default '';
+alter table public.game_config add column if not exists notice_at   timestamptz not null default 'epoch';
+
 -- 매크로로 판단된 기기. 여기 들어오면 터치가 하나도 인정되지 않는다(화면은 그대로 돌아간다).
 create table if not exists public.tap_blocklist (
   client_id  uuid primary key,
@@ -492,6 +498,22 @@ begin
 end;
 $$;
 
+-- 운영자가 /admin에서 전체 공지를 보낸다. notice_at을 now()로 갱신해야 game_config
+-- Realtime UPDATE 이벤트가 나가고, 접속 중인 클라이언트가 그걸 받아 토스트로 띄운다.
+create or replace function public.admin_set_notice(p_key text, p_text text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_key text;
+begin
+  select admin_key into v_key from public.game_config where id = 1;
+  if p_key is null or v_key is null or p_key <> v_key then
+    return jsonb_build_object('ok', false, 'reason', 'bad-key');
+  end if;
+
+  update public.game_config set notice_text = coalesce(p_text, ''), notice_at = now() where id = 1;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
 -- ---------- 권한 ----------
 
 alter table public.swords       enable row level security;
@@ -516,6 +538,7 @@ grant execute on function public.sword_get(text)                          to ano
 grant execute on function public.sword_tap(text, uuid, int, numeric)      to anon, authenticated;
 grant execute on function public.sword_buy(text, text)                    to anon, authenticated;
 grant execute on function public.admin_tap_stats(text, int)               to anon, authenticated;
+grant execute on function public.admin_set_notice(text, text)             to anon, authenticated;
 
 -- 다른 사람이 두드린 결과를 실시간으로 받기 위해 swords 테이블을 Realtime에 올린다.
 do $$
@@ -525,6 +548,18 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'swords'
   ) then
     alter publication supabase_realtime add table public.swords;
+  end if;
+end
+$$;
+
+-- 운영자 전체 공지(notice_text/notice_at)를 실시간으로 받기 위해 game_config도 올린다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'game_config'
+  ) then
+    alter publication supabase_realtime add table public.game_config;
   end if;
 end
 $$;

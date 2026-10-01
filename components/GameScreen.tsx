@@ -49,6 +49,7 @@ import {
   clientId,
   fetchSword,
   sendTaps,
+  subscribeAnnouncement,
   subscribePresence,
   subscribeSword,
 } from "@/lib/backend";
@@ -145,6 +146,7 @@ export default function GameScreen({
   /** 전투 방법 보기 — 입장맵 버튼으로 언제든 열 수 있다(자동으로는 안 뜬다). */
   const [bossGuideOpen, setBossGuideOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [announcement, setAnnouncement] = useState("");
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -341,6 +343,14 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setNotice(""), 3200);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  // 운영자가 /admin에서 보낸 전체 공지 — 길게 보여주고 사라진다.
+  useEffect(() => subscribeAnnouncement((text) => setAnnouncement(text)), []);
+  useEffect(() => {
+    if (!announcement) return;
+    const timer = window.setTimeout(() => setAnnouncement(""), 8000);
+    return () => window.clearTimeout(timer);
+  }, [announcement]);
 
   // If final evolution and the first star arrive together, finish the earlier story first.
   useEffect(() => {
@@ -974,6 +984,11 @@ export default function GameScreen({
       )}
       {bossRankingBoardOpen && <BossRankingBoard onClose={() => setBossRankingBoardOpen(false)} />}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
+      {announcement && (
+        <div className="announcement-toast" role="status">
+          {announcement}
+        </div>
+      )}
 
       {error && (
         <div className="toast error">

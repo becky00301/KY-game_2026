@@ -253,6 +253,38 @@ export async function fetchTapStats(key: string, minutes: number): Promise<TapSt
   });
 }
 
+/**
+ * 운영자가 /admin에서 보낸 전체 공지를 받아본다. game_config.notice_at이 바뀔 때만
+ * Realtime UPDATE 이벤트가 오므로, 지금 접속 중인 사람에게만 한 번씩 뜬다. 로컬
+ * 백엔드에는 운영자 화면이 없으므로 아무 것도 하지 않는다.
+ */
+export function subscribeAnnouncement(onMessage: (text: string) => void): () => void {
+  if (backendMode !== "supabase") return () => {};
+  let channel: RealtimeChannel | null = supabase()
+    .channel("game_config:notice")
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "game_config", filter: "id=eq.1" },
+      (payload) => {
+        const text = String((payload.new as Record<string, unknown>).notice_text ?? "").trim();
+        if (text) onMessage(text);
+      }
+    )
+    .subscribe();
+  return () => {
+    if (channel) supabase().removeChannel(channel);
+    channel = null;
+  };
+}
+
+/** 관리자 화면용 — 전체 공지를 보낸다. 열쇠가 맞아야 서버가 반영한다. */
+export async function sendAnnouncement(key: string, text: string): Promise<{ ok: boolean; reason?: string }> {
+  if (backendMode !== "supabase") return { ok: false, reason: "local-mode" };
+  const { data, error } = await supabase().rpc("admin_set_notice", { p_key: key, p_text: text });
+  if (error) throw new Error(error.message);
+  return data as { ok: boolean; reason?: string };
+}
+
 /** 기기 식별값 — 계정이 아니라 연타 제한 용도로만 쓴다. */
 export function clientId(): string {
   const KEY = "kyg.client";
