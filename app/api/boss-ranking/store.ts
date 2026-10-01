@@ -8,6 +8,7 @@
 interface RankingEntry {
   nickname: string;
   clearedAt: number;
+  deviceId?: string;
 }
 
 interface RankingSession {
@@ -15,6 +16,7 @@ interface RankingSession {
   nickname: string;
   startedAt: number;
   used: boolean;
+  deviceId?: string;
 }
 
 const NICKNAME_MAX_LEN = 14;
@@ -36,6 +38,12 @@ function sorted(): RankingEntry[] {
   return [...rankings].sort((a, b) => a.clearedAt - b.clearedAt);
 }
 
+/** 이 기기가 이미 순위표에 한 자리를 차지했는지 — Supabase의 device_id 유니크 인덱스와 같은 역할. */
+export function isDeviceRegistered(deviceId?: string): boolean {
+  if (!deviceId) return false;
+  return rankings.some((r) => r.deviceId === deviceId);
+}
+
 export function isNicknameAvailable(nickname: string): boolean {
   const n = norm(nickname);
   if (!n) return false;
@@ -44,24 +52,27 @@ export function isNicknameAvailable(nickname: string): boolean {
 
 export interface StartOutcome {
   ok: boolean;
-  reason?: "invalid";
+  reason?: "invalid" | "device_taken";
   token?: string;
 }
 
 /** 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급한다. */
-export function startSession(nickname: string): StartOutcome {
+export function startSession(nickname: string, deviceId?: string): StartOutcome {
   const trimmed = nickname.trim();
   if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
     return { ok: false, reason: "invalid" };
   }
+  if (isDeviceRegistered(deviceId)) {
+    return { ok: false, reason: "device_taken" };
+  }
   const token = crypto.randomUUID();
-  sessions.set(token, { token, nickname: trimmed, startedAt: Date.now(), used: false });
+  sessions.set(token, { token, nickname: trimmed, startedAt: Date.now(), used: false, deviceId });
   return { ok: true, token };
 }
 
 export interface SubmitOutcome {
   ok: boolean;
-  reason?: "invalid" | "taken" | "no_session" | "session_used" | "too_fast";
+  reason?: "invalid" | "taken" | "device_taken" | "no_session" | "session_used" | "too_fast";
   rank?: number;
 }
 
@@ -83,8 +94,11 @@ export function submitClear(nickname: string, token: string): SubmitOutcome {
   if (!isNicknameAvailable(trimmed)) {
     return { ok: false, reason: "taken" };
   }
+  if (isDeviceRegistered(session.deviceId)) {
+    return { ok: false, reason: "device_taken" };
+  }
   session.used = true;
-  rankings.push({ nickname: trimmed, clearedAt: Date.now() });
+  rankings.push({ nickname: trimmed, clearedAt: Date.now(), deviceId: session.deviceId });
   const rank = sorted().findIndex((r) => norm(r.nickname) === norm(trimmed)) + 1;
   return { ok: true, rank };
 }

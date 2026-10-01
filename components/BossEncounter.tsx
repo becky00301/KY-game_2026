@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { BOSS_CARDS, BossCard, BOSS_EPILOGUE_PORTRAITS, BOSS_GUIDE_LINES, BOSS_INTRO } from "@/lib/boss";
 import {
   RankingEntry,
-  checkNicknameAvailable,
+  canEnterRanking,
   fetchRankings,
   isNicknameFormatValid,
   loadSavedNickname,
@@ -207,9 +207,15 @@ export function BossRankingEntry({
     setChecking(true);
     setError("");
     try {
-      const available = await checkNicknameAvailable(trimmed);
-      if (!available) {
-        setError("이미 누군가가 사용중인 닉네임이다.");
+      const result = await canEnterRanking(trimmed);
+      if (!result.ok) {
+        setError(
+          result.reason === "device_taken"
+            ? "이 기기는 이미 순위표에 이름을 올렸다. 한 기기당 한 번만 도전할 수 있다."
+            : result.reason === "invalid"
+              ? "닉네임은 1~14자까지 입력 가능합니다."
+              : "이미 누군가가 사용중인 닉네임이다."
+        );
         return;
       }
       saveNickname(trimmed);

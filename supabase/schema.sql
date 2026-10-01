@@ -419,6 +419,15 @@ create table if not exists public.boss_ranking_sessions (
   used       boolean     not null default false
 );
 
+-- 한 기기가 닉네임만 바꿔 순위표를 독식하는 걸 막는다. 기기 식별값(연타 제한에 쓰는 것과 같은
+-- 임의 UUID)당 한 자리만 등록할 수 있다. 브라우저 데이터를 지우면 새 값이 발급되므로 완벽하진
+-- 않지만, 반복 등록의 비용을 크게 올린다.
+alter table public.boss_rankings         add column if not exists device_id uuid;
+alter table public.boss_ranking_sessions add column if not exists device_id uuid;
+
+create unique index if not exists boss_rankings_device_idx
+  on public.boss_rankings (device_id) where device_id is not null;
+
 create or replace function public.boss_ranking_row_json(p_id bigint)
 returns jsonb language sql stable security definer set search_path = public as $$
   select jsonb_build_object(
@@ -439,8 +448,29 @@ returns boolean language sql stable security definer set search_path = public as
      );
 $$;
 
+-- 입장 전 확인 — 닉네임 형식·중복과 "이 기기가 이미 등록했는지"를 한 번에 본다.
+create or replace function public.boss_ranking_can_enter(p_nickname text, p_device uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_nickname text := trim(p_nickname);
+begin
+  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+  if p_device is not null and exists (select 1 from public.boss_rankings where device_id = p_device) then
+    return jsonb_build_object('ok', false, 'reason', 'device_taken');
+  end if;
+  if exists (select 1 from public.boss_rankings where lower(nickname) = lower(v_nickname)) then
+    return jsonb_build_object('ok', false, 'reason', 'taken');
+  end if;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+-- 기기 식별값을 같이 받도록 바뀌었으니 옛 시그니처는 지운다(두면 기기 제한을 우회할 수 있다).
+drop function if exists public.boss_ranking_start(text);
+
 -- 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급한다.
-create or replace function public.boss_ranking_start(p_nickname text)
+create or replace function public.boss_ranking_start(p_nickname text, p_device uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   v_nickname text := trim(p_nickname);
@@ -449,9 +479,12 @@ begin
   if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
+  if p_device is not null and exists (select 1 from public.boss_rankings where device_id = p_device) then
+    return jsonb_build_object('ok', false, 'reason', 'device_taken');
+  end if;
 
-  insert into public.boss_ranking_sessions (nickname)
-  values (v_nickname)
+  insert into public.boss_ranking_sessions (nickname, device_id)
+  values (v_nickname, p_device)
   returning token into v_token;
 
   return jsonb_build_object('ok', true, 'token', v_token);
@@ -489,11 +522,17 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'too_fast');
   end if;
 
+  -- 이 기기가 이미 한 자리를 차지하고 있으면 더 등록할 수 없다.
+  if v_session.device_id is not null
+     and exists (select 1 from public.boss_rankings where device_id = v_session.device_id) then
+    return jsonb_build_object('ok', false, 'reason', 'device_taken');
+  end if;
+
   update public.boss_ranking_sessions set used = true where token = p_token;
 
-  insert into public.boss_rankings (nickname)
-  values (v_nickname)
-  on conflict (lower(nickname)) do nothing
+  insert into public.boss_rankings (nickname, device_id)
+  values (v_nickname, v_session.device_id)
+  on conflict do nothing
   returning id into v_id;
 
   if v_id is null then
@@ -531,7 +570,8 @@ alter table public.boss_rankings enable row level security;
 alter table public.boss_ranking_sessions enable row level security;
 
 grant execute on function public.boss_ranking_check(text)       to anon, authenticated;
-grant execute on function public.boss_ranking_start(text)       to anon, authenticated;
+grant execute on function public.boss_ranking_can_enter(text, uuid) to anon, authenticated;
+grant execute on function public.boss_ranking_start(text, uuid) to anon, authenticated;
 grant execute on function public.boss_ranking_submit(text, uuid) to anon, authenticated;
 grant execute on function public.boss_ranking_top(int)           to anon, authenticated;
 grant execute on function public.boss_ranking_mine(text)         to anon, authenticated;

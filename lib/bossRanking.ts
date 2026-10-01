@@ -14,6 +14,7 @@
  */
 
 import { backendMode, supabase } from "./supabaseClient";
+import { clientId } from "./backend";
 
 export interface RankingEntry {
   nickname: string;
@@ -29,8 +30,14 @@ export interface SubmitResult {
 
 export interface StartResult {
   ok: boolean;
-  reason?: "invalid" | string;
+  reason?: "invalid" | "device_taken" | string;
   token?: string;
+}
+
+/** 입장 가능 여부 — 닉네임 형식·중복과 "이 기기가 이미 등록했는지"를 함께 본다. */
+export interface CanEnterResult {
+  ok: boolean;
+  reason?: "invalid" | "taken" | "device_taken" | string;
 }
 
 const NICKNAME_MAX_LEN = 14;
@@ -74,14 +81,39 @@ export async function checkNicknameAvailable(nickname: string): Promise<boolean>
   return Boolean(data.available);
 }
 
+/**
+ * 입장 전 확인 — 닉네임이 쓸 수 있는지, 이 기기가 이미 한 자리를 차지했는지.
+ * 기기 하나당 한 번만 등록할 수 있다(닉네임만 바꿔 순위를 독식하는 걸 막는다).
+ */
+export async function canEnterRanking(nickname: string): Promise<CanEnterResult> {
+  if (backendMode === "supabase") {
+    const { data, error } = await supabase().rpc("boss_ranking_can_enter", {
+      p_nickname: nickname,
+      p_device: clientId(),
+    });
+    if (error) throw new Error(error.message);
+    return data as CanEnterResult;
+  }
+  return (await localJson("/api/boss-ranking/check", {
+    nickname,
+    deviceId: clientId(),
+  })) as unknown as CanEnterResult;
+}
+
 /** 랭킹모드 전투를 실제로 시작할 때(닉네임 확정 직후) 한 번 호출 — 1회용 토큰을 발급받는다. */
 export async function startBossRankingSession(nickname: string): Promise<StartResult> {
   if (backendMode === "supabase") {
-    const { data, error } = await supabase().rpc("boss_ranking_start", { p_nickname: nickname });
+    const { data, error } = await supabase().rpc("boss_ranking_start", {
+      p_nickname: nickname,
+      p_device: clientId(),
+    });
     if (error) throw new Error(error.message);
     return data as StartResult;
   }
-  return (await localJson("/api/boss-ranking/start", { nickname })) as unknown as StartResult;
+  return (await localJson("/api/boss-ranking/start", {
+    nickname,
+    deviceId: clientId(),
+  })) as unknown as StartResult;
 }
 
 /** 서휘령(2페이즈) 격파 시 한 번 호출 — startBossRankingSession에서 받은 토큰이 필요하다.
