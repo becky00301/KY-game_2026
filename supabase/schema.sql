@@ -88,11 +88,11 @@ insert into public.upgrade_defs (id, kind, base_cost, growth, power, sort) value
   ('stick',  'tap',     2100, 1.15,    8, 2),
   ('glove',  'tap',    30000, 1.16,   55, 3),
   ('beast',  'tap',   450000, 1.17,  400, 4),
-  ('fresh',  'auto',     270, 1.14,    3, 1),
-  ('dept',   'auto',    3600, 1.15,   25, 2),
-  ('band',   'auto',   45000, 1.15,  180, 3),
-  ('senior', 'auto',  600000, 1.16, 1300, 4),
-  ('choir',  'auto', 7500000, 1.17, 9000, 5)
+  ('fresh',  'auto',      540, 1.14, 0.75, 1),
+  ('dept',   'auto',     7200, 1.15,    6, 2),
+  ('band',   'auto',    90000, 1.15,   45, 3),
+  ('senior', 'auto',  1200000, 1.16,  325, 4),
+  ('choir',  'auto', 15000000, 1.17, 2250, 5)
 on conflict (id) do update set
   kind = excluded.kind,
   base_cost = excluded.base_cost,

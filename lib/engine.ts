@@ -99,11 +99,14 @@ export const UPGRADE_NUMBERS: UpgradeNumbers[] = [
   { id: "stick", kind: "tap", baseCost: 2_100, growth: 1.15, power: 8 },
   { id: "glove", kind: "tap", baseCost: 30_000, growth: 1.16, power: 55 },
   { id: "beast", kind: "tap", baseCost: 450_000, growth: 1.17, power: 400 },
-  { id: "fresh", kind: "auto", baseCost: 270, growth: 1.14, power: 3 },
-  { id: "dept", kind: "auto", baseCost: 3_600, growth: 1.15, power: 25 },
-  { id: "band", kind: "auto", baseCost: 45_000, growth: 1.15, power: 180 },
-  { id: "senior", kind: "auto", baseCost: 600_000, growth: 1.16, power: 1_300 },
-  { id: "choir", kind: "auto", baseCost: 7_500_000, growth: 1.17, power: 9_000 },
+  // 자동 응원은 "접속자가 없는 사이에도 조금씩 자라는" 용도다. 예전 수치로는 자동 수입이
+  // 또 자동 강화를 사는 눈덩이가 돌아서, 터치로 번 몫이 20%도 안 됐다(누적 194억 중 터치
+  // 12,000번). 그래서 성능은 1/4로 낮추고 가격은 2배로 올려 같은 기운 대비 수입을 1/8로 줄였다.
+  { id: "fresh", kind: "auto", baseCost: 540, growth: 1.14, power: 0.75 },
+  { id: "dept", kind: "auto", baseCost: 7_200, growth: 1.15, power: 6 },
+  { id: "band", kind: "auto", baseCost: 90_000, growth: 1.15, power: 45 },
+  { id: "senior", kind: "auto", baseCost: 1_200_000, growth: 1.16, power: 325 },
+  { id: "choir", kind: "auto", baseCost: 15_000_000, growth: 1.17, power: 2_250 },
 ];
 
 const BY_ID = new Map(UPGRADE_NUMBERS.map((u) => [u.id, u]));
