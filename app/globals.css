@@ -1106,6 +1106,14 @@ button {
   transform: scale(0.97);
 }
 
+.enhance-chat-note {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+
 .enhance-guaranteed-toggle {
   width: 100%;
   height: 40px;

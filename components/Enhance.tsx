@@ -387,6 +387,12 @@ export default function Enhance({
                 강화 랭킹
               </button>
             </div>
+
+            <p className="enhance-chat-note">
+              장비강화에 닉네임을 등록했다면, 채팅을 사용하실 수 있습니다.
+              <br />
+              강화 단계에 따라 채팅창에 다양한 효과가 적용됩니다.
+            </p>
           </>
         )}
 
