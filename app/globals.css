@@ -2146,6 +2146,17 @@ button {
   gap: 8px;
 }
 
+/* 설정 버튼 바로 밑, 오른쪽 끝에 붙는 홍보(에브리타임) 버튼 줄. */
+.hud-promo-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.hud-promo-row .icon-btn {
+  color: #e1306c;
+}
+
 .online {
   display: inline-flex;
   align-items: baseline;
