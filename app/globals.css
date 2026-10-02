@@ -2157,6 +2157,11 @@ button {
   color: #e1306c;
 }
 
+.hud-promo-row .icon-btn--claimed {
+  color: var(--ink-dim);
+  opacity: 0.55;
+}
+
 .online {
   display: inline-flex;
   align-items: baseline;
