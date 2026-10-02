@@ -25,7 +25,7 @@ interface RankingSession {
 }
 
 /** 전투 시작(boss_ranking_start) 후 이만큼 지나야 격파 등록을 받아준다 — Supabase RPC와 동일한 값. */
-const MIN_SESSION_MS = 60_000;
+const MIN_SESSION_MS = 10_000;
 
 const globalStore = globalThis as unknown as {
   __kygBossRankings?: RankingEntry[];

@@ -756,7 +756,9 @@ end;
 $$;
 
 -- 격파 순간 한 번 호출 — 토큰이 이 기기(p_device) 것이고, 아직 안 쓴 채로, 시작한 지
--- 최소 60초는 지나야 등록된다. 닉네임은 세션에 이미 저장돼 있어 다시 받지 않는다.
+-- 최소 10초는 지나야 등록된다(원래 60초였는데, 강화를 많이 한 플레이어는 실제로
+-- 60초 안에 정상적으로 격파해버려서 등록이 조용히 거부되는 문제가 있었다 — 즉시
+-- 등록만 막으면 되는 거라 10초로 낮췄다). 닉네임은 세션에 이미 저장돼 있어 다시 받지 않는다.
 create or replace function public.boss_ranking_submit(p_device uuid, p_token uuid)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -773,7 +775,7 @@ begin
   if v_session.used then
     return jsonb_build_object('ok', false, 'reason', 'session_used');
   end if;
-  if now() - v_session.started_at < interval '60 seconds' then
+  if now() - v_session.started_at < interval '10 seconds' then
     return jsonb_build_object('ok', false, 'reason', 'too_fast');
   end if;
 

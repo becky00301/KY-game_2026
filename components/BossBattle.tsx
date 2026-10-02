@@ -125,6 +125,7 @@ export default function BossBattle({
   onExit,
   onVictoryEpilogueDone,
   onRankingClearReward,
+  onRankingSubmitFailed,
   rankingNickname = null,
   rankingToken = null,
   debugStartPhase2 = false,
@@ -140,6 +141,10 @@ export default function BossBattle({
    * 랭킹모드 최초 격파" 보상(개인 재화)을 지급하고 안내하는 데 쓴다. boss_rankings가
    * device당 한 자리뿐이라 평생 한 번만 호출될 수 있다. */
   onRankingClearReward?: () => void;
+  /** 랭킹모드로 격파했는데 순위표 등록(submitBossClear)이 실패한 경우 그 즉시(결과
+   * 연출이 시작되는 시점) 한 번 호출된다 — 실패 사유(reason)를 그대로 넘기니, 호출부가
+   * "등록 실패, 다시 도전해주세요" 같은 안내를 보여줄 수 있다. 조용히 묻히던 걸 막기 위함. */
+  onRankingSubmitFailed?: (reason?: string) => void;
   /** 랭킹모드로 입장한 경우의 닉네임 — null이면 일반 모드(순위 기록 없음). 2페이즈를
    * 실제로 격파하는 순간 이 닉네임으로 순위표에 한 번 기록된다. 그 외 로직/패턴은
    * 일반 모드와 완전히 동일하다. */
@@ -206,6 +211,8 @@ export default function BossBattle({
   onVictoryEpilogueDoneRef.current = onVictoryEpilogueDone;
   const onRankingClearRewardRef = useRef(onRankingClearReward);
   onRankingClearRewardRef.current = onRankingClearReward;
+  const onRankingSubmitFailedRef = useRef(onRankingSubmitFailed);
+  onRankingSubmitFailedRef.current = onRankingSubmitFailed;
   const rankingNicknameRef = useRef(rankingNickname);
   rankingNicknameRef.current = rankingNickname;
   // 랭킹모드 격파 신고 위조 방지용 1회용 토큰 — GameScreen이 전투 진입 전에 미리
@@ -380,8 +387,9 @@ export default function BossBattle({
         void submitBossClear(rankingTokenRef.current)
           .then((result) => {
             if (result.ok) rankingClearRegisteredRef.current = true;
+            else onRankingSubmitFailedRef.current?.(result.reason);
           })
-          .catch(() => {});
+          .catch(() => onRankingSubmitFailedRef.current?.());
       }
       const kind = flashKind ?? (win ? "success" : "hit");
       triggerFlash(kind);

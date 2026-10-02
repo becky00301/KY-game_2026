@@ -1393,6 +1393,15 @@ export default function GameScreen({
               `서휘령 랭킹모드 최초 격파! ${theme.personalCurrency} ${formatNumber(BOSS_RANKING_CLEAR_REWARD)} 획득!`
             );
           }}
+          onRankingSubmitFailed={(reason) =>
+            setNotice(
+              reason === "too_fast"
+                ? "격파 시간이 너무 빨라 순위 등록이 거부됐습니다. 다시 도전해주세요."
+                : reason === "device_taken" || reason === "taken"
+                  ? "이미 순위표에 이름을 올렸습니다."
+                  : "순위 등록에 실패했습니다. 다시 도전해주세요."
+            )
+          }
           rankingNickname={bossRankingNickname}
           rankingToken={bossRankingToken}
           debugStartPhase2={debugBossPhase2}
