@@ -22,23 +22,23 @@ export const CHAT_AURA_FROM_LEVEL = 20;
 
 /**
  * 강화 단계·팀에 따른 말풍선 오오라 CSS 클래스 — 7단계로 세진다.
- * 20~21단계: 양 팀 공통 노란빛. 22단계: 팀 색(노아=빨강/연=파랑) 펄스.
- * 23단계: 팀 색의 검은 번개. 24단계부터는 팀 구분 없이(노아·연 동일) 더 화려해지는
- * 전용 연출 4단계 — 24: 황금빛, 25: 더 밝은 백금빛 스파클, 28: 회전하는 보랏빛 고리,
- * 30(만렙): 무지개로 빛나는 가장 화려한 연출. 20단계 미만이면 null(오오라 없음).
+ * 20~21단계: 양 팀 공통 노란빛. 22단계부터는 전부 팀 색(노아=붉은빛/연=푸른빛) 안에서
+ * 점점 화려해진다 — 22: 펄스, 23: 검은 번개, 24: 더 강한 펄스, 25: 번개 두 겹+하얀
+ * 스파클, 28: 회전하는 고리까지 추가, 30(만렙): 가장 밝고 빠른 펄스+고리+번쩍이는
+ * 플래시. 20단계 미만이면 null(오오라 없음).
  */
 export function chatAuraClass(team: TeamId, level: number): string | null {
-  if (level >= 30) return "chat-aura-tier7";
-  if (level >= 28) return "chat-aura-tier6";
-  if (level >= 25) return "chat-aura-tier5";
-  if (level >= 24) return "chat-aura-tier4";
+  if (level >= 30) return `chat-aura-tier7-${team}`;
+  if (level >= 28) return `chat-aura-tier6-${team}`;
+  if (level >= 25) return `chat-aura-tier5-${team}`;
+  if (level >= 24) return `chat-aura-tier4-${team}`;
   if (level >= 23) return `chat-aura-tier3-${team}`;
   if (level === 22) return `chat-aura-tier2-${team}`;
   if (level >= 20) return "chat-aura-tier1";
   return null;
 }
 
-/** 24단계 이상(노아·연 공통) 연출이 시작되는 기준 — hasChatAuraChoice가 이 값을 쓴다. */
+/** 24단계 이상 연출(팀 색 유지, 24부터 더 화려해짐)이 시작되는 기준 — hasChatAuraChoice가 이 값을 쓴다. */
 export const CHAT_AURA_LEVEL_TIER_FROM = 24;
 
 /**
