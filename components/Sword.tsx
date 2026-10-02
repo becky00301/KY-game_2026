@@ -20,15 +20,23 @@ interface Props {
  *
  * 5단계(마지막 단계)는 별이 2개 이상 모이면 더 화려한 전용 일러스트(-star2 접미사)로
  * 바뀐다 — 그 위로는(별 3~5) 같은 그림을 그대로 쓴다. 0~1개 별은 기본(stage4.webp)을 쓴다.
+ * 팀에 따라 -star2 그림이 아직 없을 수 있는데, 그러면 곧장 SVG 폴백으로 가지 않고
+ * 먼저 기본(별 접미사 없는) 그림으로 한 번 더 물러선다 — 그 기본 그림도 없을 때만
+ * 절차적 SVG로 간다.
  */
 export default function Sword({ stage, theme, fever, scale = 1, stars = 0 }: Props) {
   const s = Math.min(stage, 4);
   const starSuffix = s === 4 && stars >= 2 ? "-star2" : "";
-  const src = `/images/sword/sword-${theme.id}-stage${s}${starSuffix}.webp`;
+  const starSrc = `/images/sword/sword-${theme.id}-stage${s}${starSuffix}.webp`;
+  const baseSrc = `/images/sword/sword-${theme.id}-stage${s}.webp`;
+  const [useBase, setUseBase] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  // 팀·단계가 바뀌면 새 이미지를 다시 시도한다.
-  useEffect(() => setFailed(false), [src]);
+  // 팀·단계·별 구간이 바뀌면 처음부터(별 전용 그림부터) 다시 시도한다.
+  useEffect(() => {
+    setUseBase(false);
+    setFailed(false);
+  }, [starSrc]);
 
   if (failed) {
     return <ProceduralSword stage={stage} theme={theme} fever={fever} scale={scale} />;
@@ -39,7 +47,7 @@ export default function Sword({ stage, theme, fever, scale = 1, stars = 0 }: Pro
     // 커진 칼이 아래 "두드린 횟수" 글씨를 덮었다. 크기 계산은 globals.css의 .sword-box.
     <div className="sword-box" style={{ "--sword-scale": scale } as React.CSSProperties}>
       <img
-        src={src}
+        src={useBase ? baseSrc : starSrc}
         alt=""
         className="sword-img"
         style={
@@ -47,7 +55,10 @@ export default function Sword({ stage, theme, fever, scale = 1, stars = 0 }: Pro
             ? { filter: "drop-shadow(0 18px 30px rgba(0,0,0,0.55)) drop-shadow(0 0 26px var(--glow)) brightness(1.12)" }
             : undefined
         }
-        onError={() => setFailed(true)}
+        onError={() => {
+          if (!useBase && starSrc !== baseSrc) setUseBase(true);
+          else setFailed(true);
+        }}
       />
     </div>
   );
