@@ -1478,7 +1478,9 @@ export default function GameScreen({
       )}
       {bossRankingBoardOpen && <BossRankingBoard onClose={() => setBossRankingBoardOpen(false)} />}
       {notice && <div className="toast boss-notice" role="status">{notice}</div>}
-      {announcement && (
+      {/* 서휘령 맵/전투 화면에서는 운영자 공지·실시간 재화 지급 문구를 띄우지 않는다
+          (전투 몰입을 가리지 않도록) — 메인 화면으로 돌아오면 다시 보인다. */}
+      {!bossActive && announcement && (
         <div className="announcement-toast" role="status" ref={announcementRef}>
           {announcement}
         </div>
