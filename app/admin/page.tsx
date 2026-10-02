@@ -24,6 +24,7 @@ import {
   fetchTapStats,
   observePresence,
   sendAnnouncement,
+  sendLiveReward,
   subscribeSword,
 } from "@/lib/backend";
 
@@ -61,6 +62,10 @@ export default function AdminPage() {
   const [noticeText, setNoticeText] = useState("");
   const [noticeStatus, setNoticeStatus] = useState("");
   const [sendingNotice, setSendingNotice] = useState(false);
+  const [rewardText, setRewardText] = useState("");
+  const [rewardAmount, setRewardAmount] = useState("");
+  const [rewardStatus, setRewardStatus] = useState("");
+  const [sendingReward, setSendingReward] = useState(false);
   const lastSample = useRef<Record<TeamId, { taps: number; at: number } | null>>({ ku: null, yu: null });
 
   useEffect(() => {
@@ -148,6 +153,33 @@ export default function AdminPage() {
     }
   }, [adminKey, noticeText]);
 
+  const sendReward = useCallback(async () => {
+    const text = rewardText.trim();
+    const amount = Number(rewardAmount);
+    if (!text || !Number.isFinite(amount) || amount <= 0) return;
+    setSendingReward(true);
+    setRewardStatus("");
+    try {
+      const result = await sendLiveReward(adminKey, text, amount);
+      if (result.ok) {
+        setRewardStatus(`보냈습니다 — 지금 접속 중인 사람에게 ${formatNumber(amount)}씩 지급됐습니다.`);
+        setRewardText("");
+        setRewardAmount("");
+        try {
+          window.localStorage.setItem(KEY_STORAGE, adminKey);
+        } catch {
+          /* noop */
+        }
+      } else {
+        setRewardStatus("열쇠가 맞지 않거나 입력값이 올바르지 않습니다.");
+      }
+    } catch (e) {
+      setRewardStatus((e as Error).message);
+    } finally {
+      setSendingReward(false);
+    }
+  }, [adminKey, rewardText, rewardAmount]);
+
   // 열쇠를 넣어 한 번 조회했으면 그 뒤로는 자동 갱신한다.
   useEffect(() => {
     if (stats === null) return;
@@ -220,6 +252,52 @@ export default function AdminPage() {
           </button>
         </div>
         {noticeStatus && <p className="admin-note">{noticeStatus}</p>}
+      </section>
+
+      <section className="admin-card">
+        <h2>실시간 재화 지급</h2>
+        <p className="admin-note">
+          지금 접속 중인 모든 사람에게 문구와 함께 입력한 만큼 개인 재화(염원의 빛/데이터로그)가 즉시 지급됩니다. 노아·연
+          각자 진영 화폐로 받습니다. 새로고침하고 들어온 사람에게는 지급되지 않습니다.
+        </p>
+        <div className="admin-row">
+          <input
+            className="admin-input"
+            type="password"
+            placeholder="관리자 열쇠"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+          />
+        </div>
+        <div className="admin-row">
+          <input
+            className="admin-input"
+            placeholder="문구 (예: 고려대학교 야구 승리 기념!)"
+            value={rewardText}
+            onChange={(e) => setRewardText(e.target.value)}
+          />
+        </div>
+        <div className="admin-row">
+          <input
+            className="admin-input"
+            type="number"
+            min={1}
+            placeholder="지급량 (예: 20000000)"
+            value={rewardAmount}
+            onChange={(e) => setRewardAmount(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void sendReward();
+            }}
+          />
+          <button
+            className="admin-btn"
+            onClick={() => void sendReward()}
+            disabled={sendingReward || !rewardText.trim() || !rewardAmount.trim()}
+          >
+            {sendingReward ? "보내는 중…" : "지급하기"}
+          </button>
+        </div>
+        {rewardStatus && <p className="admin-note">{rewardStatus}</p>}
       </section>
 
       <section className="admin-card">

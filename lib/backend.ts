@@ -372,6 +372,18 @@ export interface LiveReward {
   amount: number;
 }
 
+/** /admin "실시간 재화 지급" 폼에서 호출 — admin_set_notice와 같은 열쇠 검사 방식. */
+export async function sendLiveReward(
+  key: string,
+  text: string,
+  amount: number
+): Promise<{ ok: boolean; reason?: string }> {
+  if (backendMode !== "supabase") return { ok: false, reason: "local-mode" };
+  const { data, error } = await supabase().rpc("admin_send_live_reward", { p_key: key, p_text: text, p_amount: amount });
+  if (error) throw new Error(error.message);
+  return data as { ok: boolean; reason?: string };
+}
+
 /**
  * 운영자가 지금 접속해 있는 모든 사람에게 문구+개인 재화를 한 번에 쏘는 라이브 이벤트
  * (live_rewards에 INSERT하면 발동). enhance_milestones와 같은 방식 — INSERT만

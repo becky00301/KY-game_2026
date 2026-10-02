@@ -1004,6 +1004,26 @@ begin
 end
 $$;
 
+-- /admin "실시간 재화 지급" 폼에서 호출 — admin_set_notice와 같은 열쇠 검사 방식.
+create or replace function public.admin_send_live_reward(p_key text, p_text text, p_amount numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_key text;
+begin
+  select admin_key into v_key from public.game_config where id = 1;
+  if p_key is null or v_key is null or p_key <> v_key then
+    return jsonb_build_object('ok', false, 'reason', 'bad-key');
+  end if;
+  if p_text is null or trim(p_text) = '' or p_amount is null or p_amount <= 0 then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  insert into public.live_rewards (text, amount) values (trim(p_text), p_amount);
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+grant execute on function public.admin_send_live_reward(text, text, numeric) to anon, authenticated;
+
 -- 강화를 시도할 때마다 호출 — 성공하면 레벨이 오르고, 16단계 이상에서 파괴가 뜨면
 -- 0단계로 완전히 초기화된다. 그래서 "greatest"가 아니라 보낸 값을 그대로 반영한다
 -- (파괴로 내려가는 것도 정상적인 상태 변화다). updated_at은 항상 지금 시각으로 — 랭킹
