@@ -33,8 +33,10 @@ export interface SwordState {
  * 보스전(5단계+별1, STAR_MULTIPLIERS 참고)에 닿고, 엔딩(별5)까지도 이틀 안에 보이도록
  * 시뮬레이션으로 다시 맞춘 값이다(초당 2회 연타 기준). 강화 비용(UPGRADE_NUMBERS의
  * baseCost)도 같은 비율로 같이 낮춰뒀다 — 여기 수치를 또 바꾸면 그쪽도 같이 맞춰야 한다.
+ * (이후 진행이 너무 빠르다는 피드백으로 전체 3배로 다시 올렸다 — UPGRADE_NUMBERS는
+ * 건드리지 않았으니, 단계 내 업그레이드 체감 속도가 바뀌었다면 그쪽도 맞춰야 할 수 있다.)
  */
-export const STAGE_THRESHOLDS = [0, 15_000, 400_000, 56_000_000, 525_000_000];
+export const STAGE_THRESHOLDS = [0, 45_000, 1_200_000, 168_000_000, 1_575_000_000];
 
 export const STAGE_GROWTH = 1.85;
 
