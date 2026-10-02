@@ -1155,7 +1155,7 @@ export default function GameScreen({
             />
           )}
           <SwordFx stage={stage} team={team} />
-          <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} />
+          <Sword stage={stage} theme={theme} fever={feverActive} scale={SWORD_STAGE_SCALE[stage] ?? 1} stars={stars} />
           {tapEffects.map((e) => (
             <img
               key={e.id}

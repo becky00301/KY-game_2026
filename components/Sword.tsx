@@ -9,16 +9,22 @@ interface Props {
   fever: boolean;
   /** 단계가 오를수록 커지는 배율. lib/engine.ts의 SWORD_STAGE_SCALE */
   scale?: number;
+  /** 별 개수(0~5) — 5단계(마지막 단계)에서만 일러스트를 갈아태운다. */
+  stars?: number;
 }
 
 /**
  * 단계별 실제 칼 일러스트를 보여준다. 단계마다 가로세로 비율이 꽤 달라서
  * (1단계는 세로로 길쭉, 5단계는 날개·리본 때문에 훨씬 넓적) object-fit: contain으로
  * 절대 잘리지 않게 렌더링한다. 이미지가 없는 팀·단계는 기존 SVG 절차적 생성으로 폴백한다.
+ *
+ * 5단계(마지막 단계)는 별이 2개 이상 모이면 더 화려한 전용 일러스트(-star2 접미사)로
+ * 바뀐다 — 그 위로는(별 3~5) 같은 그림을 그대로 쓴다. 0~1개 별은 기본(stage4.webp)을 쓴다.
  */
-export default function Sword({ stage, theme, fever, scale = 1 }: Props) {
+export default function Sword({ stage, theme, fever, scale = 1, stars = 0 }: Props) {
   const s = Math.min(stage, 4);
-  const src = `/images/sword/sword-${theme.id}-stage${s}.webp`;
+  const starSuffix = s === 4 && stars >= 2 ? "-star2" : "";
+  const src = `/images/sword/sword-${theme.id}-stage${s}${starSuffix}.webp`;
   const [failed, setFailed] = useState(false);
 
   // 팀·단계가 바뀌면 새 이미지를 다시 시도한다.
