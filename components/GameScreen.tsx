@@ -138,6 +138,8 @@ const ENHANCE_RESET_APPLIED_KEY = "kyg.enhanceResetApplied";
 /** 홍보 이벤트(에브리타임 게시글 좋아요) 안내 문구와 이동할 링크. */
 const EVERYTIME_PROMO_MESSAGE = "에브리타임 게시글에 좋아요를 누르고 오신 분께 강화재화 1,000만을 드립니다!";
 const EVERYTIME_PROMO_URL = "https://everytime.kr/370456/v/419057394";
+/** 닉네임 입력 후 실제로 지급하는 개인 재화(염원의 빛/데이터로그) 양. */
+const EVERYTIME_PROMO_REWARD = 10_000_000;
 const EVERYTIME_PROMO_ALREADY_MESSAGE = "이미 참여한 이벤트입니다 — 한 기기당 한 번만 받을 수 있어요.";
 /** 이 기기가 에브리타임 홍보 이벤트에 이미 참여했는지 — 기기당 한 번만 보상을 안내한다. */
 const EVERYTIME_PROMO_CLAIMED_KEY = "kyg.everytimePromoClaimed";
@@ -185,7 +187,13 @@ export default function GameScreen({
       window.alert(EVERYTIME_PROMO_ALREADY_MESSAGE);
       return;
     }
-    window.alert(EVERYTIME_PROMO_MESSAGE);
+    const input = window.prompt(
+      `${EVERYTIME_PROMO_MESSAGE}\n받으실 닉네임을 입력해주세요(강화에 등록한 닉네임).`,
+      myEnhanceNickname ?? ""
+    );
+    const trimmed = (input ?? "").trim();
+    if (!trimmed) return; // 취소했거나 빈 값이면 아무 것도 하지 않는다(재화 지급·참여 기록 둘 다 없음)
+
     try {
       window.localStorage.setItem(EVERYTIME_PROMO_CLAIMED_KEY, "1");
     } catch {
@@ -193,7 +201,14 @@ export default function GameScreen({
     }
     setEverytimePromoClaimed(true);
     window.open(EVERYTIME_PROMO_URL, "_blank", "noopener,noreferrer");
-  }, [everytimePromoClaimed]);
+
+    setPersonalEarned((p) => {
+      const next = p + EVERYTIME_PROMO_REWARD;
+      window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
+      return next;
+    });
+    setNotice(`${trimmed}님, 에브리타임 이벤트로 ${theme.personalCurrency} ${formatNumber(EVERYTIME_PROMO_REWARD)} 지급!`);
+  }, [everytimePromoClaimed, myEnhanceNickname, team, theme.personalCurrency]);
   const [revealCard, setRevealCard] = useState<CardInfo | null>(null);
   const [cutsceneOpen, setCutsceneOpen] = useState(false);
   const [feverPopKey, setFeverPopKey] = useState(0);
