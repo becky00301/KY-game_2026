@@ -68,6 +68,7 @@ import {
   sendTaps,
   subscribeAnnouncement,
   subscribeEnhanceMilestones,
+  subscribeLiveRewards,
   subscribePresence,
   subscribeRankingChat,
   subscribeShouts,
@@ -480,6 +481,29 @@ export default function GameScreen({
 
   // 누군가 강화 23단계 이상에 성공하면 큐에 쌓고, 하나씩 순서대로 7초간 웅장하게 띄운다.
   useEffect(() => subscribeEnhanceMilestones((milestone) => setMilestoneQueue((q) => [...q, milestone])), []);
+
+  // 운영자 라이브 이벤트 — 지금 접속해 있으면 공지 문구와 함께 개인 재화를 받는다(이
+  // 순간 이후에 들어오는 사람은 과거 행을 못 받으니 자동으로 제외된다). 같은 이벤트를
+  // 두 번 받아도 중복 지급되지 않도록 기기별로 한 번만 반영한다.
+  useEffect(
+    () =>
+      subscribeLiveRewards((reward) => {
+        const claimKey = `kyg.liveRewardClaimed.${reward.id}`;
+        try {
+          if (window.localStorage.getItem(claimKey) === "1") return;
+          window.localStorage.setItem(claimKey, "1");
+        } catch {
+          /* 저장 실패해도 이번 지급은 그대로 진행 */
+        }
+        setPersonalEarned((p) => {
+          const next = p + reward.amount;
+          window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
+          return next;
+        });
+        setNotice(`${reward.text} ${theme.personalCurrency} ${formatNumber(reward.amount)} 지급!`);
+      }),
+    [team, theme.personalCurrency]
+  );
   useEffect(() => {
     if (currentMilestone || milestoneQueue.length === 0) return;
     const [next, ...rest] = milestoneQueue;

@@ -975,6 +975,35 @@ begin
 end
 $$;
 
+-- 운영자가 "지금 접속해 있는 모든 사람"에게 문구를 띄우면서 개인 재화를 한 번에
+-- 지급하고 싶을 때 쓰는 라이브 이벤트 — enhance_milestones·shouts와 완전히 같은 방식
+-- (INSERT만 구독)이라, 이벤트가 올라온 그 순간 접속해 있던 사람만 받고 나중에
+-- 들어오는 사람은 과거 행을 다시 읽지 않으므로 자동으로 제외된다. 운영자가 SQL
+-- 에디터에서 직접 insert하면 된다(예: insert into public.live_rewards (text, amount)
+-- values ('고려대학교 야구 승리 기념!', 20000000);) — 보상은 노아는 염원의 빛,
+-- 연은 데이터로그로, 지금 보고 있는 진영 화폐로 각자 받는다.
+create table if not exists public.live_rewards (
+  id         bigint generated always as identity primary key,
+  text       text        not null,
+  amount     numeric     not null,
+  created_at timestamptz not null default now()
+);
+
+drop policy if exists "live rewards readable" on public.live_rewards;
+create policy "live rewards readable" on public.live_rewards for select using (true);
+alter table public.live_rewards enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'live_rewards'
+  ) then
+    alter publication supabase_realtime add table public.live_rewards;
+  end if;
+end
+$$;
+
 -- 강화를 시도할 때마다 호출 — 성공하면 레벨이 오르고, 16단계 이상에서 파괴가 뜨면
 -- 0단계로 완전히 초기화된다. 그래서 "greatest"가 아니라 보낸 값을 그대로 반영한다
 -- (파괴로 내려가는 것도 정상적인 상태 변화다). updated_at은 항상 지금 시각으로 — 랭킹

@@ -366,6 +366,41 @@ export function subscribeEnhanceMilestones(onMilestone: (milestone: EnhanceMiles
   };
 }
 
+export interface LiveReward {
+  id: number;
+  text: string;
+  amount: number;
+}
+
+/**
+ * 운영자가 지금 접속해 있는 모든 사람에게 문구+개인 재화를 한 번에 쏘는 라이브 이벤트
+ * (live_rewards에 INSERT하면 발동). enhance_milestones와 같은 방식 — INSERT만
+ * 구독하므로 이 순간 접속 중인 사람만 받고, 나중에 들어오는 사람은 과거 행을 다시
+ * 읽지 않으므로 받지 못한다.
+ */
+export function subscribeLiveRewards(onReward: (reward: LiveReward) => void): () => void {
+  if (backendMode !== "supabase") return () => {};
+  let channel: RealtimeChannel | null = supabase()
+    .channel("live_rewards")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "live_rewards" },
+      (payload) => {
+        const row = payload.new as Record<string, unknown>;
+        onReward({
+          id: Number(row.id ?? 0),
+          text: String(row.text ?? ""),
+          amount: Number(row.amount ?? 0),
+        });
+      }
+    )
+    .subscribe();
+  return () => {
+    if (channel) supabase().removeChannel(channel);
+    channel = null;
+  };
+}
+
 export interface ShoutResult {
   ok: boolean;
   reason?: string;
