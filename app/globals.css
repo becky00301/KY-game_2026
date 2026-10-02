@@ -3335,8 +3335,8 @@ button {
    검은 번개(가장 강한 연출). 채팅창에서 한눈에 "이 사람 고단수다" 싶게 번쩍이는 게 목적이다. */
 
 @keyframes chatAuraPulseYellow {
-  0%, 100% { box-shadow: 0 0 10px 2px rgba(255, 214, 90, 0.55); }
-  50% { box-shadow: 0 0 22px 6px rgba(255, 214, 90, 0.9); }
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(255, 214, 90, 0.45); }
+  50% { box-shadow: 0 0 18px 5px rgba(255, 214, 90, 0.75); }
 }
 .chat-aura-tier1 {
   border: 1px solid rgba(255, 214, 90, 0.75) !important;
@@ -3344,8 +3344,8 @@ button {
 }
 
 @keyframes chatAuraPulseRed {
-  0%, 100% { box-shadow: 0 0 10px 2px rgba(255, 70, 70, 0.55); }
-  50% { box-shadow: 0 0 24px 7px rgba(255, 70, 70, 0.9); }
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(255, 70, 70, 0.45); }
+  50% { box-shadow: 0 0 19px 5px rgba(255, 70, 70, 0.75); }
 }
 .chat-aura-tier2-ku {
   border: 1px solid rgba(255, 90, 90, 0.8) !important;
@@ -3353,8 +3353,8 @@ button {
 }
 
 @keyframes chatAuraPulseBlue {
-  0%, 100% { box-shadow: 0 0 10px 2px rgba(90, 170, 255, 0.55); }
-  50% { box-shadow: 0 0 24px 7px rgba(90, 170, 255, 0.9); }
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(90, 170, 255, 0.45); }
+  50% { box-shadow: 0 0 19px 5px rgba(90, 170, 255, 0.75); }
 }
 .chat-aura-tier2-yu {
   border: 1px solid rgba(110, 185, 255, 0.8) !important;
@@ -3362,8 +3362,8 @@ button {
 }
 
 @keyframes chatAuraPulseDarkRed {
-  0%, 100% { box-shadow: 0 0 14px 3px rgba(130, 0, 10, 0.8), 0 0 30px 10px rgba(255, 20, 20, 0.25); }
-  50% { box-shadow: 0 0 22px 6px rgba(130, 0, 10, 1), 0 0 44px 14px rgba(255, 20, 20, 0.5); }
+  0%, 100% { box-shadow: 0 0 11px 2px rgba(130, 0, 10, 0.65), 0 0 24px 8px rgba(255, 20, 20, 0.2); }
+  50% { box-shadow: 0 0 18px 5px rgba(130, 0, 10, 0.85), 0 0 36px 11px rgba(255, 20, 20, 0.4); }
 }
 @keyframes chatAuraLightningRed {
   0%, 88%, 100% { opacity: 0; }
@@ -3392,8 +3392,8 @@ button {
 }
 
 @keyframes chatAuraPulseDarkBlue {
-  0%, 100% { box-shadow: 0 0 14px 3px rgba(0, 30, 95, 0.8), 0 0 30px 10px rgba(60, 150, 255, 0.25); }
-  50% { box-shadow: 0 0 22px 6px rgba(0, 30, 95, 1), 0 0 44px 14px rgba(60, 150, 255, 0.5); }
+  0%, 100% { box-shadow: 0 0 11px 2px rgba(0, 30, 95, 0.65), 0 0 24px 8px rgba(60, 150, 255, 0.2); }
+  50% { box-shadow: 0 0 18px 5px rgba(0, 30, 95, 0.85), 0 0 36px 11px rgba(60, 150, 255, 0.4); }
 }
 @keyframes chatAuraLightningBlue {
   0%, 88%, 100% { opacity: 0; }
@@ -3433,8 +3433,8 @@ button {
 
 /* -- 24단계: 23단계보다 한 단계 강해진 펄스(같은 번개 구조) -- */
 @keyframes chatAuraPulseTier4Ku {
-  0%, 100% { box-shadow: 0 0 15px 3px rgba(150, 0, 15, 0.68), 0 0 32px 10px rgba(255, 35, 35, 0.26); }
-  50% { box-shadow: 0 0 22px 6px rgba(150, 0, 15, 0.85), 0 0 46px 14px rgba(255, 35, 35, 0.45); }
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(150, 0, 15, 0.55), 0 0 26px 8px rgba(255, 35, 35, 0.21); }
+  50% { box-shadow: 0 0 18px 5px rgba(150, 0, 15, 0.7), 0 0 37px 11px rgba(255, 35, 35, 0.36); }
 }
 .chat-aura-tier4-ku {
   position: relative;
@@ -3457,8 +3457,8 @@ button {
 }
 
 @keyframes chatAuraPulseTier4Yu {
-  0%, 100% { box-shadow: 0 0 15px 3px rgba(0, 40, 115, 0.68), 0 0 32px 10px rgba(70, 165, 255, 0.26); }
-  50% { box-shadow: 0 0 22px 6px rgba(0, 40, 115, 0.85), 0 0 46px 14px rgba(70, 165, 255, 0.45); }
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(0, 40, 115, 0.55), 0 0 26px 8px rgba(70, 165, 255, 0.21); }
+  50% { box-shadow: 0 0 18px 5px rgba(0, 40, 115, 0.7), 0 0 37px 11px rgba(70, 165, 255, 0.36); }
 }
 .chat-aura-tier4-yu {
   position: relative;
@@ -3482,8 +3482,8 @@ button {
 
 /* -- 25단계: 펄스 더 강해지고, 번개에 하얀 스파클 한 점이 섞인다 -- */
 @keyframes chatAuraPulseTier5Ku {
-  0%, 100% { box-shadow: 0 0 17px 4px rgba(170, 0, 20, 0.72), 0 0 36px 11px rgba(255, 55, 55, 0.3); }
-  50% { box-shadow: 0 0 25px 7px rgba(170, 0, 20, 0.88), 0 0 52px 16px rgba(255, 55, 55, 0.52); }
+  0%, 100% { box-shadow: 0 0 13px 3px rgba(170, 0, 20, 0.58), 0 0 29px 9px rgba(255, 55, 55, 0.24); }
+  50% { box-shadow: 0 0 20px 6px rgba(170, 0, 20, 0.72), 0 0 42px 13px rgba(255, 55, 55, 0.42); }
 }
 .chat-aura-tier5-ku {
   position: relative;
@@ -3507,8 +3507,8 @@ button {
 }
 
 @keyframes chatAuraPulseTier5Yu {
-  0%, 100% { box-shadow: 0 0 17px 4px rgba(0, 50, 135, 0.72), 0 0 36px 11px rgba(80, 180, 255, 0.3); }
-  50% { box-shadow: 0 0 25px 7px rgba(0, 50, 135, 0.88), 0 0 52px 16px rgba(80, 180, 255, 0.52); }
+  0%, 100% { box-shadow: 0 0 13px 3px rgba(0, 50, 135, 0.58), 0 0 29px 9px rgba(80, 180, 255, 0.24); }
+  50% { box-shadow: 0 0 20px 6px rgba(0, 50, 135, 0.72), 0 0 42px 13px rgba(80, 180, 255, 0.42); }
 }
 .chat-aura-tier5-yu {
   position: relative;
@@ -3533,8 +3533,8 @@ button {
 
 /* -- 28단계: 펄스 한 번 더 강해지고, 회전하는 고리가 추가된다 -- */
 @keyframes chatAuraPulseTier6Ku {
-  0%, 100% { box-shadow: 0 0 19px 5px rgba(190, 0, 25, 0.78), 0 0 40px 13px rgba(255, 70, 70, 0.36); }
-  50% { box-shadow: 0 0 28px 8px rgba(190, 0, 25, 0.92), 0 0 58px 18px rgba(255, 70, 70, 0.58); }
+  0%, 100% { box-shadow: 0 0 15px 4px rgba(190, 0, 25, 0.63), 0 0 32px 10px rgba(255, 70, 70, 0.29); }
+  50% { box-shadow: 0 0 22px 6px rgba(190, 0, 25, 0.75), 0 0 47px 14px rgba(255, 70, 70, 0.47); }
 }
 .chat-aura-tier6-ku {
   position: relative;
@@ -3569,8 +3569,8 @@ button {
 }
 
 @keyframes chatAuraPulseTier6Yu {
-  0%, 100% { box-shadow: 0 0 19px 5px rgba(0, 60, 155, 0.78), 0 0 40px 13px rgba(90, 190, 255, 0.36); }
-  50% { box-shadow: 0 0 28px 8px rgba(0, 60, 155, 0.92), 0 0 58px 18px rgba(90, 190, 255, 0.58); }
+  0%, 100% { box-shadow: 0 0 15px 4px rgba(0, 60, 155, 0.63), 0 0 32px 10px rgba(90, 190, 255, 0.29); }
+  50% { box-shadow: 0 0 22px 6px rgba(0, 60, 155, 0.75), 0 0 47px 14px rgba(90, 190, 255, 0.47); }
 }
 .chat-aura-tier6-yu {
   position: relative;
@@ -3606,8 +3606,8 @@ button {
 
 /* -- 30단계(만렙): 가장 밝고 빠른 펄스 + 고리 + 번쩍이는 플래시가 더해진 최종 연출 -- */
 @keyframes chatAuraPulseTier7Ku {
-  0%, 100% { box-shadow: 0 0 21px 6px rgba(210, 0, 30, 0.85), 0 0 44px 15px rgba(255, 95, 95, 0.42); }
-  50% { box-shadow: 0 0 30px 9px rgba(210, 0, 30, 0.98), 0 0 62px 19px rgba(255, 95, 95, 0.64); }
+  0%, 100% { box-shadow: 0 0 17px 5px rgba(210, 0, 30, 0.68), 0 0 35px 12px rgba(255, 95, 95, 0.34); }
+  50% { box-shadow: 0 0 24px 7px rgba(210, 0, 30, 0.8), 0 0 50px 15px rgba(255, 95, 95, 0.52); }
 }
 @keyframes chatAuraFlashRed {
   0%, 89%, 100% { opacity: 0; }
@@ -3649,8 +3649,8 @@ button {
 }
 
 @keyframes chatAuraPulseTier7Yu {
-  0%, 100% { box-shadow: 0 0 21px 6px rgba(0, 70, 175, 0.85), 0 0 44px 15px rgba(100, 200, 255, 0.42); }
-  50% { box-shadow: 0 0 30px 9px rgba(0, 70, 175, 0.98), 0 0 62px 19px rgba(100, 200, 255, 0.64); }
+  0%, 100% { box-shadow: 0 0 17px 5px rgba(0, 70, 175, 0.68), 0 0 35px 12px rgba(100, 200, 255, 0.34); }
+  50% { box-shadow: 0 0 24px 7px rgba(0, 70, 175, 0.8), 0 0 50px 15px rgba(100, 200, 255, 0.52); }
 }
 @keyframes chatAuraFlashBlue {
   0%, 89%, 100% { opacity: 0; }
@@ -3729,12 +3729,12 @@ button {
 /* ---------- 서휘령 랭킹모드 TOP10/TOP1 오오라(채팅 말풍선) ----------
    강화 단계 오오라보다 우선한다(23강이어도 안 가려짐) — lib/chat.ts의 chatRankAuraClass.
    TOP10(2~10위): 검은 청록빛(23강 번개 구조 재사용, 청록색).
-   TOP1(최초 격파자): 그보다 훨씬 화려하고 웅장하며, 핏빛으로 확 번쩍이는 "공포" 연출과
-   말풍선이 미세하게 떨리는 인터랙션까지 섞은, 가장 강한 연출. */
+   TOP1(최초 격파자): 흑백 톤에 청록빛이 살짝 섞인 무겁고 차분한 연출 — 가끔 차가운
+   빛으로 확 번쩍이는 "공포" 연출과 말풍선이 미세하게 떨리는 인터랙션까지 섞었다. */
 
 @keyframes chatAuraPulseTeal {
-  0%, 100% { box-shadow: 0 0 14px 3px rgba(0, 60, 55, 0.85), 0 0 30px 10px rgba(20, 230, 210, 0.3); }
-  50% { box-shadow: 0 0 24px 7px rgba(0, 60, 55, 1), 0 0 48px 15px rgba(20, 230, 210, 0.6); }
+  0%, 100% { box-shadow: 0 0 11px 2px rgba(0, 60, 55, 0.68), 0 0 24px 8px rgba(20, 230, 210, 0.24); }
+  50% { box-shadow: 0 0 19px 5px rgba(0, 60, 55, 0.8), 0 0 38px 12px rgba(20, 230, 210, 0.48); }
 }
 @keyframes chatAuraLightningTeal {
   0%, 88%, 100% { opacity: 0; }
@@ -3762,14 +3762,16 @@ button {
   z-index: -1;
 }
 
+/* TOP1 — 보랏빛/핏빛 대신 흑백 톤에 청록빛이 살짝 섞인, 무겁고 차분하게 "간지나는"
+   연출로 바꿨다. 구조(펄스+번개+흔들림+스크림 플래시)는 그대로, 색만 바꿨다. */
 @keyframes chatAuraPulseTop1 {
   0%, 100% {
-    box-shadow: 0 0 13px 3px rgba(90, 0, 40, 0.65), 0 0 26px 8px rgba(255, 0, 60, 0.22),
-      0 0 44px 14px rgba(140, 0, 220, 0.12);
+    box-shadow: 0 0 12px 3px rgba(0, 0, 0, 0.7), 0 0 24px 7px rgba(20, 220, 200, 0.18),
+      0 0 40px 12px rgba(255, 255, 255, 0.06);
   }
   50% {
-    box-shadow: 0 0 20px 6px rgba(90, 0, 40, 0.8), 0 0 38px 12px rgba(255, 0, 60, 0.42),
-      0 0 64px 19px rgba(140, 0, 220, 0.24);
+    box-shadow: 0 0 18px 5px rgba(0, 0, 0, 0.85), 0 0 34px 10px rgba(20, 220, 200, 0.35),
+      0 0 56px 16px rgba(255, 255, 255, 0.12);
   }
 }
 @keyframes chatAuraLightningTop1 {
@@ -3787,18 +3789,18 @@ button {
   96% { transform: translate(1px, -1px) rotate(0.3deg); }
   97%, 99% { transform: translate(0.5px, 0) rotate(0deg); }
 }
-/* 공포스러운 "스크림" 플래시 — 아주 가끔(6초마다 한 번) 말풍선 전체가 핏빛으로 확 번쩍인다. */
+/* "스크림" 플래시 — 아주 가끔(6초마다 한 번) 말풍선 전체가 차가운 청록빛-흰빛으로 확 번쩍인다. */
 @keyframes chatAuraTop1Scream {
   0%, 89%, 100% { opacity: 0; }
-  90% { opacity: 0.85; }
-  91% { opacity: 0.1; }
-  92% { opacity: 0.7; }
+  90% { opacity: 0.6; }
+  91% { opacity: 0.08; }
+  92% { opacity: 0.45; }
   93%, 99% { opacity: 0; }
 }
 .chat-aura-top1 {
   position: relative;
-  border: 1px solid rgba(255, 30, 90, 0.95) !important;
-  background: linear-gradient(135deg, #220018, #0a0008 55%, #150022) !important;
+  border: 1px solid rgba(200, 235, 230, 0.8) !important;
+  background: linear-gradient(135deg, #0b0b0c, #000 55%, #03110f) !important;
   animation: chatAuraPulseTop1 1.5s ease-in-out infinite, chatAuraTop1Shake 6s ease-in-out infinite;
   isolation: isolate;
 }
@@ -3808,9 +3810,9 @@ button {
   inset: -6px;
   border-radius: inherit;
   background:
-    radial-gradient(circle at 20% 10%, rgba(255, 0, 70, 0.95), transparent 45%),
-    radial-gradient(circle at 80% 75%, rgba(150, 0, 230, 0.8), transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(255, 0, 60, 0.5), transparent 60%);
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.75), transparent 45%),
+    radial-gradient(circle at 80% 75%, rgba(20, 220, 200, 0.65), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(20, 220, 200, 0.3), transparent 60%);
   animation: chatAuraLightningTop1 3.2s steps(1, end) infinite;
   pointer-events: none;
   z-index: -1;
@@ -3820,7 +3822,7 @@ button {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(255, 0, 40, 0.5);
+  background: rgba(190, 240, 235, 0.35);
   mix-blend-mode: screen;
   animation: chatAuraTop1Scream 6s steps(1, end) infinite;
   pointer-events: none;
