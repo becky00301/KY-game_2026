@@ -500,7 +500,8 @@ export default function GameScreen({
           window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
           return next;
         });
-        setNotice(`${reward.text} ${theme.personalCurrency} ${formatNumber(reward.amount)} 지급!`);
+        // 운영자 전체 공지와 똑같은 배너(announcement-toast)로 띄운다.
+        setAnnouncement(`${reward.text} ${theme.personalCurrency} ${formatNumber(reward.amount)} 지급!`);
       }),
     [team, theme.personalCurrency]
   );
