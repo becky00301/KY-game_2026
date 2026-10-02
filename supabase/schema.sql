@@ -148,7 +148,7 @@ create table if not exists public.tap_blocklist (
 -- ---------- 초기값 ----------
 
 insert into public.game_config (id, stage_thresholds, stage_growth, max_taps_per_flush, max_taps_per_second, critical_chance, critical_multiplier, fever_max, tap_currency_ratio, shout_cost)
-values (1, array[0, 45000, 1200000, 168000000, 1575000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000, 0.5, 100000)
+values (1, array[0, 30000, 800000, 112000000, 1050000000]::numeric[], 1.85, 45, 15, 0.1, 10, 3000, 0.5, 100000)
 on conflict (id) do update set
   stage_thresholds = excluded.stage_thresholds,
   stage_growth = excluded.stage_growth,
