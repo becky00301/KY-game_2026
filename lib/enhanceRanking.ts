@@ -129,6 +129,25 @@ export async function fetchMyEnhanceIdentity(): Promise<EnhanceIdentity | null> 
   }
 }
 
+/**
+ * 서휘령 TOP10/TOP1 오오라와 강화 24단계 이상 오오라를 둘 다 가진 사람이 채팅창에서
+ * 어느 쪽을 보여줄지 고른 값을 저장한다 — 채팅(realtime 전용)과 묶여 있는 기능이라
+ * 로컬 개발 백엔드는 지원하지 않는다(chat.ts의 다른 realtime 기능들과 같은 이유).
+ */
+export async function setChatAuraPreference(
+  preference: "rank" | "level" | null,
+  team: TeamId
+): Promise<{ ok: boolean; reason?: string }> {
+  if (backendMode !== "supabase") return { ok: false, reason: "local-mode" };
+  const { data, error } = await supabase().rpc("enhance_set_aura_preference", {
+    p_device: clientId(),
+    p_team: team,
+    p_preference: preference,
+  });
+  if (error) throw new Error(error.message);
+  return data as { ok: boolean; reason?: string };
+}
+
 /** 닉네임 확정 시 한 번 호출 — 이 기기가 이 팀으로 이미 등록돼 있으면 새 닉네임은 무시하고 기존 기록을 돌려준다. */
 export async function registerEnhance(nickname: string, team: TeamId): Promise<RegisterResult> {
   if (backendMode === "supabase") {

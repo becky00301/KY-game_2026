@@ -868,6 +868,11 @@ drop index if exists enhance_players_nickname_lower_idx;
 create unique index if not exists enhance_players_team_nickname_lower_idx
   on public.enhance_players (team, lower(nickname));
 
+-- 서휘령 TOP10/TOP1 오오라와 강화 24단계 이상 오오라를 "둘 다" 가진 사람이, 채팅창에서
+-- 어느 쪽을 보여줄지 직접 고른 값('rank' | 'level'). null이면 기존처럼 랭킹 오오라가
+-- 우선한다(enhance_set_aura_preference로 바꾼다).
+alter table public.enhance_players add column if not exists aura_preference text;
+
 -- 닉네임이 그 팀 안에서 아직 아무도 안 쓰고 있는지(대소문자 무시).
 drop function if exists public.enhance_nickname_check(text);
 create or replace function public.enhance_nickname_check(p_nickname text, p_team text default 'ku')
@@ -934,6 +939,32 @@ begin
   return jsonb_build_object('ok', true, 'nickname', v_inserted.nickname, 'level', 0);
 end;
 $$;
+
+-- 채팅 말풍선 오오라 우선순위 선택 — 서휘령 TOP10/TOP1과 강화 24단계 이상을 둘 다
+-- 가진 사람만 의미가 있지만, 그 판정은 클라이언트가 이미 하고 있으니 여기서는
+-- 그냥 저장만 한다('rank' | 'level' | null 외의 값은 거절).
+create or replace function public.enhance_set_aura_preference(p_device uuid, p_team text, p_preference text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_team text := coalesce(p_team, 'ku');
+  v_pref text := nullif(p_preference, '');
+begin
+  if v_pref is not null and v_pref not in ('rank', 'level') then
+    return jsonb_build_object('ok', false, 'reason', 'invalid');
+  end if;
+
+  update public.enhance_players set aura_preference = v_pref
+  where device_id = p_device and team = v_team;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'not_registered');
+  end if;
+
+  return jsonb_build_object('ok', true, 'preference', v_pref);
+end;
+$$;
+
+grant execute on function public.enhance_set_aura_preference(uuid, text, text) to anon, authenticated;
 
 -- 이 기기의 강화 신원(팀 무관) — 한 기기는 한 진영에서만 강화할 수 있어 있어도 하나뿐이다.
 -- 서휘령 랭킹모드 입장 가능 여부 판단, "내 순위" 조회 등 팀을 모르는 상황에서 쓴다.
@@ -1121,6 +1152,10 @@ create table if not exists public.ranking_chat_messages (
   created_at    timestamptz not null default now()
 );
 
+-- 보낸 순간 그 기기의 아오라 우선순위 선택(enhance_players.aura_preference)을 그대로
+-- 찍어둔다 — 나중에 레벨업·선택 변경해도 과거 메시지 모양은 안 바뀐다(enhance_level과 같은 이유).
+alter table public.ranking_chat_messages add column if not exists aura_preference text;
+
 create index if not exists ranking_chat_messages_created_at_idx
   on public.ranking_chat_messages (created_at desc);
 
@@ -1155,8 +1190,8 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
 
-  insert into public.ranking_chat_messages (device_id, nickname, text, enhance_team, enhance_level)
-  values (p_device, v_player.nickname, v_text, v_team, v_player.level)
+  insert into public.ranking_chat_messages (device_id, nickname, text, enhance_team, enhance_level, aura_preference)
+  values (p_device, v_player.nickname, v_text, v_team, v_player.level, v_player.aura_preference)
   returning * into v_row;
 
   delete from public.ranking_chat_messages
@@ -1171,6 +1206,7 @@ begin
     'text', v_row.text,
     'enhance_team', v_row.enhance_team,
     'enhance_level', v_row.enhance_level,
+    'aura_preference', v_row.aura_preference,
     'created_at', (extract(epoch from v_row.created_at) * 1000)::bigint
   );
 end;
@@ -1184,6 +1220,7 @@ returns jsonb language sql stable security definer set search_path = public as $
       jsonb_build_object(
         'id', id, 'nickname', nickname, 'text', text,
         'enhance_team', enhance_team, 'enhance_level', enhance_level,
+        'aura_preference', aura_preference,
         'created_at', (extract(epoch from created_at) * 1000)::bigint
       ) as row,
       created_at

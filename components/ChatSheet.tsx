@@ -7,9 +7,9 @@ import {
   CHAT_RATE_LIMIT_MAX,
   CHAT_RATE_LIMIT_WINDOW_MS,
   CHAT_TEXT_MAX,
-  chatAuraClass,
-  chatRankAuraClass,
   chatRankBadge,
+  hasChatAuraChoice,
+  resolveChatAura,
 } from "@/lib/chat";
 import { TeamId } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
@@ -17,8 +17,9 @@ import { containsBannedWord } from "@/lib/profanity";
 /**
  * 전체 화면으로 펼쳐지는 랭킹 채팅 — "장비 강화"에 닉네임을 등록한 사람들끼리만 보낼
  * 수 있다. 내가 보낸 메시지는 오른쪽, 남이 보낸 메시지는 왼쪽에 뜨는 일반적인 메신저
- * 말풍선 형태다. 20단계 이상 강화한 사람의 말풍선에는 단계별 오오라 연출이 붙는다
- * (lib/chat.ts의 chatAuraClass).
+ * 말풍선 형태다. 20단계 이상 강화한 사람의 말풍선에는 단계별 오오라 연출이 붙고, 서휘령
+ * 랭킹 오오라와 24단계 이상 오오라를 둘 다 가지면 어느 쪽을 보여줄지 고를 수 있다
+ * (lib/chat.ts의 resolveChatAura/hasChatAuraChoice).
  *
  * 보낸 메시지를 여기서 바로 목록에 추가하지 않는다(shouts와 같은 이유) — Supabase
  * Realtime의 INSERT 이벤트는 "보낸 사람 본인"에게도 그대로 돌아오기 때문에, 여기서
@@ -29,6 +30,9 @@ export function ChatSheet({
   team,
   clientId,
   myNickname,
+  myEnhanceLevel,
+  myAuraPreference,
+  onChangeAuraPreference,
   messages,
   bossTopRanks,
   onClose,
@@ -36,6 +40,11 @@ export function ChatSheet({
   team: TeamId;
   clientId: string;
   myNickname: string | null;
+  /** 이 기기가 지금 팀에서 가진 강화 단계 — 서휘령 랭킹 오오라와 동시에 가졌는지 판단용. */
+  myEnhanceLevel: number;
+  /** 지금 서버에 저장된 내 아오라 선택('rank' | 'level' | null, null은 기존처럼 랭킹 우선). */
+  myAuraPreference: "rank" | "level" | null;
+  onChangeAuraPreference: (preference: "rank" | "level") => void;
   messages: RankingChatMessage[];
   /** "닉네임(소문자) → 서휘령 랭킹모드 순위" — TOP10/TOP1 오오라·배지 표시용. */
   bossTopRanks: Record<string, number>;
@@ -115,6 +124,24 @@ export function ChatSheet({
           </button>
         </header>
 
+        {myNickname && hasChatAuraChoice(bossTopRanks[myNickname.toLowerCase()] ?? null, myEnhanceLevel) && (
+          <div className="chat-aura-picker" role="group" aria-label="채팅 말풍선 효과 선택">
+            <span className="chat-aura-picker-label">말풍선 효과</span>
+            <button
+              className={`chat-aura-picker-btn ${myAuraPreference !== "level" ? "chat-aura-picker-btn--active" : ""}`}
+              onClick={() => onChangeAuraPreference("rank")}
+            >
+              서휘령 클리어
+            </button>
+            <button
+              className={`chat-aura-picker-btn ${myAuraPreference === "level" ? "chat-aura-picker-btn--active" : ""}`}
+              onClick={() => onChangeAuraPreference("level")}
+            >
+              강화 단계
+            </button>
+          </div>
+        )}
+
         <div className="chat-messages" ref={listRef}>
           {messages.length === 0 && <p className="chat-empty">아직 메시지가 없습니다.</p>}
           {messages.map((m) => {
@@ -122,7 +149,7 @@ export function ChatSheet({
             // 동시에 있을 수 있다 — 그래서 닉네임만이 아니라 보낸 팀까지 같이 비교한다.
             const mine = myNickname !== null && m.nickname === myNickname && m.enhanceTeam === team;
             const rank = bossTopRanks[m.nickname.toLowerCase()] ?? null;
-            const aura = chatRankAuraClass(rank) ?? chatAuraClass(m.enhanceTeam, m.enhanceLevel);
+            const aura = resolveChatAura(m.enhanceTeam, m.enhanceLevel, rank, m.auraPreference);
             const rankBadge = chatRankBadge(rank);
             return (
               <div key={m.id} className={`chat-msg-row ${mine ? "chat-msg-row--mine" : "chat-msg-row--theirs"}`}>

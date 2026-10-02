@@ -444,6 +444,9 @@ export interface RankingChatMessage {
    *  찾아 붙인 값(클라이언트가 보낸 값이 아니다). 채팅 말풍선 오오라 연출에 쓴다. */
   enhanceTeam: TeamId;
   enhanceLevel: number;
+  /** 보낸 순간의 아오라 우선순위 선택('rank' | 'level' | null) — 서휘령 랭킹 오오라와
+   *  강화 24단계 이상 오오라를 둘 다 가진 사람만 의미가 있다. null이면 랭킹이 우선. */
+  auraPreference: string | null;
   createdAt: number;
 }
 
@@ -461,6 +464,7 @@ function normalizeChatMessage(row: Record<string, unknown>): RankingChatMessage 
     text: String(row.text ?? ""),
     enhanceTeam: row.enhance_team === "yu" ? "yu" : "ku",
     enhanceLevel: num(row.enhance_level),
+    auraPreference: row.aura_preference == null ? null : String(row.aura_preference),
     createdAt: time(row.created_at),
   };
 }
