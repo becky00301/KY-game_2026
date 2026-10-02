@@ -18,15 +18,16 @@ interface Props {
  * (1단계는 세로로 길쭉, 5단계는 날개·리본 때문에 훨씬 넓적) object-fit: contain으로
  * 절대 잘리지 않게 렌더링한다. 이미지가 없는 팀·단계는 기존 SVG 절차적 생성으로 폴백한다.
  *
- * 5단계(마지막 단계)는 별이 2개 이상 모이면 더 화려한 전용 일러스트(-star2 접미사)로
- * 바뀐다 — 그 위로는(별 3~5) 같은 그림을 그대로 쓴다. 0~1개 별은 기본(stage4.webp)을 쓴다.
- * 팀에 따라 -star2 그림이 아직 없을 수 있는데, 그러면 곧장 SVG 폴백으로 가지 않고
+ * 5단계(마지막 단계)는 별이 쌓일수록 더 화려한 전용 일러스트로 갈아탄다 — 별 0개(아직
+ * 5단계만 찍고 별은 못 모음)는 원래부터 있던 기본(stage4.webp) 그림, 별 1개부터는
+ * -star1 접미사, 별 2개부터는(그 위로 별 3~5까지 같은 그림) -star2 접미사. 팀에 따라
+ * 특정 별 구간의 전용 그림이 아직 없을 수 있는데, 그러면 곧장 SVG 폴백으로 가지 않고
  * 먼저 기본(별 접미사 없는) 그림으로 한 번 더 물러선다 — 그 기본 그림도 없을 때만
  * 절차적 SVG로 간다.
  */
 export default function Sword({ stage, theme, fever, scale = 1, stars = 0 }: Props) {
   const s = Math.min(stage, 4);
-  const starSuffix = s === 4 && stars >= 2 ? "-star2" : "";
+  const starSuffix = s === 4 && stars >= 2 ? "-star2" : s === 4 && stars >= 1 ? "-star1" : "";
   const starSrc = `/images/sword/sword-${theme.id}-stage${s}${starSuffix}.webp`;
   const baseSrc = `/images/sword/sword-${theme.id}-stage${s}.webp`;
   const [useBase, setUseBase] = useState(false);
