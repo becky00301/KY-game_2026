@@ -141,6 +141,11 @@ const EVERYTIME_PROMO_URL = "https://everytime.kr/370456/v/419057394";
 const EVERYTIME_PROMO_ALREADY_MESSAGE = "이미 참여한 이벤트입니다 — 한 기기당 한 번만 받을 수 있어요.";
 /** 이 기기가 에브리타임 홍보 이벤트에 이미 참여했는지 — 기기당 한 번만 보상을 안내한다. */
 const EVERYTIME_PROMO_CLAIMED_KEY = "kyg.everytimePromoClaimed";
+/** 운영자 공지 배너를 빌려 주기적으로 띄우는 홍보 문구 — 실제 운영자 공지가 떠 있는
+ *  동안엔 덮어쓰지 않는다. */
+const EVERYTIME_PROMO_NOTICE_TEXT =
+  "설정버튼 하단의 버튼을 눌러 에브리타임 좋아요를 눌러주시면 강화재화를 지급해드립니다";
+const EVERYTIME_PROMO_NOTICE_INTERVAL_MS = 120_000;
 
 /** "염원의 힘" → "염원의 힘이", "데이터베이스" → "데이터베이스가" */
 function withSubjectParticle(word: string) {
@@ -443,6 +448,15 @@ export default function GameScreen({
     const timer = window.setTimeout(() => setAnnouncement(""), 5000);
     return () => window.clearTimeout(timer);
   }, [announcement]);
+
+  // 에브리타임 홍보 문구 — 같은 공지 배너를 빌려 2분마다 한 번씩 띄운다(실제 운영자
+  // 공지가 떠 있는 동안엔 덮어쓰지 않는다). 첫 문구는 접속 직후 바로 한 번 띄운다.
+  useEffect(() => {
+    const show = () => setAnnouncement((current) => current || EVERYTIME_PROMO_NOTICE_TEXT);
+    show();
+    const interval = window.setInterval(show, EVERYTIME_PROMO_NOTICE_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, []);
 
   // 공지가 뜨거나 길이가 바뀌면 그 높이를 CSS 변수로 알려준다 — 함성 배너가 그 아래로 내려간다.
   useEffect(() => {
