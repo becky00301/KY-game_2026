@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RankingChatMessage, sendRankingChatMessage } from "@/lib/backend";
-import { CHAT_RATE_LIMIT_MAX, CHAT_RATE_LIMIT_WINDOW_MS, CHAT_TEXT_MAX, chatAuraClass } from "@/lib/chat";
+import {
+  CHAT_RANK_TOP1_TITLE,
+  CHAT_RATE_LIMIT_MAX,
+  CHAT_RATE_LIMIT_WINDOW_MS,
+  CHAT_TEXT_MAX,
+  chatAuraClass,
+  chatRankAuraClass,
+  chatRankBadge,
+} from "@/lib/chat";
 import { TeamId } from "@/lib/game";
 import { containsBannedWord } from "@/lib/profanity";
 
@@ -22,12 +30,15 @@ export function ChatSheet({
   clientId,
   myNickname,
   messages,
+  bossTopRanks,
   onClose,
 }: {
   team: TeamId;
   clientId: string;
   myNickname: string | null;
   messages: RankingChatMessage[];
+  /** "닉네임(소문자) → 서휘령 랭킹모드 순위" — TOP10/TOP1 오오라·배지 표시용. */
+  bossTopRanks: Record<string, number>;
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState("");
@@ -110,7 +121,9 @@ export function ChatSheet({
             // 강화 닉네임은 "같은 팀 안에서만" 유일해서, 노아·연 양쪽에 같은 닉네임이
             // 동시에 있을 수 있다 — 그래서 닉네임만이 아니라 보낸 팀까지 같이 비교한다.
             const mine = myNickname !== null && m.nickname === myNickname && m.enhanceTeam === team;
-            const aura = chatAuraClass(m.enhanceTeam, m.enhanceLevel);
+            const rank = bossTopRanks[m.nickname.toLowerCase()] ?? null;
+            const aura = chatRankAuraClass(rank) ?? chatAuraClass(m.enhanceTeam, m.enhanceLevel);
+            const rankBadge = chatRankBadge(rank);
             return (
               <div key={m.id} className={`chat-msg-row ${mine ? "chat-msg-row--mine" : "chat-msg-row--theirs"}`}>
                 <div className={`chat-bubble ${mine ? "chat-bubble--mine" : "chat-bubble--theirs"} ${aura ?? ""}`}>
@@ -118,6 +131,12 @@ export function ChatSheet({
                     <span className="chat-bubble-name">
                       {m.nickname}
                       {m.enhanceLevel > 0 && <span className="chat-bubble-level">{m.enhanceLevel}강</span>}
+                      {rankBadge && (
+                        <span className={`chat-bubble-rank ${rank === 1 ? "chat-bubble-rank--top1" : ""}`}>
+                          {rankBadge}
+                        </span>
+                      )}
+                      {rank === 1 && <span className="chat-bubble-rank-title">{CHAT_RANK_TOP1_TITLE}</span>}
                     </span>
                   )}
                   <span className="chat-bubble-text">{m.text}</span>

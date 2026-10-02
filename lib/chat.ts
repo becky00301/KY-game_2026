@@ -5,7 +5,7 @@
 
 import type { TeamId } from "./game";
 
-export const CHAT_TEXT_MAX = 80;
+export const CHAT_TEXT_MAX = 49;
 /** 평소(접은) 상태에서 보스전 입장 버튼 옆에 보여줄 한 줄 티커가 유지하는 최근 메시지 수. */
 export const CHAT_HISTORY_LIMIT = 50;
 
@@ -31,3 +31,24 @@ export function chatAuraClass(team: TeamId, level: number): string | null {
   if (level >= 20) return "chat-aura-tier1";
   return null;
 }
+
+/**
+ * 서휘령 랭킹모드 TOP10/TOP1 오오라 — 강화 단계 오오라보다 우선한다(23강 이상이어도
+ * 이 오오라에 가려지지 않는다). rank는 boss_ranking_top(10)에서 닉네임으로 찾은
+ * 순위(1~10), 순위 밖이면 null. 1위(최초 격파자)는 TOP10보다 훨씬 화려한 별도 연출.
+ */
+export function chatRankAuraClass(rank: number | null): string | null {
+  if (rank === 1) return "chat-aura-top1";
+  if (rank !== null && rank <= 10) return "chat-aura-top10";
+  return null;
+}
+
+/** 닉네임 옆에 붙는 서휘령 랭킹 배지 문구. */
+export function chatRankBadge(rank: number | null): string | null {
+  if (rank === 1) return "서휘령TOP1";
+  if (rank !== null && rank <= 10) return "서휘령TOP10";
+  return null;
+}
+
+/** TOP1(최초 격파자) 전용 — 랭킹 배지 옆에 추가로 붙는 칭호. */
+export const CHAT_RANK_TOP1_TITLE = "악귀멸살";

@@ -97,6 +97,16 @@ export default function Enhance({
   const [rankMine, setRankMine] = useState<EnhanceRankEntry | null>(null);
   const [rankFailed, setRankFailed] = useState(false);
 
+  /**
+   * 마운트 시 fetchMyEnhance로 서버 단계를 한 번 더 불러오는데, 그 응답이 돌아오기
+   * 전에 플레이어가 강화를 시도(성공·파괴)해버리면 이 늦게 온 "과거" 응답이 방금
+   * 반영한 더 최신 단계(특히 파괴로 0단계가 된 것)를 덮어써버리는 경합이 있었다 —
+   * "터지고도 배율이 그대로 적용되는" 버그의 원인. attempt/confirmEnhance가 로컬로
+   * 단계를 바꿀 때마다 이 값을 true로 세워서, 그 뒤에 도착하는 마운트 시점 응답은
+   * 무시한다(로컬이 이미 서버보다 최신이라고 신뢰).
+   */
+  const levelDirtyRef = useRef(false);
+
   const modalRef = useRef<HTMLElement>(null);
   const backdropFlashRef = useRef<HTMLDivElement>(null);
   const imageWrapRef = useRef<HTMLDivElement>(null);
@@ -138,7 +148,7 @@ export default function Enhance({
     }
     fetchMyEnhance(team)
       .then((me) => {
-        if (!alive) return;
+        if (!alive || levelDirtyRef.current) return;
         if (me.registered) {
           const nextMax = Math.max(cached?.maxLevel ?? 0, me.level);
           setNickname(me.nickname);
@@ -162,7 +172,7 @@ export default function Enhance({
     if (checking) return;
     const trimmed = nicknameInput.trim();
     if (!isEnhanceNicknameFormatValid(trimmed)) {
-      setNicknameError("닉네임은 1~14자까지 입력 가능합니다.");
+      setNicknameError("닉네임은 영어 10자 또는 한글 8자까지 입력 가능합니다.");
       return;
     }
     setChecking(true);
@@ -180,7 +190,7 @@ export default function Enhance({
             ? "이미 누군가가 사용중인 닉네임입니다."
             : registered.reason === "other_team_registered"
               ? "이미 반대 진영에서 강화 닉네임을 등록했습니다. 한 기기는 한 진영에서만 강화할 수 있습니다."
-              : "닉네임은 1~14자까지 입력 가능합니다."
+              : "닉네임은 영어 10자 또는 한글 8자까지 입력 가능합니다."
         );
         return;
       }
@@ -216,12 +226,14 @@ export default function Enhance({
     if (outcome === "success") {
       const next = level + 1;
       const nextMax = Math.max(maxLevel, next);
+      levelDirtyRef.current = true;
       setLevel(next);
       setMaxLevel(nextMax);
       saveCache(team, nickname, next, nextMax);
       void reportEnhanceLevel(next, team).catch(() => {});
       setResult("success");
     } else if (outcome === "destroy") {
+      levelDirtyRef.current = true;
       setLevel(0);
       saveCache(team, nickname, 0, maxLevel);
       void reportEnhanceLevel(0, team).catch(() => {});
@@ -246,6 +258,7 @@ export default function Enhance({
     if (!guaranteedCost || !unlocked || level >= target || balance < guaranteedCost) return;
     onSpend(guaranteedCost);
     const nextMax = Math.max(maxLevel, target);
+    levelDirtyRef.current = true;
     setLevel(target);
     setMaxLevel(nextMax);
     saveCache(team, nickname, target, nextMax);
@@ -303,8 +316,8 @@ export default function Enhance({
               onKeyDown={(e) => {
                 if (e.key === "Enter") void submitNickname();
               }}
-              maxLength={14}
-              placeholder="닉네임"
+              maxLength={10}
+              placeholder="닉네임 (영어 10자 / 한글 8자)"
               aria-label="닉네임"
               autoFocus
             />

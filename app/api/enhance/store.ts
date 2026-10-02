@@ -7,7 +7,8 @@
  * 복합값) 닉네임도 같은 팀 안에서만 유일하다.
  */
 
-const NICKNAME_MAX_LEN = 14;
+import { isEnhanceNicknameFormatValid } from "@/lib/enhanceRanking";
+
 const MAX_LEVEL = 30;
 
 interface EnhanceRow {
@@ -86,7 +87,7 @@ export function register(nickname: string, deviceId: string, team: string): Regi
     return { ok: false, reason: "other_team_registered" };
   }
   const trimmed = nickname.trim();
-  if (trimmed.length < 1 || trimmed.length > NICKNAME_MAX_LEN) {
+  if (!isEnhanceNicknameFormatValid(trimmed)) {
     return { ok: false, reason: "invalid" };
   }
   if (isNicknameTaken(trimmed, team)) {

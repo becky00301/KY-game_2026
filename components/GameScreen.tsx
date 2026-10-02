@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Sword from "./Sword";
 import SwordFx from "./SwordFx";
 import { BossIntro, BossMap, BossCardUnlock, BossGallery, BossGuide, BossRankingBoard } from "./BossEncounter";
-import { startBossRankingSession } from "@/lib/bossRanking";
+import { fetchRankings, startBossRankingSession } from "@/lib/bossRanking";
 import BossBattle from "./BossBattle";
 import { BOSS_RANKING_CLEAR_REWARD, claimBossGuide, claimBossIntro, claimBossVictory, crossedBossThreshold, hasSeenBossGuide, hasSeenBossIntro, hasSeenBossVictory } from "@/lib/boss";
 import UpgradeSheet from "./UpgradeSheet";
@@ -201,6 +201,8 @@ export default function GameScreen({
    */
   const [chatMessages, setChatMessages] = useState<RankingChatMessage[]>([]);
   const [chatOpen, setChatOpen] = useState(false);
+  /** "닉네임(소문자) → 서휘령 랭킹모드 순위" — 채팅창 TOP10/TOP1 오오라·배지에 쓴다. */
+  const [bossTopRanks, setBossTopRanks] = useState<Record<string, number>>({});
   const bossActive = bossMode !== "closed";
   const bossEntryRef = useRef<HTMLButtonElement>(null);
   const bossEntryClaimed = useRef(false);
@@ -482,6 +484,28 @@ export default function GameScreen({
       ),
     []
   );
+
+  // 서휘령 랭킹모드 TOP10 — 채팅창에서 특별 오오라·배지를 보여주기 위해 주기적으로
+  // 다시 불러온다(실시간 구독 없음, 누군가 새로 격파할 때마다 반영되도록 폴링).
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      fetchRankings()
+        .then(({ top }) => {
+          if (!alive) return;
+          const map: Record<string, number> = {};
+          for (const entry of top) map[entry.nickname.toLowerCase()] = entry.rank;
+          setBossTopRanks(map);
+        })
+        .catch(() => {});
+    };
+    load();
+    const interval = window.setInterval(load, 45_000);
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   // 운영자가 강화 기록을 전부 초기화했으면(game_config.enhance_reset_at), 이 기기에 남은
   // 강화 관련 로컬 데이터(개인 재화·기기별 점수·닉네임 캐시)를 전부 지운다. 서버 쪽
@@ -1013,7 +1037,7 @@ export default function GameScreen({
             >
               <img src="/images/boss/boss-entry-icon.webp" alt="" />보스전 입장
             </button>
-            <ChatTicker latest={latestChatMessage} onOpen={() => setChatOpen(true)} />
+            <ChatTicker latest={latestChatMessage} bossTopRanks={bossTopRanks} onOpen={() => setChatOpen(true)} />
           </div>
         </div>
       </header>
@@ -1155,6 +1179,7 @@ export default function GameScreen({
           clientId={clientId()}
           myNickname={myEnhanceNickname}
           messages={chatMessages}
+          bossTopRanks={bossTopRanks}
           onClose={() => setChatOpen(false)}
         />
       )}

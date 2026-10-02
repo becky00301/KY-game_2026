@@ -47,7 +47,21 @@ export interface ReportResult {
   level?: number;
 }
 
-const NICKNAME_MAX_LEN = 14;
+/**
+ * 닉네임 길이 한도 — 글자마다 "무게"를 매겨서 영어는 10자, 한글은 8자가 똑같이
+ * 한도(10)에 걸리게 맞춘다(한글 1자의 무게 = 10/8 = 1.25). 섞어 쓰면 그 사이 어딘가에서
+ * 걸린다. supabase/schema.sql의 nickname_weight 함수가 서버 쪽 동치다 — 둘을 같이
+ * 고쳐야 한다.
+ */
+const HANGUL_CHAR_WEIGHT = 1.25;
+const NICKNAME_MAX_WEIGHT = 10;
+const HANGUL_RE = /[가-힣]/;
+
+function nicknameWeight(nickname: string): number {
+  let weight = 0;
+  for (const ch of nickname) weight += HANGUL_RE.test(ch) ? HANGUL_CHAR_WEIGHT : 1;
+  return weight;
+}
 
 async function localJson(path: string, body?: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(path, {
@@ -62,7 +76,7 @@ async function localJson(path: string, body?: unknown): Promise<Record<string, u
 
 export function isEnhanceNicknameFormatValid(nickname: string): boolean {
   const trimmed = nickname.trim();
-  return trimmed.length >= 1 && trimmed.length <= NICKNAME_MAX_LEN;
+  return trimmed.length >= 1 && nicknameWeight(trimmed) <= NICKNAME_MAX_WEIGHT;
 }
 
 export async function checkEnhanceNicknameAvailable(nickname: string, team: TeamId): Promise<boolean> {

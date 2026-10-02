@@ -3388,6 +3388,169 @@ button {
     opacity: 0.6;
   }
 }
+
+/* ---------- 서휘령 랭킹모드 TOP10/TOP1 오오라(채팅 말풍선) ----------
+   강화 단계 오오라보다 우선한다(23강이어도 안 가려짐) — lib/chat.ts의 chatRankAuraClass.
+   TOP10(2~10위): 검은 청록빛(23강 번개 구조 재사용, 청록색).
+   TOP1(최초 격파자): 그보다 훨씬 화려하고 웅장하며, 핏빛으로 확 번쩍이는 "공포" 연출과
+   말풍선이 미세하게 떨리는 인터랙션까지 섞은, 가장 강한 연출. */
+
+@keyframes chatAuraPulseTeal {
+  0%, 100% { box-shadow: 0 0 14px 3px rgba(0, 60, 55, 0.85), 0 0 30px 10px rgba(20, 230, 210, 0.3); }
+  50% { box-shadow: 0 0 24px 7px rgba(0, 60, 55, 1), 0 0 48px 15px rgba(20, 230, 210, 0.6); }
+}
+@keyframes chatAuraLightningTeal {
+  0%, 88%, 100% { opacity: 0; }
+  89%, 92% { opacity: 0.9; }
+  93%, 95% { opacity: 0.3; }
+  96%, 98% { opacity: 1; }
+}
+.chat-aura-top10 {
+  position: relative;
+  border: 1px solid rgba(40, 230, 210, 0.9) !important;
+  background: linear-gradient(135deg, #00201c, #000a08) !important;
+  animation: chatAuraPulseTeal 1.4s ease-in-out infinite;
+  isolation: isolate;
+}
+.chat-aura-top10::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 25% 15%, rgba(40, 240, 210, 0.95), transparent 45%),
+    radial-gradient(circle at 78% 70%, rgba(40, 240, 210, 0.75), transparent 45%);
+  animation: chatAuraLightningTeal 2.6s steps(1, end) infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes chatAuraPulseTop1 {
+  0%, 100% {
+    box-shadow: 0 0 16px 4px rgba(90, 0, 40, 0.9), 0 0 36px 12px rgba(255, 0, 60, 0.35),
+      0 0 60px 20px rgba(140, 0, 220, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 28px 9px rgba(90, 0, 40, 1), 0 0 56px 18px rgba(255, 0, 60, 0.65),
+      0 0 90px 28px rgba(140, 0, 220, 0.4);
+  }
+}
+@keyframes chatAuraLightningTop1 {
+  0%, 78%, 100% { opacity: 0; }
+  79%, 82% { opacity: 1; }
+  83%, 85% { opacity: 0.25; }
+  86%, 89% { opacity: 1; }
+  90%, 94% { opacity: 0.4; }
+}
+@keyframes chatAuraTop1Shake {
+  0%, 92%, 100% { transform: translate(0, 0) rotate(0deg); }
+  93% { transform: translate(-1.5px, 0.5px) rotate(-0.4deg); }
+  94% { transform: translate(1.5px, -0.5px) rotate(0.4deg); }
+  95% { transform: translate(-1px, 1px) rotate(-0.3deg); }
+  96% { transform: translate(1px, -1px) rotate(0.3deg); }
+  97%, 99% { transform: translate(0.5px, 0) rotate(0deg); }
+}
+/* 공포스러운 "스크림" 플래시 — 아주 가끔(6초마다 한 번) 말풍선 전체가 핏빛으로 확 번쩍인다. */
+@keyframes chatAuraTop1Scream {
+  0%, 89%, 100% { opacity: 0; }
+  90% { opacity: 0.85; }
+  91% { opacity: 0.1; }
+  92% { opacity: 0.7; }
+  93%, 99% { opacity: 0; }
+}
+.chat-aura-top1 {
+  position: relative;
+  border: 1px solid rgba(255, 30, 90, 0.95) !important;
+  background: linear-gradient(135deg, #220018, #0a0008 55%, #150022) !important;
+  animation: chatAuraPulseTop1 1.1s ease-in-out infinite, chatAuraTop1Shake 6s ease-in-out infinite;
+  isolation: isolate;
+}
+.chat-aura-top1::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 0, 70, 0.95), transparent 45%),
+    radial-gradient(circle at 80% 75%, rgba(150, 0, 230, 0.8), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 0, 60, 0.5), transparent 60%);
+  animation: chatAuraLightningTop1 3.2s steps(1, end) infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+.chat-aura-top1::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255, 0, 40, 0.5);
+  mix-blend-mode: screen;
+  animation: chatAuraTop1Scream 6s steps(1, end) infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-aura-top10,
+  .chat-aura-top1 {
+    animation: none;
+  }
+  .chat-aura-top10::after,
+  .chat-aura-top1::after {
+    animation: none;
+    opacity: 0.6;
+  }
+  .chat-aura-top1::before {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.chat-bubble-rank {
+  margin-left: 5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #001512;
+  background: linear-gradient(135deg, #2cf3d9, #0aa392);
+  box-shadow: 0 0 6px rgba(40, 240, 210, 0.7);
+}
+
+.chat-bubble-rank--top1 {
+  color: #fff;
+  background: linear-gradient(135deg, #ff1a5e, #6a00c8);
+  box-shadow: 0 0 8px rgba(255, 20, 90, 0.85);
+}
+
+.chat-bubble-rank-title {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ffd9e4;
+  background: rgba(120, 0, 30, 0.55);
+  border: 1px solid rgba(255, 60, 100, 0.6);
+}
+
+.chat-ticker-rank {
+  margin-left: 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #2cf3d9;
+}
+
+.chat-ticker-rank--top1 {
+  color: #ff5c9a;
+}
+
+.chat-ticker-rank-title {
+  margin-left: 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #ff9db8;
+}
 .boss-map-screen {
   position: fixed; inset: 0; z-index: 25; height: 100dvh;
   display: flex; flex-direction: column; isolation: isolate;

@@ -837,10 +837,21 @@ grant execute on function public.boss_ranking_mine(text)         to anon, authen
 -- 팀별로 각각 한 자리씩 가질 수 있고(device_id+team 복합키), 닉네임도 "전역 유일"이
 -- 아니라 "같은 팀 안에서만 유일"하다 — 같은 사람이 양쪽 팀에 같은 닉네임을 써도 된다.
 
+-- 닉네임 길이 한도 — 글자마다 "무게"를 매겨서 영어는 10자, 한글은 8자가 똑같이
+-- 한도(10)에 걸리게 맞춘다(한글 1자의 무게 = 10/8 = 1.25). lib/enhanceRanking.ts의
+-- nicknameWeight와 같은 식 — 둘을 같이 고쳐야 한다.
+create or replace function public.nickname_weight(p_nickname text)
+returns numeric language sql immutable as $$
+  select char_length(regexp_replace(coalesce(p_nickname, ''), '[가-힣]', '', 'g'))::numeric
+       + char_length(regexp_replace(coalesce(p_nickname, ''), '[^가-힣]', '', 'g'))::numeric * 1.25
+$$;
+
 create table if not exists public.enhance_players (
   device_id  uuid        not null,
   team       text        not null default 'ku' check (team in ('ku', 'yu')),
-  nickname   text        not null check (char_length(trim(nickname)) between 1 and 14),
+  nickname   text        not null check (
+    char_length(trim(nickname)) >= 1 and public.nickname_weight(trim(nickname)) <= 10
+  ),
   level      int         not null default 0 check (level between 0 and 30),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -859,7 +870,8 @@ create unique index if not exists enhance_players_team_nickname_lower_idx
 drop function if exists public.enhance_nickname_check(text);
 create or replace function public.enhance_nickname_check(p_nickname text, p_team text default 'ku')
 returns boolean language sql stable security definer set search_path = public as $$
-  select coalesce(char_length(trim(p_nickname)), 0) between 1 and 14
+  select coalesce(char_length(trim(p_nickname)), 0) >= 1
+     and public.nickname_weight(trim(p_nickname)) <= 10
      and not exists (
        select 1 from public.enhance_players
        where team = coalesce(p_team, 'ku') and lower(nickname) = lower(trim(p_nickname))
@@ -901,7 +913,7 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'other_team_registered');
   end if;
 
-  if char_length(v_nickname) < 1 or char_length(v_nickname) > 14 then
+  if char_length(v_nickname) < 1 or public.nickname_weight(v_nickname) > 10 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
   if exists (select 1 from public.enhance_players where team = v_team and lower(nickname) = lower(v_nickname)) then
@@ -1052,7 +1064,7 @@ create table if not exists public.ranking_chat_messages (
   id            bigint generated always as identity primary key,
   device_id     uuid        not null,
   nickname      text        not null,
-  text          text        not null check (char_length(trim(text)) between 1 and 120),
+  text          text        not null check (char_length(trim(text)) between 1 and 49),
   enhance_team  text        not null default 'ku' check (enhance_team in ('ku', 'yu')),
   enhance_level int         not null default 0 check (enhance_level between 0 and 30),
   created_at    timestamptz not null default now()
@@ -1088,7 +1100,7 @@ begin
   ) >= 3 then
     return jsonb_build_object('ok', false, 'reason', 'rate_limited');
   end if;
-  if char_length(v_text) < 1 or char_length(v_text) > 120 then
+  if char_length(v_text) < 1 or char_length(v_text) > 49 then
     return jsonb_build_object('ok', false, 'reason', 'invalid');
   end if;
 
