@@ -182,33 +182,6 @@ export default function GameScreen({
       return false;
     }
   });
-  const openEverytimePromo = useCallback(() => {
-    if (everytimePromoClaimed) {
-      window.alert(EVERYTIME_PROMO_ALREADY_MESSAGE);
-      return;
-    }
-    const input = window.prompt(
-      `${EVERYTIME_PROMO_MESSAGE}\n받으실 닉네임을 입력해주세요(강화에 등록한 닉네임).`,
-      myEnhanceNickname ?? ""
-    );
-    const trimmed = (input ?? "").trim();
-    if (!trimmed) return; // 취소했거나 빈 값이면 아무 것도 하지 않는다(재화 지급·참여 기록 둘 다 없음)
-
-    try {
-      window.localStorage.setItem(EVERYTIME_PROMO_CLAIMED_KEY, "1");
-    } catch {
-      /* 저장 실패해도 이번 참여 자체는 그대로 진행 */
-    }
-    setEverytimePromoClaimed(true);
-    window.open(EVERYTIME_PROMO_URL, "_blank", "noopener,noreferrer");
-
-    setPersonalEarned((p) => {
-      const next = p + EVERYTIME_PROMO_REWARD;
-      window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
-      return next;
-    });
-    setNotice(`${trimmed}님, 에브리타임 이벤트로 ${theme.personalCurrency} ${formatNumber(EVERYTIME_PROMO_REWARD)} 지급!`);
-  }, [everytimePromoClaimed, myEnhanceNickname, team, theme.personalCurrency]);
   const [revealCard, setRevealCard] = useState<CardInfo | null>(null);
   const [cutsceneOpen, setCutsceneOpen] = useState(false);
   const [feverPopKey, setFeverPopKey] = useState(0);
@@ -990,6 +963,34 @@ export default function GameScreen({
   const myEnhanceNickname =
     typeof window !== "undefined" ? window.localStorage.getItem(`${ENHANCE_NICKNAME_CACHE_KEY}.${team}`) : null;
   const latestChatMessage = chatMessages.length > 0 ? chatMessages[chatMessages.length - 1] : null;
+
+  const openEverytimePromo = useCallback(() => {
+    if (everytimePromoClaimed) {
+      window.alert(EVERYTIME_PROMO_ALREADY_MESSAGE);
+      return;
+    }
+    const input = window.prompt(
+      `${EVERYTIME_PROMO_MESSAGE}\n받으실 닉네임을 입력해주세요(강화에 등록한 닉네임).`,
+      myEnhanceNickname ?? ""
+    );
+    const trimmed = (input ?? "").trim();
+    if (!trimmed) return; // 취소했거나 빈 값이면 아무 것도 하지 않는다(재화 지급·참여 기록 둘 다 없음)
+
+    try {
+      window.localStorage.setItem(EVERYTIME_PROMO_CLAIMED_KEY, "1");
+    } catch {
+      /* 저장 실패해도 이번 참여 자체는 그대로 진행 */
+    }
+    setEverytimePromoClaimed(true);
+    window.open(EVERYTIME_PROMO_URL, "_blank", "noopener,noreferrer");
+
+    setPersonalEarned((p) => {
+      const next = p + EVERYTIME_PROMO_REWARD;
+      window.localStorage.setItem(`${PERSONAL_EARNED_KEY}.${team}`, String(next));
+      return next;
+    });
+    setNotice(`${trimmed}님, 에브리타임 이벤트로 ${theme.personalCurrency} ${formatNumber(EVERYTIME_PROMO_REWARD)} 지급!`);
+  }, [everytimePromoClaimed, myEnhanceNickname, team, theme.personalCurrency]);
 
   return (
     <div className={`game ${feverActive && !bossActive ? "is-fever" : ""}`} style={gameBgStyle}>
